@@ -37,11 +37,31 @@ struct ContentView: View {
             header
             transportControls
             timeRow
+            chipsBar
             if let error = player.lastError {
                 Text(error)
                     .font(.caption)
                     .foregroundStyle(.red)
             }
+        }
+    }
+
+    private var chipsBar: some View {
+        HStack(spacing: 10) {
+            TempoChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
+            KeyChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
+
+            Spacer()
+
+            Toggle(isOn: $transport.keyLock) {
+                Label("Key-Lock", systemImage: transport.keyLock ? "lock.fill" : "lock.open")
+                    .labelStyle(.iconOnly)
+            }
+            .toggleStyle(.button)
+            .controlSize(.small)
+            .help(transport.keyLock
+                ? "Key-Lock aktiv: Tempo ändert Tonhöhe nicht"
+                : "Key-Lock aus: Tempo zieht die Tonhöhe mit")
         }
     }
 

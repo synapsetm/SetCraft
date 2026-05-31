@@ -61,6 +61,10 @@ final class TransportViewModel {
         return player?.player.rate
     }
 
+    var originalBPM: Double? { player?.originalBPM }
+    var originalKey: CamelotKey? { player?.originalKey }
+    var hasLoadedTrack: Bool { player?.player.loadedURL != nil }
+
     // MARK: - Apply
 
     /// Wendet die aktuell hinterlegten Master-Werte auf den aktuell geladenen
