@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setify — UI-Entwurf (kompakte Chip-Variante)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+  :root{
+    --bg:#16161a; --panel:#1e1e24; --panel2:#1c1c22; --line:rgba(255,255,255,0.07);
+    --text:#ECECF0; --muted:#9A9AA6; --dim:#6C6C78; --accent:#FF8A3D; --key:#5DCAA5; --star:#F5B544;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#0c0c0f;font-family:var(--sans);color:var(--text);padding:24px;display:flex;justify-content:center}
+  .app{width:100%;max-width:880px;background:var(--bg);border:1px solid rgba(255,255,255,0.08);border-radius:14px;overflow:hidden}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spin{display:inline-block;animation:spin 1s linear infinite}
+  .edit{border-radius:4px;padding:2px 5px;outline:none;cursor:text}
+  .edit:hover{background:rgba(255,255,255,0.06)}
+  .edit:focus{background:rgba(255,138,61,0.14);box-shadow:0 0 0 1px rgba(255,138,61,0.5)}
+  .trow:hover{background:rgba(255,255,255,0.035)}
+  .star{cursor:pointer;font-size:14px;transition:color .08s}
+  .tbtn{width:30px;height:30px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:#26262e;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px}
+  .tbtn:hover{background:#32323c}.tbtn.play{background:var(--accent);color:#1a1a1e;border-color:var(--accent)}
+  .ml{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
+  .fld{background:#2a2a33;color:var(--text);border:1px solid rgba(255,255,255,0.14);border-radius:6px;font:500 14px var(--mono);text-align:center}
+  .fld:focus{outline:none;box-shadow:0 0 0 2px rgba(255,138,61,0.55)}
+  .chip{display:inline-flex;align-items:center;gap:8px;background:#202028;border:1px solid rgba(255,255,255,0.1);border-radius:9px;padding:7px 11px;cursor:pointer;user-select:none}
+  .chip:hover{background:#26262e;border-color:rgba(255,255,255,0.18)}
+  .gpill{font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:var(--key);background:#173a34;border-radius:4px;padding:2px 5px}
+  .pop{position:absolute;top:calc(100% + 6px);left:0;z-index:30;background:#232329;border:1px solid rgba(255,255,255,0.16);border-radius:10px;padding:12px;width:212px;display:none}
+  .pop.show{display:block}
+  .sw{display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+  .swt{width:34px;height:20px;border-radius:10px;background:#3a3a44;position:relative;transition:background .15s;flex:none}
+  .swt.on{background:#1D9E75}
+  .knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+  .swt.on .knob{left:16px}
+  .stepbtn{width:24px;height:24px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#2a2a33;color:var(--text);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+  .stepbtn:hover{background:#36363f}
+  .kbadge{background:#173a34;color:var(--key);font:500 14px var(--mono);padding:4px 9px;border-radius:6px;display:inline-block}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px}
+  th{color:var(--dim);text-align:left;font-weight:500;padding:6px 6px}
+  .note{max-width:880px;margin:14px auto 0;color:var(--muted);font-size:12px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Kopfzeile -->
+  <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)">
+    <div style="width:36px;height:36px;border-radius:6px;background:#2f2f3a;display:flex;align-items:center;justify-content:center;color:#8a8a96;font-size:18px;flex:none"><i class="ti ti-music"></i></div>
+    <div style="min-width:0;flex:1">
+      <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Subsonic Drift</div>
+      <div style="font-size:12px;color:var(--muted)">Halcyon</div>
+    </div>
+    <div style="display:flex;gap:7px;flex:none">
+      <div class="tbtn" title="Cue"><i class="ti ti-flag-3"></i></div>
+      <div class="tbtn play" title="Pause"><i class="ti ti-player-pause"></i></div>
+    </div>
+    <span style="font:500 13px var(--mono);color:var(--muted);flex:none">1:47 / 5:12</span>
+  </div>
+
+  <!-- Waveform -->
+  <div style="padding:12px 16px 8px">
+    <canvas id="wf" style="width:100%;height:96px;display:block;border-radius:8px;background:#0e0e12"></canvas>
+  </div>
+
+  <!-- Kompakte Chips -->
+  <div style="padding:8px 16px;display:flex;align-items:center;gap:10px;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid var(--line)">
+    <div style="position:relative">
+      <div class="chip" id="tchip">
+        <span class="ml">tempo</span>
+        <span style="font:500 15px var(--mono)" id="tval">174.0</span>
+        <span style="font-size:10px;color:var(--dim)">bpm</span>
+        <span class="gpill" id="tglob">global</span>
+        <i class="ti ti-chevron-down" style="font-size:14px;color:var(--muted)"></i>
+      </div>
+      <div class="pop" id="tpop">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span class="ml">tempo</span>
+          <div class="sw" id="tg"><span style="font-size:11px;color:var(--muted)">global</span><span class="swt on"><span class="knob"></span></span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <input id="master" class="fld" type="number" step="0.1" value="174.0" style="width:78px;padding:6px 4px">
+          <span style="font-size:11px;color:var(--dim)">bpm</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input id="tempo" type="range" min="-8" max="8" step="0.05" value="1.16" style="flex:1;accent-color:var(--accent)">
+          <span id="pct" style="font:500 12px var(--mono);width:52px;text-align:right">+1.16%</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="position:relative">
+      <div class="chip" id="kchip">
+        <span class="ml">key</span>
+        <span style="font:500 15px var(--mono);color:var(--key)" id="kval">8A</span>
+        <span class="gpill" id="kglob">global</span>
+        <i class="ti ti-chevron-down" style="font-size:14px;color:var(--muted)"></i>
+      </div>
+      <div class="pop" id="kpop">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span class="ml">key</span>
+          <div class="sw" id="kg"><span style="font-size:11px;color:var(--muted)">global</span><span class="swt on"><span class="knob"></span></span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <select id="masterkey" class="fld" style="padding:6px 4px;width:72px"></select>
+          <span style="font-size:11px;color:var(--dim)">camelot</span>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:8px;background:#202028;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:3px 8px">
+          <div class="stepbtn" id="kminus" title="Halbton runter"><i class="ti ti-minus"></i></div>
+          <span id="kshift" style="font:500 12px var(--mono);min-width:42px;text-align:center">0 st</span>
+          <div class="stepbtn" id="kplus" title="Halbton rauf"><i class="ti ti-plus"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:6px;margin-left:auto"><i class="ti ti-lock" style="font-size:13px;color:var(--key)"></i><span style="font-size:11px;color:var(--muted)">key lock</span></div>
+  </div>
+
+  <!-- Bibliothek -->
+  <div style="padding:6px 8px 10px">
+    <table>
+      <colgroup><col style="width:26px"><col><col style="width:104px"><col style="width:50px"><col style="width:38px"><col style="width:86px"><col style="width:84px"><col style="width:44px"></colgroup>
+      <thead><tr>
+        <th></th><th>title</th><th>artist</th><th style="text-align:right">bpm</th>
+        <th>key</th><th>rating</th><th>genre</th><th style="text-align:right">time</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="note">
+  <strong>UI-Referenz</strong> — letzter Stand (kompakte Chip-Variante). Klick auf Tempo-/Key-Chip öffnet den Editor mit „global"-Schalter.
+  Sterne sind klickbar; Titel/Artist/BPM/Genre sind inline editierbar. Track „Null State" zeigt den BPM-Analyse-Zustand.
+  Dies ist nur ein statischer Entwurf zur Orientierung für die native SwiftUI-Umsetzung.
+</div>
+
+<script>
+(function(){
+  var rows=[
+    {play:true,t:"Subsonic Drift",a:"Halcyon",b:"172.0",k:"8A",r:4,g:"Neurofunk",tm:"5:12"},
+    {t:"Paradox Theory",a:"Vellum",b:"172.0",k:"4A",r:5,g:"Liquid",tm:"6:03"},
+    {t:"Null State",a:"Kr8on",b:"analyze",k:"11A",r:3,g:"Neurofunk",tm:"4:48"},
+    {t:"Glass Horizon",a:"Mira Tang",b:"140.0",k:"9A",r:2,g:"Halftime",tm:"5:30"},
+    {t:"Deep Field",a:"Onno",b:"174.0",k:"6A",r:4,g:"Jungle",tm:"4:20"},
+    {t:"Tessellate",a:"Bauhound",b:"86.0",k:"2A",r:5,g:"Breakbeat",tm:"3:58"},
+    {t:"Ember Logic",a:"Sael",b:"170.0",k:"7A",r:3,g:"Liquid",tm:"5:44"},
+    {t:"Carbon Bloom",a:"Ysolde",b:"174.0",k:"1A",r:4,g:"Neurofunk",tm:"6:21"}
+  ];
+  function starsHtml(n){var s='<span class="stars" data-rating="'+n+'">';for(var i=1;i<=5;i++){s+='<i class="ti ti-star star" data-v="'+i+'" style="color:'+(i<=n?'var(--star)':'#4a4a54')+'"></i>';}return s+'</span>';}
+  function ed(t){return '<span class="edit" contenteditable="true">'+t+'</span>';}
+  var html='';
+  rows.forEach(function(row,idx){
+    var bg=row.play?'background:rgba(255,138,61,0.10);':'';
+    var pcell=row.play?'<i class="ti ti-player-play" style="color:var(--accent);font-size:13px"></i>':'<span style="color:#5a5a64">'+(idx+1)+'</span>';
+    var bcell=row.b==='analyze'?'<span style="color:var(--muted);font-style:italic"><i class="ti ti-loader-2 spin" style="font-size:12px;vertical-align:-1px"></i> analysiert</span>':'<span class="edit" contenteditable="true" style="font-family:var(--mono)">'+row.b+'</span>';
+    html+='<tr class="trow" style="'+bg+'border-top:1px solid rgba(255,255,255,0.05)">'
+      +'<td style="padding:7px 6px;text-align:center">'+pcell+'</td>'
+      +'<td style="padding:7px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#39394a;margin-right:7px"></span>'+ed(row.t)+'</td>'
+      +'<td style="padding:7px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#c2c2cc">'+ed(row.a)+'</td>'
+      +'<td style="padding:7px 6px;text-align:right">'+bcell+'</td>'
+      +'<td style="padding:7px 6px;color:var(--key);font-family:var(--mono)">'+row.k+'</td>'
+      +'<td style="padding:7px 2px">'+starsHtml(row.r)+'</td>'
+      +'<td style="padding:7px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#c2c2cc">'+ed(row.g)+'</td>'
+      +'<td style="padding:7px 6px;text-align:right;color:var(--muted);font-family:var(--mono)">'+row.tm+'</td></tr>';
+  });
+  document.getElementById('rows').innerHTML=html;
+  document.querySelector('table').addEventListener('click',function(e){var st=e.target.closest('.star');if(!st)return;var box=st.closest('.stars');var v=+st.getAttribute('data-v');box.setAttribute('data-rating',v);box.querySelectorAll('.star').forEach(function(s){s.style.color=(+s.getAttribute('data-v')<=v)?'var(--star)':'#4a4a54';});});
+
+  var orig=172.0,tempo=document.getElementById('tempo'),pct=document.getElementById('pct'),tval=document.getElementById('tval'),master=document.getElementById('master');
+  function fromTempo(){var v=parseFloat(tempo.value);var cur=orig*(1+v/100);pct.textContent=(v>=0?'+':'')+v.toFixed(2)+'%';tval.textContent=cur.toFixed(1);master.value=cur.toFixed(1);}
+  function fromMaster(){var t=parseFloat(master.value);if(isNaN(t))return;var v=Math.max(-8,Math.min(8,(t/orig-1)*100));tempo.value=v;fromTempo();master.value=t.toFixed(1);}
+  tempo.addEventListener('input',fromTempo);master.addEventListener('change',fromMaster);
+
+  var PC={"1A":8,"2A":3,"3A":10,"4A":5,"5A":0,"6A":7,"7A":2,"8A":9,"9A":4,"10A":11,"11A":6,"12A":1,"1B":11,"2B":6,"3B":1,"4B":8,"5B":3,"6B":10,"7B":5,"8B":0,"9B":7,"10B":2,"11B":9,"12B":4};
+  var PCtoA={8:"1A",3:"2A",10:"3A",5:"4A",0:"5A",7:"6A",2:"7A",9:"8A",4:"9A",11:"10A",6:"11A",1:"12A"};
+  var origKey="8A",origPc=PC[origKey],shift=0;
+  var mk=document.getElementById('masterkey'),kval=document.getElementById('kval'),kshift=document.getElementById('kshift');
+  var order=[];for(var i=1;i<=12;i++)order.push(i+"A");for(i=1;i<=12;i++)order.push(i+"B");
+  order.forEach(function(c){var o=document.createElement('option');o.value=c;o.textContent=c;if(c===origKey)o.selected=true;mk.appendChild(o);});
+  function norm(d){d=((d%12)+12)%12;if(d>6)d-=12;return d;}
+  function krender(){kshift.textContent=(shift>0?'+':'')+shift+' st';}
+  mk.addEventListener('change',function(){var code=mk.value;shift=norm(PC[code]-origPc);kval.textContent=code;krender();});
+  function nudge(d){shift=Math.max(-7,Math.min(7,shift+d));var pc=((origPc+shift)%12+12)%12;var code=PCtoA[pc];kval.textContent=code;mk.value=code;krender();}
+  document.getElementById('kplus').addEventListener('click',function(e){e.stopPropagation();nudge(1);});
+  document.getElementById('kminus').addEventListener('click',function(e){e.stopPropagation();nudge(-1);});
+  krender();
+
+  var tpop=document.getElementById('tpop'),kpop=document.getElementById('kpop');
+  function closeAll(){tpop.classList.remove('show');kpop.classList.remove('show');}
+  document.getElementById('tchip').addEventListener('click',function(e){e.stopPropagation();var open=tpop.classList.contains('show');closeAll();if(!open)tpop.classList.add('show');});
+  document.getElementById('kchip').addEventListener('click',function(e){e.stopPropagation();var open=kpop.classList.contains('show');closeAll();if(!open)kpop.classList.add('show');});
+  tpop.addEventListener('click',function(e){e.stopPropagation();});
+  kpop.addEventListener('click',function(e){e.stopPropagation();});
+  document.addEventListener('click',closeAll);
+
+  function wireGlobal(swId,pillId){var sw=document.getElementById(swId),pill=document.getElementById(pillId);sw.addEventListener('click',function(){var t=sw.querySelector('.swt');var on=!t.classList.contains('on');t.classList.toggle('on',on);pill.style.display=on?'inline-block':'none';});}
+  wireGlobal('tg','tglob');wireGlobal('kg','kglob');
+
+  var cv=document.getElementById('wf');
+  function draw(){var dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;var ctx=cv.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);var mid=H/2,half=H*0.46;
+    var stops=[[0,[60,200,90]],[0.16,[70,210,110]],[0.20,[235,120,40]],[0.27,[228,86,58]],[0.33,[38,200,150]],[0.45,[64,205,120]],[0.54,[80,140,235]],[0.72,[122,108,236]],[1,[150,120,240]]];
+    function col(p){for(var i=0;i<stops.length-1;i++){if(p>=stops[i][0]&&p<=stops[i+1][0]){var f=(p-stops[i][0])/(stops[i+1][0]-stops[i][0]),a=stops[i][1],b=stops[i+1][1];return[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f];}}return stops[8][1];}
+    function hash(x){var s=Math.sin(x*12.9898)*43758.5453;return s-Math.floor(s);}
+    for(var x=0;x<W;x++){var p=x/W,c=col(p),amp=0.5+0.42*hash(x*1.7)+0.12*Math.sin(x*0.7);if(p>0.20&&p<0.235)amp*=0.35;if(p>0.5&&p<0.53)amp*=0.4;if(p<0.04)amp*=0.5;amp=Math.max(0.07,Math.min(1,amp));
+      var r=Math.min(255,c[0]*(0.78+0.42*hash(x*3.1))),g=Math.min(255,c[1]*(0.78+0.42*hash(x*5.3))),bl=Math.min(255,c[2]*(0.78+0.42*hash(x*7.9))),h=amp*half;
+      ctx.strokeStyle='rgba('+(r|0)+','+(g|0)+','+(bl|0)+',0.92)';ctx.beginPath();ctx.moveTo(x+0.5,mid-h);ctx.lineTo(x+0.5,mid+h);ctx.stroke();}
+    var px=W*0.34;ctx.fillStyle='rgba(8,8,12,0.46)';ctx.fillRect(0,0,px,H);ctx.fillStyle='#FF8A3D';ctx.fillRect(px-1,0,2,H);
+    ctx.beginPath();ctx.moveTo(px-5,0);ctx.lineTo(px+5,0);ctx.lineTo(px,7);ctx.closePath();ctx.fill();
+    var cx=W*0.055;ctx.beginPath();ctx.moveTo(cx-5,H);ctx.lineTo(cx+5,H);ctx.lineTo(cx,H-8);ctx.closePath();ctx.fill();}
+  draw();window.addEventListener('resize',draw);
+})();
+</script>
+</body>
+</html>

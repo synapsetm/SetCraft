@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+xcuserdata/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.perspectivev3
+!default.perspectivev3
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Obj-C / C++ build artefacts
+*.o
+*.a
+*.dylib
+
+# Secrets / lokale Konfiguration
+.env
+*.local
+secrets/
+
+# Editor
+.vscode/
+.idea/
