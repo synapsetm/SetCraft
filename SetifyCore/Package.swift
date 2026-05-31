@@ -15,16 +15,26 @@ let package = Package(
             name: "TagLib",
             path: "Vendor/TagLib.xcframework"
         ),
+        .binaryTarget(
+            name: "Aubio",
+            path: "Vendor/aubio.xcframework"
+        ),
+        .binaryTarget(
+            name: "KeyFinder",
+            path: "Vendor/KeyFinder.xcframework"
+        ),
         .target(
             name: "SetifyCoreObjC",
-            dependencies: ["TagLib"],
+            dependencies: ["TagLib", "Aubio", "KeyFinder"],
             path: "Sources/SetifyCoreObjC",
             publicHeadersPath: "include",
             cxxSettings: [
                 .define("TAGLIB_STATIC")
             ],
             linkerSettings: [
-                .linkedLibrary("c++")
+                .linkedLibrary("c++"),
+                .linkedFramework("Accelerate"),
+                .linkedFramework("AudioToolbox")
             ]
         ),
         .target(

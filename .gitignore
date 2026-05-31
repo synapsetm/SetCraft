@@ -24,10 +24,14 @@ xcuserdata/
 *.a
 *.dylib
 
-# Vendor build intermediates (TagLib sources + CMake build dir)
-# Die gebaute SetifyCore/Vendor/TagLib.xcframework wird eingecheckt.
+# Vendor build intermediates (TagLib/aubio/KeyFinder sources + build dirs).
+# Die gebauten SetifyCore/Vendor/*.xcframework werden eingecheckt.
 Vendor/TagLib/build/
 Vendor/TagLib/src/
+Vendor/aubio/build/
+Vendor/aubio/src/
+Vendor/KeyFinder/build/
+Vendor/KeyFinder/src/
 
 # Secrets / lokale Konfiguration
 .env
