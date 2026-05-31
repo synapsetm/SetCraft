@@ -17,7 +17,7 @@ xcuserdata/
 # Swift Package Manager
 .build/
 .swiftpm/
-Package.resolved
+# Package.resolved wird bewusst eingecheckt (App-Repo, reproduzierbare Builds).
 
 # Obj-C / C++ build artefacts
 *.o
