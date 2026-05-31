@@ -52,6 +52,40 @@ struct LibraryView: View {
                     .lineLimit(1)
             }
 
+            Menu {
+                ForEach(BPMRangePreset.allCases) { preset in
+                    Button {
+                        library.bpmPreset = preset
+                    } label: {
+                        if library.bpmPreset == preset {
+                            Label(preset.displayName, systemImage: "checkmark")
+                        } else {
+                            Text(preset.displayName)
+                        }
+                    }
+                }
+            } label: {
+                Label("BPM: \(library.bpmPreset.displayName)", systemImage: "waveform")
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("BPM-Erwartungsbereich für die Oktav-Korrektur")
+
+            Button {
+                library.analyzeAllMissing()
+            } label: {
+                let missing = library.tracks.filter { $0.bpm == nil || $0.key == nil }.count
+                if library.pendingAnalysisCount > 0 {
+                    Label("Analysiere (\(library.pendingAnalysisCount))", systemImage: "wand.and.stars")
+                } else {
+                    Label(
+                        missing > 0 ? "Fehlende analysieren (\(missing))" : "Analysieren",
+                        systemImage: "wand.and.stars"
+                    )
+                }
+            }
+            .disabled(library.tracks.allSatisfy { $0.bpm != nil && $0.key != nil })
+
             Button {
                 library.saveAllNow()
             } label: {
@@ -88,19 +122,29 @@ struct LibraryView: View {
             }
 
             TableColumn("BPM") { track in
-                TextField("BPM", text: bpmBinding(for: track))
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
-                    .monospacedDigit()
+                HStack(spacing: 4) {
+                    TextField("BPM", text: bpmBinding(for: track))
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                        .monospacedDigit()
+                    if library.analysisState[track.id] == .scheduled && track.bpm == nil {
+                        ProgressView().controlSize(.mini)
+                    }
+                }
             }
-            .width(min: 50, ideal: 60, max: 80)
+            .width(min: 60, ideal: 75, max: 100)
 
             TableColumn("Key") { track in
-                Text(track.key?.description ?? "—")
-                    .foregroundStyle(track.key != nil ? Color.green : Color.secondary)
-                    .monospacedDigit()
+                HStack(spacing: 4) {
+                    Text(track.key?.description ?? "—")
+                        .foregroundStyle(track.key != nil ? Color.green : Color.secondary)
+                        .monospacedDigit()
+                    if library.analysisState[track.id] == .scheduled && track.key == nil {
+                        ProgressView().controlSize(.mini)
+                    }
+                }
             }
-            .width(min: 40, ideal: 50, max: 60)
+            .width(min: 50, ideal: 65, max: 80)
 
             TableColumn("Rating") { track in
                 StarRatingView(rating: track.rating) { newRating in

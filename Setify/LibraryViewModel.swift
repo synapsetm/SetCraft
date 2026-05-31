@@ -5,6 +5,13 @@ import SetifyCore
 
 @Observable
 final class LibraryViewModel {
+    enum AnalysisState: Sendable {
+        case idle
+        case scheduled
+        case done
+        case failed
+    }
+
     var tracks: [Track] = []
     var folderURL: URL?
     var isScanning = false
@@ -17,7 +24,18 @@ final class LibraryViewModel {
 
     var hasUnsavedChanges: Bool { !unsavedTrackIDs.isEmpty }
 
+    /// Welcher Track aktuell analysiert wird (oder bereits analysiert wurde).
+    var analysisState: [Track.ID: AnalysisState] = [:]
+
+    /// Wahl des erwarteten BPM-Bereichs für die Oktav-Korrektur.
+    var bpmPreset: BPMRangePreset = .universal
+
+    var pendingAnalysisCount: Int {
+        analysisState.values.lazy.filter { $0 == .scheduled }.count
+    }
+
     private let store = TagLibTrackStore()
+    private let analyzer = AnalysisCoordinator()
     private var scanTask: Task<Void, Never>?
     private var pendingSaves: [Track.ID: Task<Void, Never>] = [:]
 
@@ -99,6 +117,80 @@ final class LibraryViewModel {
     func setActiveTrack(_ url: URL?) {
         Task { [store] in
             await store.setActiveTrack(url)
+        }
+    }
+
+    // MARK: - Analyse
+
+    /// Startet eine Analyse für `track`, wenn BPM oder Key fehlen. Ein zweiter
+    /// Aufruf während laufender Analyse wird ignoriert.
+    func analyzeIfNeeded(_ track: Track) {
+        let needsBPM = track.bpm == nil
+        let needsKey = track.key == nil
+        guard needsBPM || needsKey else { return }
+        if analysisState[track.id] == .scheduled { return }
+
+        analysisState[track.id] = .scheduled
+        let preset = bpmPreset
+        let analyzer = analyzer
+        let store = store
+
+        Task { [weak self, track, needsBPM, needsKey, preset] in
+            do {
+                let result = try await analyzer.analyze(
+                    url: track.url,
+                    needsBPM: needsBPM,
+                    needsKey: needsKey,
+                    bpmRange: preset
+                )
+                await MainActor.run {
+                    guard let self else { return }
+                    guard let idx = self.tracks.firstIndex(where: { $0.id == track.id }) else {
+                        self.analysisState[track.id] = .done
+                        return
+                    }
+                    var updated = self.tracks[idx]
+                    if let bpm = result.bpm { updated.bpm = bpm }
+                    if let key = result.key { updated.key = key }
+                    self.tracks[idx] = updated
+                    self.analysisState[track.id] = .done
+                    self.persistAfterAnalysis(updated, store: store)
+                }
+            } catch {
+                await MainActor.run {
+                    self?.analysisState[track.id] = .failed
+                    self?.lastWriteError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    /// Startet die Analyse für alle Tracks mit fehlendem BPM oder Key.
+    func analyzeAllMissing() {
+        for track in tracks where track.bpm == nil || track.key == nil {
+            analyzeIfNeeded(track)
+        }
+    }
+
+    /// Analysisergebnisse landen direkt auf der Platte (ohne 600-ms-Debounce),
+    /// damit Auto-Werte beim nächsten Programmstart vorhanden sind. Ein
+    /// laufender User-Save zum selben Track wird abgebrochen, weil der
+    /// Analysetrack dieselbe Quelle der Wahrheit ist.
+    private func persistAfterAnalysis(_ track: Track, store: TagLibTrackStore) {
+        pendingSaves[track.id]?.cancel()
+        pendingSaves[track.id] = nil
+        Task { [weak self, track, store] in
+            do {
+                try await store.save(track)
+                await MainActor.run {
+                    self?.unsavedTrackIDs.remove(track.id)
+                    self?.lastWriteError = nil
+                }
+            } catch {
+                await MainActor.run {
+                    self?.lastWriteError = error.localizedDescription
+                }
+            }
         }
     }
 }

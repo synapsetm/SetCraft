@@ -14,6 +14,7 @@ struct ContentView: View {
             Divider()
             LibraryView(library: library) { track in
                 player.loadTrack(track)
+                library.analyzeIfNeeded(track)
             }
         }
         .frame(minWidth: 760, minHeight: 520)
