@@ -77,4 +77,69 @@ static NSString * _Nullable nonEmptyString(const TagLib::String &s) {
     return result;
 }
 
+// MARK: - Write
+
+static TagLib::String tagString(NSString *s) {
+    if (s.length == 0) {
+        return TagLib::String();
+    }
+    return TagLib::String([s UTF8String], TagLib::String::UTF8);
+}
+
+/// Setzt oder entfernt einen Eintrag in einer PropertyMap.
+/// Leerer String → Eintrag wird entfernt.
+static void setOrErase(TagLib::PropertyMap &props, const char *key, NSString *value) {
+    if (value.length == 0) {
+        props.erase(key);
+    } else {
+        props.replace(key, TagLib::StringList(tagString(value)));
+    }
+}
+
++ (BOOL)writeTagsAtPath:(NSString *)path
+                  title:(NSString *)title
+                 artist:(NSString *)artist
+                  album:(NSString *)album
+                  genre:(NSString *)genre
+                comment:(NSString *)comment
+                    bpm:(NSString *)bpm
+             initialKey:(NSString *)initialKey
+                  error:(NSError * _Nullable * _Nullable)error {
+
+    TagLib::FileRef fileRef([path fileSystemRepresentation], false);
+    if (fileRef.isNull() || !fileRef.tag()) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"SetifyTagBridge"
+                                         code:2
+                                     userInfo:@{NSLocalizedDescriptionKey: @"Datei nicht beschreibbar"}];
+        }
+        return NO;
+    }
+
+    TagLib::Tag *tag = fileRef.tag();
+    tag->setTitle(tagString(title));
+    tag->setArtist(tagString(artist));
+    tag->setAlbum(tagString(album));
+    tag->setGenre(tagString(genre));
+    tag->setComment(tagString(comment));
+
+    // BPM und Key über PropertyMap → wird je Format in das passende
+    // Frame/Atom übersetzt (TBPM/BPM/tmpo bzw. TKEY/INITIALKEY/Freeform).
+    TagLib::PropertyMap props = fileRef.file()->properties();
+    setOrErase(props, "BPM", bpm);
+    setOrErase(props, "INITIALKEY", initialKey);
+    fileRef.file()->setProperties(props);
+
+    if (!fileRef.save()) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"SetifyTagBridge"
+                                         code:3
+                                     userInfo:@{NSLocalizedDescriptionKey: @"TagLib konnte die Datei nicht speichern"}];
+        }
+        return NO;
+    }
+
+    return YES;
+}
+
 @end

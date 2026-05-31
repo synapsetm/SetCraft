@@ -2,21 +2,27 @@ import SwiftUI
 
 @main
 struct SetifyApp: App {
-    @State private var viewModel = PlayerViewModel()
+    @State private var player = PlayerViewModel()
+    @State private var library = LibraryViewModel()
 
     var body: some Scene {
         WindowGroup {
-            ContentView(viewModel: viewModel)
+            ContentView(player: player, library: library)
                 .onOpenURL { url in
-                    viewModel.load(url: url)
+                    player.load(url: url)
                 }
         }
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Audiodatei öffnen…") {
-                    viewModel.openFile()
+                    player.openFile()
                 }
                 .keyboardShortcut("o", modifiers: .command)
+
+                Button("Ordner wählen…") {
+                    library.chooseFolder()
+                }
+                .keyboardShortcut("o", modifiers: [.command, .shift])
             }
         }
     }

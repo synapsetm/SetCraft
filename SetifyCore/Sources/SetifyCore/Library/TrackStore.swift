@@ -1,9 +1,14 @@
 import Foundation
 
+/// Persistenter Speicher für Tracks. Implementierung in Phase 1: TagLib
+/// schreibt direkt in die Dateimetadaten (siehe `TagLibTrackStore`). Eine
+/// SQLite-Cache-Variante kommt erst in Phase 5.
 public protocol TrackStore: Sendable {
-    func loadLibrary(folder: URL) async throws -> [Track]
-    func updateRating(_ track: Track, stars: Int) async throws
-    func updateBPM(_ track: Track, bpm: Double) async throws
-    func updateKey(_ track: Track, key: CamelotKey) async throws
-    func updateText(_ track: Track, field: EditableField, value: String) async throws
+    /// Schreibt den vollständigen Track-Zustand atomar zurück in die Datei.
+    /// Schreibzugriffe auf denselben Store sind serialisiert.
+    func save(_ track: Track) async throws
+
+    /// Markiert eine Datei als „aktiv im Player". Schreibvorgänge auf diese
+    /// URL werden abgelehnt, bis sie wieder freigegeben wird.
+    func setActiveTrack(_ url: URL?) async
 }

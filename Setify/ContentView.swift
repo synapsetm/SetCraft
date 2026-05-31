@@ -3,34 +3,49 @@ import SetifyCore
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @Bindable var viewModel: PlayerViewModel
+    @Bindable var player: PlayerViewModel
+    @Bindable var library: LibraryViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
+        VStack(alignment: .leading, spacing: 0) {
+            playerPane
+                .padding(16)
             Divider()
+            LibraryView(library: library) { track in
+                player.load(url: track.url)
+            }
+        }
+        .frame(minWidth: 760, minHeight: 520)
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            player.load(url: url)
+            return true
+        }
+        .onChange(of: player.player.loadedURL, initial: true) { _, newURL in
+            // Track-Datei nicht beschreiben, solange AVAudioEngine sie hält.
+            library.setActiveTrack(newURL)
+        }
+    }
+
+    // MARK: - Player
+
+    private var playerPane: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            header
             transport
             timeRow
-            if let error = viewModel.lastError {
+            if let error = player.lastError {
                 Text(error)
                     .font(.caption)
                     .foregroundStyle(.red)
             }
-            Spacer()
-        }
-        .padding(24)
-        .frame(minWidth: 560, minHeight: 320)
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first else { return false }
-            viewModel.load(url: url)
-            return true
         }
     }
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(viewModel.player.loadedURL?.lastPathComponent ?? "Keine Datei geladen")
+                Text(player.player.loadedURL?.lastPathComponent ?? "Keine Datei geladen")
                     .font(.headline)
                 Text(subtitle)
                     .font(.caption)
@@ -39,39 +54,39 @@ struct ContentView: View {
                     .truncationMode(.middle)
             }
             Spacer()
-            Button("Datei öffnen…") { viewModel.openFile() }
+            Button("Datei öffnen…") { player.openFile() }
                 .keyboardShortcut("o", modifiers: .command)
         }
     }
 
     private var subtitle: String {
-        if let url = viewModel.player.loadedURL {
+        if let url = player.player.loadedURL {
             return url.deletingLastPathComponent().path
         }
-        return "Datei öffnen oder hier hineinziehen"
+        return "Datei öffnen, hineinziehen oder aus der Bibliothek laden"
     }
 
     private var transport: some View {
         HStack(spacing: 12) {
             Button {
-                viewModel.cue()
+                player.cue()
             } label: {
                 Label("Cue", systemImage: "smallcircle.filled.circle")
             }
-            .disabled(viewModel.player.loadedURL == nil)
+            .disabled(player.player.loadedURL == nil)
 
             Button {
-                viewModel.togglePlay()
+                player.togglePlay()
             } label: {
                 Label(
-                    viewModel.player.isPlaying ? "Pause" : "Play",
-                    systemImage: viewModel.player.isPlaying ? "pause.fill" : "play.fill"
+                    player.player.isPlaying ? "Pause" : "Play",
+                    systemImage: player.player.isPlaying ? "pause.fill" : "play.fill"
                 )
             }
-            .disabled(viewModel.player.loadedURL == nil)
+            .disabled(player.player.loadedURL == nil)
             .keyboardShortcut(.space, modifiers: [])
 
-            if let cue = viewModel.player.cuePoint {
+            if let cue = player.player.cuePoint {
                 Text("Cue: \(formatTime(cue))")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -83,16 +98,16 @@ struct ContentView: View {
         VStack(spacing: 4) {
             Slider(
                 value: Binding(
-                    get: { viewModel.player.position },
-                    set: { viewModel.seek(to: $0) }
+                    get: { player.player.position },
+                    set: { player.seek(to: $0) }
                 ),
-                in: 0...max(viewModel.player.duration, 0.01)
+                in: 0...max(player.player.duration, 0.01)
             )
-            .disabled(viewModel.player.loadedURL == nil)
+            .disabled(player.player.loadedURL == nil)
             HStack {
-                Text(formatTime(viewModel.player.position))
+                Text(formatTime(player.player.position))
                 Spacer()
-                Text(formatTime(viewModel.player.duration))
+                Text(formatTime(player.player.duration))
             }
             .font(.caption.monospacedDigit())
             .foregroundStyle(.secondary)
@@ -107,5 +122,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView(viewModel: PlayerViewModel())
+    ContentView(player: PlayerViewModel(), library: LibraryViewModel())
 }

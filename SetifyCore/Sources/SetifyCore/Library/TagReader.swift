@@ -15,29 +15,22 @@ import SetifyCoreObjC
 ///   Schreiben rekonstruiert werden kann.
 public enum TagReader {
 
-    public struct Result: Sendable {
-        public let track: Track
-        /// Bereinigter Kommentar ohne Sterne-Präfix.
-        public let cleanComment: String
-    }
-
-    public static func read(url: URL) throws -> Result {
+    public static func read(url: URL) throws -> Track {
         let raw = try SetifyTagBridge.readTags(atPath: url.path)
         let (ratingFromComment, cleanComment) = RatingPrefix.parse(raw.comment)
 
-        let track = Track(
+        return Track(
             url: url,
             title: raw.title ?? "",
             artist: raw.artist ?? "",
             album: raw.album ?? "",
             genre: raw.genre ?? "",
+            comment: cleanComment,
             durationSeconds: raw.durationSeconds,
             bpm: parseBPM(raw.bpm),
             key: raw.initialKey.flatMap(CamelotKey.init),
             rating: ratingFromComment
         )
-
-        return Result(track: track, cleanComment: cleanComment)
     }
 
     private static func parseBPM(_ raw: String?) -> Double? {

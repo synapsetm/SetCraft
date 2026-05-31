@@ -43,6 +43,21 @@ NS_ASSUME_NONNULL_BEGIN
 + (nullable SetifyRawTags *)readTagsAtPath:(NSString *)path
                                      error:(NSError * _Nullable * _Nullable)error;
 
+/// Schreibt den vollständigen gewünschten Tag-Zustand zurück in die Datei.
+/// Leere Strings entfernen das jeweilige Feld; der Aufrufer hat den Sterne-
+/// Präfix bereits in den Kommentar eingebaut.
+/// Diese Methode arbeitet **direkt** auf `path` — Atomarität (Temp +
+/// Rename) muss der Swift-Layer sicherstellen.
++ (BOOL)writeTagsAtPath:(NSString *)path
+                  title:(NSString *)title
+                 artist:(NSString *)artist
+                  album:(NSString *)album
+                  genre:(NSString *)genre
+                comment:(NSString *)comment
+                    bpm:(NSString *)bpm
+             initialKey:(NSString *)initialKey
+                  error:(NSError * _Nullable * _Nullable)error;
+
 @end
 
 NS_ASSUME_NONNULL_END
