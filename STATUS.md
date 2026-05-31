@@ -153,12 +153,60 @@ gesamte `TagLibTrackStore` ohne Schreibrechte ohnehin nicht testbar ist.
 
 ---
 
-## Phase 2 — geplant (SPEC §7)
+## Phase 2 — abgeschlossen
 
-Tempo- und Key-Steuerung:
+**Build:** `xcodebuild -project Setify.xcodeproj -scheme Setify -destination
+'platform=macOS' build` läuft sauber durch.
+**Tests:** `swift test` im `SetifyCore`-Paket, 29/29 grün
+(`RatingPrefixTests` + neue `CamelotKeyTests`).
 
-- `AVAudioUnitTimePitch` verdrahten (Rate + Cents).
-- Tempo-Chip und Key-Chip mit Popovern + „global"-Schaltern.
-- Master-BPM/-Key-Logik beim Öffnen eines Tracks anwenden.
-- Key-Lock, Kopplung der Regler. Master-Key zunächst Modus A
-  („force to master").
+### Entscheidungen aus dem Start von Phase 2
+
+- **Tempo-Slider:** ±8 % um 1.0 (CDJ-Standard). Engine selbst klemmt auf
+  0.5–2.0×.
+- **Master-Key, Modus A** (exakter Halbton-Shift): bei Mode-Mismatch
+  (Dur vs. Moll) bleibt der Track unangetastet. Der Key-Chip zeigt ein
+  orangenes Warndreieck, weil Pitch-Shifting Dur nie zu Moll macht.
+
+### Was steht
+
+- **`CamelotKey`** kennt `tonicChromatic` (Quintenzirkel-Formel),
+  `semitoneShift(to:)` (gleicher Mode, sonst `nil`), und
+  `nudged(bySemitones:)`. 13 Tests, davon ein Round-Trip-Test über alle
+  24 Schlüssel × [-12, +12].
+- **`PlayerViewModel.loadTrack(_:)`** merkt sich `originalBPM` und
+  `originalKey` aus den Track-Tags. `load(url:)` / `unload()` setzen
+  beide zurück.
+- **`TransportViewModel`** (`@Observable`) hält `masterBPM`, `masterKey`,
+  `keyLock`, die `isGlobal`-Flags und liefert `effectiveBPM`/
+  `effectiveKey` für die UI. `applyMasterToLoadedTrack()` wird aus
+  `ContentView.onChange(loadedURL)` getriggert und schreibt `rate` und
+  `pitchCents` auf den Player.
+- **Tempo-Chip + Popover:** zeigt effektive BPM und „global"-Marker.
+  Popover hat BPM-Feld, ±8 %-Slider mit Live-%-Anzeige, Reset (rate = 1).
+- **Key-Chip + Popover:** zeigt effektive Camelot-Tonart in Grün,
+  „global"-Marker und bei Mismatch ein orangenes Warnsymbol. Popover
+  enthält ein 12×2-Grid (Moll/Dur), Halbton-Nudge (−/+) und Reset auf
+  den Original-Key.
+- **Key-Lock-Toggle** (Schloss-Icon) rechts neben den Chips. Mappt auf
+  `AVAudioUnitTimePitch.rate` (entkoppelt von Pitch) und stützt sich auf
+  die Phase-0-Verdrahtung des Time-Pitch-Knotens.
+
+### Bewusst nicht in Phase 2
+
+- **Master-Key Modus B** („nur kompatibel angleichen", ±1–2 Halbtöne):
+  als spätere Option vorgemerkt.
+- **Persistenz** von Master-Werten über App-Starts hinweg (Defaults o. ä.).
+  Aktuell sind Master-Werte session-only.
+
+---
+
+## Phase 3 — geplant (SPEC §7)
+
+Automatische Analyse:
+
+- aubio-Binding über die Bridge (mit DnB-Oktavkorrektur).
+- libKeyFinder-Binding über die Bridge.
+- Beim Öffnen eines Tracks ohne BPM/Key automatisch analysieren, async
+  im Hintergrund, „analysiert"-Zustand in der Tabelle anzeigen.
+- Ergebnisse über den `TagLibTrackStore` in die Datei-Tags schreiben.
