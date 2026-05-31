@@ -87,16 +87,78 @@ gesamte `TagLibTrackStore` ohne Schreibrechte ohnehin nicht testbar ist.
 
 ---
 
-## Phase 1 — geplant (SPEC §7)
+## Phase 1 — abgeschlossen
 
-Sobald oben grünes Licht:
+**Build:** `xcodebuild -project Setify.xcodeproj -scheme Setify -destination
+'platform=macOS' build` läuft sauber durch.
+**Tests:** `swift test` im `SetifyCore`-Paket, 16/16 grün
+(`RatingPrefixTests`).
 
-1. Ordner-Scan (async, Hintergrund-Task), `Track`-Liste in der UI.
-2. TagLib-Bridge: Tags lesen → Tabelle füllen.
-3. Inline-Editing der Textspalten (Titel, Artist, Album, Genre) und
-   Sterne-Klick.
-4. `TagLibTrackStore`: atomar schreiben (Temp-Datei → Rename), Schreib-Queue,
-   Kommentar erhalten (nur das Sterne-Präfix ersetzen), Rating doppelt
-   (`POPM` **und** Kommentar-Präfix).
-5. Tags-only-Implementierung von `TrackStore` (SQLite-Cache kommt erst in
-   Phase 5).
+### Entscheidungen aus dem Start von Phase 1
+
+- **Sandbox** wurde sofort auf `readwrite` umgestellt, plus
+  `files.bookmarks.app-scope` (für persistente Library-Ordner in Phase 5).
+  Eigene `Setify/Setify.entitlements`-Datei als alleinige Quelle der Wahrheit;
+  `ENABLE_USER_SELECTED_FILES` aus den Build-Settings entfernt.
+- **TagLib** wird via `Vendor/TagLib/build-taglib.sh` reproduzierbar als
+  universelles macOS-`.xcframework` (arm64 + x86_64) gebaut und liegt in
+  `SetifyCore/Vendor/TagLib.xcframework`. CMake ist Build-Voraussetzung
+  (`brew install cmake`).
+- **Rating-Kommentar-Token-Format:** `★★★★☆ | <rest>` (menschenlesbar in
+  Serato und Rekordbox). Implementiert in `RatingPrefix.parse/format`, mit
+  16 Unit-Tests inkl. Round-Trip, Umlauten und Emoji.
+
+### Was steht
+
+- **`SetifyCore`** mit drei Targets in `Package.swift`:
+  - `TagLib` (binaryTarget, statisches `.xcframework`)
+  - `SetifyCoreObjC` (Objective-C++-Brücke `SetifyTagBridge`)
+  - `SetifyCore` (reines Swift) und `SetifyCoreTests`.
+- **Brücke**: `readTagsAtPath:` (Title/Artist/Album/Genre/Comment/Year/
+  Track + BPM/InitialKey via `PropertyMap` + Audio-Properties) und
+  `writeTagsAtPath:…:` (alle Felder, leerer String = entfernen).
+- **Swift-Layer**: `TagReader.read(url:) -> Track`, `RatingPrefix`,
+  `FolderScanner.scan(folder:) -> AsyncStream<Track>` (rekursiv, gängige
+  Audio-Endungen, übersprungene Pakete), `TagLibTrackStore` (Actor) mit
+  `save(_:)` (atomar via `itemReplacementDirectory` + `replaceItemAt`)
+  und `setActiveTrack(_:)` (lehnt Schreibvorgänge auf die im Player
+  geöffnete Datei ab).
+- **App-UI**: `ContentView` komponiert Player + Library; neue
+  `LibraryView` mit SwiftUI-`Table` (Titel, Artist, BPM, Key, Sterne,
+  Genre, Zeit), inline editierbare Textspalten + BPM, klickbare 5-Sterne
+  via `StarRatingView`, Doppelklick / Kontextmenü lädt den Track in den
+  Player. Editierte Felder werden per 600 ms Debounce an den
+  `TagLibTrackStore` weitergereicht. Fehler erscheinen in der Library-
+  Toolbar. Menübefehl ⌘⇧O öffnet den Ordner-Picker.
+- **Track-Modell** um `comment: String` (bereinigt) ergänzt, damit der
+  Nutzer-Kommentar beim erneuten Schreiben erhalten bleibt.
+
+### Bewusst nicht in Phase 1
+
+- **POPM-Schreiben** (ID3-spezifisch). Sterne stehen aktuell nur im
+  Kommentarfeld — das ist der für Serato + Rekordbox sichtbare Pfad.
+  POPM kommt als kleiner Folgeschritt, sobald sichergestellt ist, dass
+  der Kommentar-Pfad in der Praxis funktioniert.
+- Persistente Bibliotheks-Ordner (Security-Scoped Bookmarks) — die
+  Entitlement ist vorhanden, die Speicherung kommt mit dem SQLite-Cache
+  in Phase 5.
+- Crates/Playlists, Suche, History (siehe Phase 5).
+
+### Manuell zu prüfen vor Phase 2
+
+- Build läuft, App startet ohne Crash; ein Live-Test mit echtem Ordner
+  + Edit eines Tags ist noch offen.
+- Empfohlen: erst mit einer **Kopie** eines DJ-Ordners testen, bevor die
+  echten Library-Dateien bearbeitet werden.
+
+---
+
+## Phase 2 — geplant (SPEC §7)
+
+Tempo- und Key-Steuerung:
+
+- `AVAudioUnitTimePitch` verdrahten (Rate + Cents).
+- Tempo-Chip und Key-Chip mit Popovern + „global"-Schaltern.
+- Master-BPM/-Key-Logik beim Öffnen eines Tracks anwenden.
+- Key-Lock, Kopplung der Regler. Master-Key zunächst Modus A
+  („force to master").
