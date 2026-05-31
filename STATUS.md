@@ -201,12 +201,71 @@ gesamte `TagLibTrackStore` ohne Schreibrechte ohnehin nicht testbar ist.
 
 ---
 
-## Phase 3 — geplant (SPEC §7)
+## Phase 3 — abgeschlossen
 
-Automatische Analyse:
+**Build:** `xcodebuild -project Setify.xcodeproj -scheme Setify -destination
+'platform=macOS' build` läuft sauber durch.
+**Build-Dependencies:** Zusätzlich zu CMake/Xcode jetzt `python@3.11`
+(für aubio's waf). `brew install python@3.11`.
 
-- aubio-Binding über die Bridge (mit DnB-Oktavkorrektur).
-- libKeyFinder-Binding über die Bridge.
-- Beim Öffnen eines Tracks ohne BPM/Key automatisch analysieren, async
-  im Hintergrund, „analysiert"-Zustand in der Tabelle anzeigen.
-- Ergebnisse über den `TagLibTrackStore` in die Datei-Tags schreiben.
+### Entscheidungen aus dem Start von Phase 3
+
+- **BPM-Oktavkorrektur** als Preset wählbar (Universal/DnB/House/HipHop/
+  Disco). Default: Universal 75–185. Picker in der Library-Toolbar.
+- **Auto-Analyse-Trigger:** beim Laden eines Tracks aus der Library
+  **plus** Batch-Button („Fehlende analysieren") in der Library-Toolbar.
+- **Key-Confidence:** libKeyFinders Top-Schätzung wird immer übernommen.
+  DJ korrigiert manuell, falls nötig.
+
+### Was steht
+
+- **aubio 0.4.9** als universelle macOS-`.xcframework` über
+  `Vendor/aubio/build-aubio.sh`. Nutzt Apple Accelerate (vDSP) für FFT —
+  keine fftw-Abhängigkeit. Die aubio-Quellen kommen aus dem Tarball, das
+  gebundelte waf wird durch waf 2.1.6 ersetzt (aubio-waf 0.4.9 läuft
+  nicht auf Python ≥ 3.12).
+- **libKeyFinder 2.2.6** (Mixxx-Fork) als `.xcframework` über
+  `Vendor/KeyFinder/build-keyfinder.sh`. fftw3 3.3.10 wird mitgebaut,
+  die beiden statischen Archive werden via `libtool` zu einem
+  zusammengeführt.
+- **Bridge** (`SetifyAnalyzerBridge.mm`): nimmt mono Float32-PCM von
+  Swift entgegen und ruft aubio (Tempo-Tracking, win 1024 / hop 512)
+  bzw. libKeyFinder; key_t → Camelot-Notation.
+- **Swift-Layer** in `SetifyCore/Analysis/`: `PCMLoader` (AVAudioFile →
+  mono Float32-Data, in 16k-Frame-Blöcken), `BPMRangePreset` mit
+  `corrected(_:)`-Heuristik (Verdoppeln/Halbieren auf den Bereich),
+  `AubioBPMAnalyzer`, `KeyFinderAnalyzer`, `AnalysisCoordinator`
+  (dekodiert einmal, fragt beide Analyzer, serialisiert Anfragen).
+- **LibraryViewModel** erhält `analysisState`-Map, `bpmPreset`,
+  `analyzeIfNeeded(_:)`, `analyzeAllMissing()`. Ergebnisse landen
+  sofort (ohne 600-ms-Debounce) über den `TagLibTrackStore` in die
+  Datei.
+- **UI** (`LibraryView`-Toolbar): Preset-Menü, Batch-Button mit
+  Zähler offener Analysen, Mini-Spinner in BPM-/Key-Zellen, solange die
+  Analyse für die Zelle läuft.
+
+### Bewusst nicht in Phase 3
+
+- **POPM-Schreiben** — Rating bleibt vorerst nur im Kommentarfeld.
+- **fortgeschrittene Confidence-Logik** für Key-Erkennung.
+- **iOS-/x86_64-Audio-Decode-Fallback** (z. B. SFBAudioEngine für Ogg
+  Vorbis): wartet, bis ein Praxisfall auftaucht.
+
+### Manuell zu prüfen vor Phase 4
+
+- Ein Track ohne BPM/Key in die Library aufnehmen, doppelklicken: BPM-
+  und Key-Zelle sollten innerhalb weniger Sekunden befüllt sein und in
+  Serato/Rekordbox nach dem Reload erscheinen.
+- Batch-Button auf einem Test-Ordner mit ~10 Tracks: Spinner pro Zeile,
+  alle Werte werden geschrieben.
+
+---
+
+## Phase 4 — geplant (SPEC §7)
+
+RGB-Waveform:
+
+- vDSP 3-Band-Analyse (Bass < ~200 Hz, Mitte ~200 Hz–2 kHz, Höhen > ~2 kHz).
+- Erste Iteration via SwiftUI Canvas mit vorberechneten Daten, danach
+  Metal-Rendering.
+- Cue-Marker und Playhead, Klick = Seek.
