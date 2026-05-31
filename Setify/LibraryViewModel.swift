@@ -39,6 +39,12 @@ final class LibraryViewModel {
     private var scanTask: Task<Void, Never>?
     private var pendingSaves: [Track.ID: Task<Void, Never>] = [:]
 
+    /// Tracks, deren Schreibvorgang abgelehnt wurde, weil die Datei im Player
+    /// aktiv ist. Werden automatisch nachgeholt, sobald `setActiveTrack` auf
+    /// eine andere URL wechselt.
+    private var blockedByActivePlayer: Set<Track.ID> = []
+    private var previousActiveURL: URL?
+
     /// Debounce-Fenster für Inline-Edits: spätestens danach landet das letzte
     /// Setzen auf der Platte. Kürzere Eingaben kollabieren in einen Schreibvorgang.
     private let saveDebounce: Duration = .milliseconds(600)
@@ -107,7 +113,16 @@ final class LibraryViewModel {
         do {
             try await store.save(track)
             unsavedTrackIDs.remove(track.id)
+            blockedByActivePlayer.remove(track.id)
             lastWriteError = nil
+        } catch let error as TagLibTrackStore.StoreError {
+            if case .fileInUse = error {
+                // Track ist gerade im Player aktiv: roten Punkt stehen
+                // lassen, Schreiben wird beim Entladen automatisch nachgeholt.
+                blockedByActivePlayer.insert(track.id)
+            } else {
+                lastWriteError = error.localizedDescription
+            }
         } catch {
             lastWriteError = error.localizedDescription
         }
@@ -115,8 +130,32 @@ final class LibraryViewModel {
     }
 
     func setActiveTrack(_ url: URL?) {
-        Task { [store] in
+        let previous = previousActiveURL
+        previousActiveURL = url
+        Task { [weak self, store, previous, url] in
             await store.setActiveTrack(url)
+            await MainActor.run {
+                guard let self else { return }
+                if let previous, previous != url {
+                    self.flushBlockedSaves(previousActiveURL: previous)
+                }
+            }
+        }
+    }
+
+    /// Spielt zurückgestellte Schreibvorgänge ab, sobald der Player die Datei
+    /// freigibt. Jedes ID-Match führt zu einem neuen `performSave` mit der
+    /// aktuell im ViewModel hinterlegten Track-Version.
+    private func flushBlockedSaves(previousActiveURL: URL) {
+        let ids = blockedByActivePlayer.filter { id in
+            tracks.first(where: { $0.id == id })?.url == previousActiveURL
+        }
+        for id in ids {
+            guard let track = tracks.first(where: { $0.id == id }) else { continue }
+            blockedByActivePlayer.remove(id)
+            Task { [weak self, track] in
+                await self?.performSave(track)
+            }
         }
     }
 
@@ -173,24 +212,15 @@ final class LibraryViewModel {
     }
 
     /// Analysisergebnisse landen direkt auf der Platte (ohne 600-ms-Debounce),
-    /// damit Auto-Werte beim nächsten Programmstart vorhanden sind. Ein
-    /// laufender User-Save zum selben Track wird abgebrochen, weil der
-    /// Analysetrack dieselbe Quelle der Wahrheit ist.
+    /// damit Auto-Werte beim nächsten Programmstart vorhanden sind. Ist die
+    /// Datei gerade im Player aktiv, lehnt der Store ab — `performSave`
+    /// markiert sie dann für Nachschreiben beim nächsten Player-Wechsel.
     private func persistAfterAnalysis(_ track: Track, store: TagLibTrackStore) {
+        unsavedTrackIDs.insert(track.id)
         pendingSaves[track.id]?.cancel()
         pendingSaves[track.id] = nil
-        Task { [weak self, track, store] in
-            do {
-                try await store.save(track)
-                await MainActor.run {
-                    self?.unsavedTrackIDs.remove(track.id)
-                    self?.lastWriteError = nil
-                }
-            } catch {
-                await MainActor.run {
-                    self?.lastWriteError = error.localizedDescription
-                }
-            }
+        Task { [weak self, track] in
+            await self?.performSave(track)
         }
     }
 }
