@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @Bindable var player: PlayerViewModel
     @Bindable var library: LibraryViewModel
+    @Bindable var transport: TransportViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -12,7 +13,7 @@ struct ContentView: View {
                 .padding(16)
             Divider()
             LibraryView(library: library) { track in
-                player.load(url: track.url)
+                player.loadTrack(track)
             }
         }
         .frame(minWidth: 760, minHeight: 520)
@@ -24,6 +25,8 @@ struct ContentView: View {
         .onChange(of: player.player.loadedURL, initial: true) { _, newURL in
             // Track-Datei nicht beschreiben, solange AVAudioEngine sie hält.
             library.setActiveTrack(newURL)
+            // Master-Werte auf den neu geladenen Track anwenden.
+            transport.applyMasterToLoadedTrack()
         }
     }
 
@@ -32,7 +35,7 @@ struct ContentView: View {
     private var playerPane: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
-            transport
+            transportControls
             timeRow
             if let error = player.lastError {
                 Text(error)
@@ -66,7 +69,7 @@ struct ContentView: View {
         return "Datei öffnen, hineinziehen oder aus der Bibliothek laden"
     }
 
-    private var transport: some View {
+    private var transportControls: some View {
         HStack(spacing: 12) {
             Button {
                 player.cue()
@@ -130,5 +133,10 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView(player: PlayerViewModel(), library: LibraryViewModel())
+    let player = PlayerViewModel()
+    return ContentView(
+        player: player,
+        library: LibraryViewModel(),
+        transport: TransportViewModel(player: player)
+    )
 }

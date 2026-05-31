@@ -1,0 +1,180 @@
+import Foundation
+import Observation
+import SetifyCore
+
+/// Hält die Tempo-/Key-Steuerung über alle Tracks hinweg: Original- und
+/// effektive Werte des gerade geladenen Tracks plus die optionalen Master-
+/// Werte (BPM, Key), die auf jeden neu geladenen Track angewendet werden.
+///
+/// Modus für Master-Key: **A — exakter Halbton-Shift**, beschränkt auf
+/// gleichen Mode (Dur ↔ Moll). Bei Mode-Mismatch bleibt der Track auf
+/// seinem Original-Key; `keyMasterApplicable` wird `false`.
+@MainActor
+@Observable
+final class TransportViewModel {
+
+    /// Erlaubter Tempo-Bereich um 1.0 herum, ±8 % (CDJ-Standard).
+    static let tempoSpan: Double = 0.08
+
+    /// Maximum, das die Engine hart limitiert (AVAudioUnitTimePitch: 0.5–2.0).
+    static let engineRateMin: Double = 0.5
+    static let engineRateMax: Double = 2.0
+
+    private weak var player: PlayerViewModel?
+
+    init(player: PlayerViewModel) {
+        self.player = player
+    }
+
+    // MARK: - Master-State
+
+    var masterBPM: Double? = nil
+    var masterKey: CamelotKey? = nil
+    var isGlobalBPM: Bool = false
+    var isGlobalKey: Bool = false
+    var keyLock: Bool = true {
+        didSet { applyKeyLock() }
+    }
+
+    /// `true`, wenn ein Master-Key gesetzt, aber gerade nicht anwendbar ist
+    /// (z. B. Track ist Dur, Master ist Moll). Nur als UI-Hinweis.
+    private(set) var keyMasterApplicable: Bool = true
+
+    // MARK: - Effektiv geltende Werte (für UI-Anzeige)
+
+    var effectiveBPM: Double? {
+        guard let rate = currentRate, let original = player?.originalBPM else {
+            return nil
+        }
+        return original * rate
+    }
+
+    var effectiveKey: CamelotKey? {
+        guard let original = player?.originalKey else { return nil }
+        let cents = Int(player?.player.pitchCents ?? 0)
+        let semitones = Int((Double(cents) / 100.0).rounded())
+        return original.nudged(bySemitones: semitones)
+    }
+
+    var currentRate: Double? {
+        guard player?.player.loadedURL != nil else { return nil }
+        return player?.player.rate
+    }
+
+    // MARK: - Apply
+
+    /// Wendet die aktuell hinterlegten Master-Werte auf den aktuell geladenen
+    /// Track an. Wird aus `ContentView.onChange(loadedURL)` aufgerufen.
+    func applyMasterToLoadedTrack() {
+        guard let player else { return }
+        guard player.player.loadedURL != nil else {
+            keyMasterApplicable = true
+            return
+        }
+        applyKeyLock()
+        applyMasterBPM()
+        applyMasterKey()
+    }
+
+    private func applyMasterBPM() {
+        guard let player else { return }
+        guard isGlobalBPM, let target = masterBPM, let original = player.originalBPM, original > 0 else {
+            return
+        }
+        let rate = clampRate(target / original)
+        player.player.rate = rate
+    }
+
+    private func applyMasterKey() {
+        guard let player else {
+            keyMasterApplicable = true
+            return
+        }
+        guard isGlobalKey, let target = masterKey, let original = player.originalKey else {
+            keyMasterApplicable = true
+            return
+        }
+        if let semitones = original.semitoneShift(to: target) {
+            player.player.pitchCents = Double(semitones) * 100.0
+            keyMasterApplicable = true
+        } else {
+            // Mode-Mismatch: Track unangetastet lassen (Phase-2-Entscheidung).
+            keyMasterApplicable = false
+        }
+    }
+
+    private func applyKeyLock() {
+        player?.player.keyLock = keyLock
+    }
+
+    // MARK: - User-Eingaben am Tempo-Chip
+
+    /// Setzt das gewünschte BPM des aktuellen Tracks. Wenn `isGlobalBPM`, wird
+    /// der Wert zusätzlich zum neuen Master-BPM.
+    func setBPM(_ bpm: Double) {
+        guard let player, let original = player.originalBPM, original > 0 else { return }
+        let rate = clampRate(bpm / original)
+        player.player.rate = rate
+        if isGlobalBPM {
+            masterBPM = bpm
+        }
+    }
+
+    /// Setzt direkt eine Rate (für den ±8 %-Slider).
+    func setRate(_ rate: Double) {
+        guard let player else { return }
+        player.player.rate = clampRate(rate)
+        if isGlobalBPM, let original = player.originalBPM {
+            masterBPM = original * player.player.rate
+        }
+    }
+
+    func setIsGlobalBPM(_ enabled: Bool) {
+        isGlobalBPM = enabled
+        if enabled, let bpm = effectiveBPM {
+            masterBPM = bpm
+        } else if !enabled {
+            masterBPM = nil
+        }
+    }
+
+    // MARK: - User-Eingaben am Key-Chip
+
+    func setKey(_ key: CamelotKey) {
+        guard let player, let original = player.originalKey else { return }
+        if let semitones = original.semitoneShift(to: key) {
+            player.player.pitchCents = Double(semitones) * 100.0
+        }
+        if isGlobalKey {
+            masterKey = key
+            keyMasterApplicable = true
+        }
+    }
+
+    func nudgeSemitone(_ delta: Int) {
+        guard let player else { return }
+        player.player.pitchCents += Double(delta) * 100.0
+        if isGlobalKey, let original = player.originalKey {
+            let cents = Int(player.player.pitchCents)
+            let semitones = Int((Double(cents) / 100.0).rounded())
+            masterKey = original.nudged(bySemitones: semitones)
+        }
+    }
+
+    func setIsGlobalKey(_ enabled: Bool) {
+        isGlobalKey = enabled
+        if enabled, let key = effectiveKey {
+            masterKey = key
+            keyMasterApplicable = true
+        } else if !enabled {
+            masterKey = nil
+            keyMasterApplicable = true
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func clampRate(_ rate: Double) -> Double {
+        max(Self.engineRateMin, min(Self.engineRateMax, rate))
+    }
+}
