@@ -70,6 +70,16 @@ public final class AVAudioEnginePlayer: AudioEngine {
         scheduleFromSeekFrame()
     }
 
+    public func unload() {
+        stopPlayback()
+        audioFile = nil
+        loadedURL = nil
+        duration = 0
+        position = 0
+        seekFrame = 0
+        cuePoint = nil
+    }
+
     public func play() {
         guard audioFile != nil else { return }
         if !engine.isRunning {

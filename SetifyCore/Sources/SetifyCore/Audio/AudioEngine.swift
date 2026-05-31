@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 public protocol AudioEngine: AnyObject {
     func load(url: URL) throws
+    func unload()
     func play()
     func pause()
     func seek(to seconds: TimeInterval)

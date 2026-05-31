@@ -86,6 +86,14 @@ struct ContentView: View {
             .disabled(player.player.loadedURL == nil)
             .keyboardShortcut(.space, modifiers: [])
 
+            Button {
+                player.unload()
+            } label: {
+                Label("Entladen", systemImage: "eject.fill")
+            }
+            .disabled(player.player.loadedURL == nil)
+            .help("Track aus dem Player entfernen")
+
             if let cue = player.player.cuePoint {
                 Text("Cue: \(formatTime(cue))")
                     .font(.caption.monospacedDigit())

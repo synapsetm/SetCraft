@@ -34,6 +34,11 @@ final class PlayerViewModel {
         if player.isPlaying { player.pause() } else { player.play() }
     }
 
+    func unload() {
+        player.unload()
+        lastError = nil
+    }
+
     func cue() { player.cue() }
 
     func seek(to seconds: TimeInterval) {

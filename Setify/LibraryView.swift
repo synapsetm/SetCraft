@@ -51,11 +51,32 @@ struct LibraryView: View {
                     .foregroundStyle(.red)
                     .lineLimit(1)
             }
+
+            Button {
+                library.saveAllNow()
+            } label: {
+                Label(
+                    library.hasUnsavedChanges
+                        ? "Speichern (\(library.unsavedTrackIDs.count))"
+                        : "Speichern",
+                    systemImage: "square.and.arrow.down"
+                )
+            }
+            .disabled(!library.hasUnsavedChanges)
+            .keyboardShortcut("s", modifiers: .command)
         }
     }
 
     private var table: some View {
         Table(library.tracks, selection: $library.selectedTrackID) {
+            TableColumn("") { track in
+                Circle()
+                    .fill(library.unsavedTrackIDs.contains(track.id) ? Color.red : Color.clear)
+                    .frame(width: 8, height: 8)
+                    .help(library.unsavedTrackIDs.contains(track.id) ? "Ungespeicherte Änderungen" : "")
+            }
+            .width(14)
+
             TableColumn("Titel") { track in
                 TextField("Titel", text: binding(track, \.title))
                     .textFieldStyle(.plain)
