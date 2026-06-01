@@ -134,8 +134,6 @@ struct ContentView: View {
                     .truncationMode(.middle)
             }
             Spacer()
-            Button("Datei öffnen…") { player.openFile() }
-                .keyboardShortcut("o", modifiers: .command)
         }
     }
 
@@ -148,6 +146,14 @@ struct ContentView: View {
 
     private var transportControls: some View {
         HStack(spacing: 12) {
+            Button {
+                player.openFile()
+            } label: {
+                Label("Datei öffnen…", systemImage: "folder.badge.plus")
+            }
+            .keyboardShortcut("o", modifiers: .command)
+            .help("Audiodatei laden")
+
             Button {
                 player.cue()
             } label: {

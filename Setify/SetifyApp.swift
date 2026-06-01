@@ -26,6 +26,8 @@ enum AppearancePreference: String, CaseIterable, Identifiable {
 
 @main
 struct SetifyApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     @State private var player: PlayerViewModel
     @State private var library: LibraryViewModel
     @State private var transport: TransportViewModel
@@ -35,10 +37,13 @@ struct SetifyApp: App {
 
     init() {
         let p = PlayerViewModel()
+        let lib = LibraryViewModel()
         _player = State(initialValue: p)
-        _library = State(initialValue: LibraryViewModel())
+        _library = State(initialValue: lib)
         _transport = State(initialValue: TransportViewModel(player: p))
         _waveform = State(initialValue: WaveformViewModel())
+        AppDelegate.unsavedQuery = { [weak lib] in lib?.hasUnsavedChanges ?? false }
+        AppDelegate.saveAllNow  = { [weak lib] in lib?.saveAllNow() }
     }
 
     var body: some Scene {

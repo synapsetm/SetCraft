@@ -167,6 +167,12 @@ struct LibraryView: View {
             }
             .width(min: 80, ideal: 120)
 
+            TableColumn("Kommentar") { track in
+                TextField("Kommentar", text: binding(track, \.comment))
+                    .textFieldStyle(.plain)
+            }
+            .width(min: 100, ideal: 180)
+
             TableColumn("Zeit") { track in
                 Text(formatTime(track.durationSeconds))
                     .monospacedDigit()
