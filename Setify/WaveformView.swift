@@ -99,24 +99,30 @@ struct WaveformView: View {
             let amp = CGFloat(pow(maxRms, 0.6)) * (height * 0.45)
             let x = CGFloat(col) + 0.5
 
-            // sqrt() bringt mittlere Energien optisch nach oben — sonst sind
-            // nur die Peak-Momente farbig und der Rest sieht beinahe schwarz aus.
-            let r = sqrt(Double(bass))
-            let g = sqrt(Double(mid))
-            let b = sqrt(Double(high))
+            // Sättigung anheben: den "Weißanteil" (gemeinsame Helligkeit
+            // aller Bänder) zum Teil abziehen. So sticht der dominante Anteil
+            // klarer heraus, gleichverteilte Bänder bleiben neutral grau.
+            let minBand = Swift.min(Float(bass), Swift.min(Float(mid), Float(high)))
+            let satBoost: Float = 0.55
+            let sr = max(0, Float(bass) - satBoost * minBand)
+            let sg = max(0, Float(mid)  - satBoost * minBand)
+            let sb = max(0, Float(high) - satBoost * minBand)
 
-            // Dark-Mode: additive Farben auf Schwarz funktionieren direkt
-            //   (bass-heavy = rot, mid-heavy = grün, high-heavy = blau,
-            //    Mischungen = Orange/Magenta/Cyan).
-            // Light-Mode: dieselben Farben werden um Faktor 0.65 abgedunkelt,
-            //   damit sie sich vom weissen Hintergrund klar abheben (sonst
-            //   verschwinden helle Töne wie Cyan in Weiss).
-            let dimFactor = isDark ? 1.0 : 0.65
-            let baseColor = Color(
-                red: r * dimFactor,
-                green: g * dimFactor,
-                blue: b * dimFactor
-            )
+            // Helligkeit modus-abhängig:
+            //   Dark  → sqrt() hebt mittlere Energien an (sichtbar auf Schwarz).
+            //   Light → linear, dafür voller Sättigung; dunkle Farben heben
+            //           sich auf Weiß ab, helle Farben wären eh unsichtbar.
+            let cr: Double, cg: Double, cb: Double
+            if isDark {
+                cr = sqrt(Double(sr))
+                cg = sqrt(Double(sg))
+                cb = sqrt(Double(sb))
+            } else {
+                cr = Double(sr)
+                cg = Double(sg)
+                cb = Double(sb)
+            }
+            let baseColor = Color(red: cr, green: cg, blue: cb)
 
             let played = CGFloat(x) < progressX
             let color: Color = played

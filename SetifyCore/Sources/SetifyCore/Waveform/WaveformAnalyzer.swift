@@ -90,17 +90,22 @@ public enum WaveformAnalyzer {
                     }
                 }
 
-                // Band-Summen. DC-Bin (Index 0) bewusst überspringen.
+                // Band-Summen. DC-Bin (Index 0) bewusst überspringen. Wichtig:
+                // die Bänder haben SEHR unterschiedlich viele Bins (Bass ~4,
+                // Mitten ~42, Höhen ~465). Wir teilen deshalb durch die Bin-
+                // Anzahl, damit die Energien pro Band vergleichbar sind.
+                // Ohne das würden die Höhen visuell immer dominieren.
                 var bass: Float = 0
                 var mid: Float  = 0
                 var high: Float = 0
+                let bassCount = bassMaxBin
                 let midCount  = max(0, midMaxBin - bassMaxBin)
                 let highStart = midMaxBin + 1
                 let highCount = max(0, windowSize / 2 - highStart)
                 magnitudes.withUnsafeBufferPointer { magPtr in
                     let base = magPtr.baseAddress!
-                    if bassMaxBin >= 1 {
-                        vDSP_sve(base + 1, 1, &bass, vDSP_Length(bassMaxBin))
+                    if bassCount >= 1 {
+                        vDSP_sve(base + 1, 1, &bass, vDSP_Length(bassCount))
                     }
                     if midCount > 0 {
                         vDSP_sve(base + bassMaxBin + 1, 1, &mid, vDSP_Length(midCount))
@@ -109,8 +114,11 @@ public enum WaveformAnalyzer {
                         vDSP_sve(base + highStart, 1, &high, vDSP_Length(highCount))
                     }
                 }
+                let bassAvg = bassCount > 0 ? bass / Float(bassCount) : 0
+                let midAvg  = midCount  > 0 ? mid  / Float(midCount)  : 0
+                let highAvg = highCount > 0 ? high / Float(highCount) : 0
 
-                bins.append(WaveformBin(rms: rms, bass: bass, mid: mid, high: high))
+                bins.append(WaveformBin(rms: rms, bass: bassAvg, mid: midAvg, high: highAvg))
             }
         }
 
