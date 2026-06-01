@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Build aubio 0.4.9 as a static library for macOS (arm64 + x86_64) and package
-# it as an .xcframework. aubio nutzt vDSP (Apple Accelerate) für FFT — keine
-# fftw3-Abhängigkeit nötig.
+# Build aubio 0.4.9 as a static library for macOS (arm64 + x86_64),
+# iOS device (arm64) und iOS simulator (arm64 + x86_64) — als
+# universelle .xcframework.
 #
 # Output: SetifyCore/Vendor/aubio.xcframework
 #
 # Requires:
 #  - /opt/homebrew/bin/python3.11 (aubio's bundled waf ist nicht
-#    Python-3.12+-fest; siehe README.md neben diesem Skript).
-#  - Full Xcode (für xcodebuild -create-xcframework).
-#  - Internet beim ersten Lauf (Quelltarball).
+#    Python-3.12+-fest; siehe README.md).
+#  - Full Xcode (für xcodebuild -create-xcframework und iOS SDKs).
+#  - Internet beim ersten Lauf.
 
 set -euo pipefail
 
@@ -33,7 +33,6 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 WORK_DIR="$HERE/build"
 SRC_DIR="$HERE/src"
 SRC="$SRC_DIR/aubio-$AUBIO_VERSION"
-STAGE="$WORK_DIR/stage"
 XCF_OUT="$REPO_ROOT/SetifyCore/Vendor/aubio.xcframework"
 
 mkdir -p "$SRC_DIR"
@@ -47,8 +46,7 @@ if [ ! -d "$SRC" ]; then
   rm "$SRC_DIR/aubio.tar.bz2"
 fi
 
-# Aubio 0.4.9 bringt ein altes waf mit, das mit Python >=3.12 nicht läuft
-# (imp-Modul, 'rU'-Modus). Ersetze waflib durch waf 2.x.
+# Aubio 0.4.9 bringt ein altes waf mit, das mit Python >=3.12 nicht läuft.
 if [ ! -f "$SRC/.waf-replaced" ]; then
   echo "==> Replacing bundled waf with current upstream"
   curl -fsSL "https://waf.io/waf-2.1.6" -o "$SRC/waf"
@@ -62,43 +60,62 @@ fi
 mkdir -p "$WORK_DIR/pyalias"
 ln -sf "$PYTHON" "$WORK_DIR/pyalias/python"
 
-# --- Configure & build --------------------------------------------------------
+# --- Build one variant --------------------------------------------------------
 
-cd "$SRC"
-"$PYTHON" waf distclean > /dev/null 2>&1 || true
+build_aubio_variant() {
+  local name="$1"
+  local cflags="$2"
+  local ldflags="$3"
+  local prefix="$WORK_DIR/install-$name"
+  local stage="$WORK_DIR/stage-$name"
 
-echo "==> Configuring aubio (arm64 + x86_64, vDSP FFT)"
-CFLAGS="-arch arm64 -arch x86_64 -mmacosx-version-min=12.0" \
-LDFLAGS="-arch arm64 -arch x86_64 -mmacosx-version-min=12.0" \
-"$PYTHON" waf configure --prefix="/tmp/aubio-stage-prefix" \
-  --disable-sndfile --disable-avcodec --disable-samplerate \
-  --disable-jack --disable-docs --disable-tests --disable-examples \
-  > /dev/null
+  echo "==> Configuring aubio ($name)" >&2
+  cd "$SRC"
+  "$PYTHON" waf distclean > /dev/null 2>&1 || true
+  CFLAGS="$cflags" LDFLAGS="$ldflags" \
+    "$PYTHON" waf configure --prefix="$prefix" \
+      --disable-sndfile --disable-avcodec --disable-samplerate \
+      --disable-jack --disable-docs --disable-tests --disable-examples \
+      > /dev/null
 
-echo "==> Building aubio"
-PATH="$WORK_DIR/pyalias:$PATH" "$PYTHON" waf build > /dev/null
+  echo "==> Building aubio ($name)" >&2
+  PATH="$WORK_DIR/pyalias:$PATH" "$PYTHON" waf build > /dev/null
 
-rm -rf "$STAGE"
-echo "==> Installing aubio into $STAGE"
-PATH="$WORK_DIR/pyalias:$PATH" "$PYTHON" waf install --destdir="$STAGE" > /dev/null
+  rm -rf "$stage"
+  PATH="$WORK_DIR/pyalias:$PATH" "$PYTHON" waf install --destdir="$stage" > /dev/null
 
-LIB="$STAGE/tmp/aubio-stage-prefix/lib/libaubio.a"
-HEADERS_SRC="$STAGE/tmp/aubio-stage-prefix/include/aubio"
+  printf "%s" "$stage$prefix/lib/libaubio.a"
+}
 
-if [ ! -f "$LIB" ]; then
-  echo "ERROR: $LIB not found after install" >&2
-  exit 1
+IOS_SDK_DEVICE="$(xcrun --sdk iphoneos --show-sdk-path)"
+IOS_SDK_SIM="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+
+LIB_MACOS=$(build_aubio_variant "macos" \
+  "-arch arm64 -arch x86_64 -mmacosx-version-min=12.0" \
+  "-arch arm64 -arch x86_64 -mmacosx-version-min=12.0")
+
+LIB_IOS_DEVICE=$(build_aubio_variant "ios-device" \
+  "-arch arm64 -isysroot $IOS_SDK_DEVICE -mios-version-min=14.0" \
+  "-arch arm64 -isysroot $IOS_SDK_DEVICE -mios-version-min=14.0")
+
+LIB_IOS_SIM=$(build_aubio_variant "ios-sim" \
+  "-arch arm64 -arch x86_64 -isysroot $IOS_SDK_SIM -mios-simulator-version-min=14.0" \
+  "-arch arm64 -arch x86_64 -isysroot $IOS_SDK_SIM -mios-simulator-version-min=14.0")
+
+HEADERS_SRC="$WORK_DIR/stage-macos$WORK_DIR/install-macos/include/aubio"
+# Falls die obigen verschachtelten Pfade nicht stimmen, fallback:
+if [ ! -d "$HEADERS_SRC" ]; then
+  HEADERS_SRC=$(find "$WORK_DIR/stage-macos" -type d -name "aubio" | head -1)
 fi
-
-# --- Package as XCFramework ---------------------------------------------------
 
 cd "$REPO_ROOT"
 echo "==> Packaging XCFramework"
 rm -rf "$XCF_OUT"
 xcodebuild -create-xcframework \
-  -library "$LIB" \
-  -headers "$HEADERS_SRC" \
+  -library "$LIB_MACOS"      -headers "$HEADERS_SRC" \
+  -library "$LIB_IOS_DEVICE" -headers "$HEADERS_SRC" \
+  -library "$LIB_IOS_SIM"    -headers "$HEADERS_SRC" \
   -output "$XCF_OUT" > /dev/null
 
 echo "==> Done: $XCF_OUT"
-ls -la "$XCF_OUT"
+ls "$XCF_OUT"

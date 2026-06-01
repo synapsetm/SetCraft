@@ -54,7 +54,10 @@ struct SetifyApp: App {
         }
 
         let p = PlayerViewModel()
-        let lib = LibraryViewModel(repository: LibraryRepository(database: database))
+        let lib = LibraryViewModel(
+            repository: LibraryRepository(database: database),
+            database: database
+        )
         _player = State(initialValue: p)
         _library = State(initialValue: lib)
         _transport = State(initialValue: TransportViewModel(player: p))

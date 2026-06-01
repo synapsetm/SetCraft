@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Build libKeyFinder (Mixxx-Fork) + die benötigte fftw3-Abhängigkeit als
-# universelle macOS-.xcframework. libKeyFinder wird statisch mit fftw3
-# gelinkt; die beiden Archive werden zu einem zusammengeführt, damit das
-# xcframework genau eine Library pro Plattform enthält.
+# Build libKeyFinder (Mixxx-Fork) + fftw3 als kombinierte statische
+# .xcframework für macOS (arm64 + x86_64), iOS device (arm64) und iOS
+# simulator (arm64 + x86_64).
 #
 # Output: SetifyCore/Vendor/KeyFinder.xcframework
 #
@@ -25,8 +24,6 @@ WORK_DIR="$HERE/build"
 SRC_DIR="$HERE/src"
 FFTW_SRC="$SRC_DIR/fftw-$FFTW_VERSION"
 KF_SRC="$SRC_DIR/libkeyfinder-$KEYFINDER_VERSION"
-FFTW_INSTALL="$WORK_DIR/install-fftw"
-KF_INSTALL="$WORK_DIR/install-keyfinder"
 XCF_OUT="$REPO_ROOT/SetifyCore/Vendor/KeyFinder.xcframework"
 
 mkdir -p "$WORK_DIR" "$SRC_DIR"
@@ -48,70 +45,91 @@ if [ ! -d "$KF_SRC" ]; then
   rm "$SRC_DIR/keyfinder.tar.gz"
 fi
 
-# --- Build fftw3 (double precision, static, universal) -------------------------
+# --- Build one combined variant ----------------------------------------------
 
-FFTW_BUILD="$WORK_DIR/build-fftw"
-rm -rf "$FFTW_BUILD" "$FFTW_INSTALL"
-mkdir -p "$FFTW_BUILD"
+build_combined_variant() {
+  local name="$1"
+  shift
+  local extra=("$@")
+  local fftw_build="$WORK_DIR/build-fftw-$name"
+  local fftw_install="$WORK_DIR/install-fftw-$name"
+  local kf_build="$WORK_DIR/build-kf-$name"
+  local kf_install="$WORK_DIR/install-kf-$name"
+  local merged="$WORK_DIR/libkeyfinder-merged-$name.a"
 
-echo "==> Configuring fftw"
-cmake -S "$FFTW_SRC" -B "$FFTW_BUILD" \
-  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-  -DCMAKE_BUILD_TYPE=Release \
+  rm -rf "$fftw_build" "$fftw_install" "$kf_build" "$kf_install"
+  mkdir -p "$fftw_build" "$kf_build"
+
+  echo "==> Configuring fftw ($name)" >&2
+  cmake -S "$FFTW_SRC" -B "$fftw_build" \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="$fftw_install" \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DBUILD_TESTS=OFF \
+    -DENABLE_THREADS=OFF \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+    "${extra[@]}" \
+    > /dev/null
+
+  echo "==> Building fftw ($name)" >&2
+  cmake --build "$fftw_build" --target install --parallel "$(sysctl -n hw.ncpu)" > /dev/null
+
+  echo "==> Configuring libKeyFinder ($name)" >&2
+  # FFTW3_LIBRARY/INCLUDE_DIR explizit setzen, weil das mitgelieferte
+  # FindFFTW3.cmake im iOS-Toolchain-Modus FFTW3_ROOT nicht honoriert.
+  cmake -S "$KF_SRC" -B "$kf_build" \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="$kf_install" \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DBUILD_TESTING=OFF \
+    -DBUILD_TESTS=OFF \
+    -DFFTW3_ROOT="$fftw_install" \
+    -DFFTW3_LIBRARY="$fftw_install/lib/libfftw3.a" \
+    -DFFTW3_INCLUDE_DIR="$fftw_install/include" \
+    -DCMAKE_CXX_STANDARD=17 \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+    "${extra[@]}" \
+    > /dev/null
+
+  echo "==> Building libKeyFinder ($name)" >&2
+  cmake --build "$kf_build" --target install --parallel "$(sysctl -n hw.ncpu)" > /dev/null
+
+  echo "==> Merging libkeyfinder + libfftw3 ($name)" >&2
+  xcrun libtool -static -o "$merged" \
+    "$kf_install/lib/libkeyfinder.a" \
+    "$fftw_install/lib/libfftw3.a" 2> /dev/null
+
+  printf "%s" "$merged"
+}
+
+LIB_MACOS=$(build_combined_variant "macos" \
   -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
-  -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
-  -DCMAKE_INSTALL_PREFIX="$FFTW_INSTALL" \
-  -DBUILD_SHARED_LIBS=OFF \
-  -DBUILD_TESTS=OFF \
-  -DENABLE_THREADS=OFF \
-  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-  > /dev/null
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0)
 
-echo "==> Building fftw"
-cmake --build "$FFTW_BUILD" --target install --parallel "$(sysctl -n hw.ncpu)" > /dev/null
+LIB_IOS_DEVICE=$(build_combined_variant "ios-device" \
+  -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0)
 
-# --- Build libKeyFinder (static, universal, linked against the staged fftw) --
-
-KF_BUILD="$WORK_DIR/build-keyfinder"
-rm -rf "$KF_BUILD" "$KF_INSTALL"
-mkdir -p "$KF_BUILD"
-
-echo "==> Configuring libKeyFinder"
-cmake -S "$KF_SRC" -B "$KF_BUILD" \
-  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-  -DCMAKE_BUILD_TYPE=Release \
+LIB_IOS_SIM=$(build_combined_variant "ios-sim" \
+  -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphonesimulator \
   -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
-  -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
-  -DCMAKE_INSTALL_PREFIX="$KF_INSTALL" \
-  -DBUILD_SHARED_LIBS=OFF \
-  -DBUILD_TESTING=OFF \
-  -DBUILD_TESTS=OFF \
-  -DFFTW3_ROOT="$FFTW_INSTALL" \
-  -DCMAKE_CXX_STANDARD=17 \
-  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-  > /dev/null
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0)
 
-echo "==> Building libKeyFinder"
-cmake --build "$KF_BUILD" --target install --parallel "$(sysctl -n hw.ncpu)" > /dev/null
-
-# --- Merge fftw3 + keyfinder into one static archive --------------------------
-
-MERGED="$WORK_DIR/libkeyfinder-merged.a"
-echo "==> Merging libkeyfinder.a + libfftw3.a → $(basename "$MERGED")"
-xcrun libtool -static -o "$MERGED" \
-  "$KF_INSTALL/lib/libkeyfinder.a" \
-  "$FFTW_INSTALL/lib/libfftw3.a"
-
-# --- Package as XCFramework ---------------------------------------------------
-
-HEADERS_DIR="$KF_INSTALL/include/keyfinder"
+# Headers plattform­identisch — wir nehmen das macOS-Install.
+HEADERS_DIR="$WORK_DIR/install-kf-macos/include/keyfinder"
 
 echo "==> Packaging XCFramework"
 rm -rf "$XCF_OUT"
 xcodebuild -create-xcframework \
-  -library "$MERGED" \
-  -headers "$HEADERS_DIR" \
+  -library "$LIB_MACOS"      -headers "$HEADERS_DIR" \
+  -library "$LIB_IOS_DEVICE" -headers "$HEADERS_DIR" \
+  -library "$LIB_IOS_SIM"    -headers "$HEADERS_DIR" \
   -output "$XCF_OUT" > /dev/null
 
 echo "==> Done: $XCF_OUT"
-ls -la "$XCF_OUT"
+ls "$XCF_OUT"
