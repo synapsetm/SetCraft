@@ -19,6 +19,18 @@ final class LibraryViewModel {
     var lastWriteError: String?
     var lastAnalysisError: String?
 
+    /// Aktuell aktive Sortierreihenfolge. Default: Titel A→Z. Mehrere
+    /// Comparators sind möglich (z. B. Artist → Album → Titel).
+    var sortOrder: [KeyPathComparator<Track>] = [
+        KeyPathComparator(\Track.title, order: .forward)
+    ]
+
+    /// Wendet `sortOrder` auf `tracks` an. Wird vom SwiftUI-Table als
+    /// Datenquelle verwendet.
+    var sortedTracks: [Track] {
+        tracks.sorted(using: sortOrder)
+    }
+
     /// IDs der Tracks mit Änderungen, die noch nicht auf der Platte sind.
     /// Erst nach erfolgreichem `save` wird die ID hier wieder entfernt.
     var unsavedTrackIDs: Set<Track.ID> = []
