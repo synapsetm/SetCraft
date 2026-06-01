@@ -261,11 +261,66 @@ gesamte `TagLibTrackStore` ohne Schreibrechte ohnehin nicht testbar ist.
 
 ---
 
-## Phase 4 — geplant (SPEC §7)
+## Phase 4 — abgeschlossen
 
-RGB-Waveform:
+**Build:** `xcodebuild -project Setify.xcodeproj -scheme Setify -destination
+'platform=macOS' build` läuft sauber durch.
+**Tests:** `swift test` im `SetifyCore`-Paket, 36/36 grün (3 neue
+`WaveformAnalyzerTests`).
 
-- vDSP 3-Band-Analyse (Bass < ~200 Hz, Mitte ~200 Hz–2 kHz, Höhen > ~2 kHz).
-- Erste Iteration via SwiftUI Canvas mit vorberechneten Daten, danach
-  Metal-Rendering.
-- Cue-Marker und Playhead, Klick = Seek.
+### Entscheidungen aus dem Start von Phase 4
+
+- **Cache-Strategie:** in-memory pro Session via `WaveformCache`
+  (Actor). Disk-Cache wandert nach Phase 5 (SQLite-Cache).
+- **Frequenzgrenzen** wie in SPEC §2/§5: Bass < 200 Hz,
+  Mitten 200 Hz–2 kHz, Höhen > 2 kHz.
+- **Klick auf die Waveform = sofortiges Seek.** Drag-Funktionalität
+  ist heute „Tap zum Springen" — späterer Scrubbing-Modus möglich.
+- **Renderer:** SwiftUI Canvas. Metal-Upgrade wäre Phase 5+
+  (Performance reicht bisher locker).
+
+### Was steht
+
+- **WaveformBin** (rms + bass/mid/high, alle Float 0…1) und
+  **WaveformData** (Bins + Sample-Rate + Sekunden pro Bin) als reine
+  Sendable-Werte.
+- **WaveformAnalyzer**: vDSP-FFT in 1024-Sample-Hann-Fenstern mit
+  50 %-Overlap. Energie pro Band wird über Index-Slicing aus den
+  Magnituden gezogen. Track-weite Normalisierung mit einem
+  gemeinsamen Max für die drei Bänder — sonst würden dominante
+  Frequenzbereiche optisch nicht stechen.
+- **WaveformCache** (Actor): hält Resultate im Speicher, dedupliziert
+  parallele Anfragen über einen `Task`-Map.
+- **WaveformView** (SwiftUI Canvas): downsamplt Bins auf die View-
+  Pixel-Breite. Vor dem Playhead voll, dahinter abgedunkelt.
+  Cue-Marker unten in Orange, weisser Playhead, Tap = Seek.
+- **WaveformViewModel** (`@Observable`): verwaltet Lade-/Race-State,
+  cancelt alte Tasks bei schnellen Track-Wechseln.
+- **ContentView** platziert den Waveform-Streifen zwischen Zeitleiste
+  und Chip-Bar. Spinner während die Analyse läuft, dezenter
+  Fehlertext (orange) bei Decode-Problemen.
+
+### Bewusst nicht in Phase 4
+
+- **Metal-Renderer** — Canvas reicht für die Trackgrößen, mit denen
+  wir aktuell rechnen. Performance-Optimierung kommt erst, wenn
+  sie nötig wird.
+- **Persistenter Waveform-Cache** — die rohen Bin-Arrays könnten
+  pro Track als Datei gecachet werden. Hängt am SQLite-/Datei-
+  Cache aus Phase 5.
+- **Scrubbing** (Drag mit Live-Position) — heute Tap-and-Seek.
+- **Beat-/Downbeat-Marker** auf der Waveform — kommt ggf. parallel
+  zur BPM-Analyse-Verfeinerung später.
+
+---
+
+## Phase 5 — geplant (SPEC §7)
+
+Politur und iOS-Vorbereitung:
+
+- SQLite-Cache hinter `TrackStore` (GRDB) für Bibliothek, Suche,
+  Waveform-Persistenz, Crates/Playlists, History.
+- Optional SFBAudioEngine als Decoder-Layer (Ogg Vorbis, schnelleres FLAC).
+- Security-Scoped Bookmarks für persistente Ordner.
+- iOS/iPad-Target anlegen, plattformspezifische Stellen mit `#if os(...)`
+  kapseln. xcframeworks bei Bedarf um iOS-Slice ergänzen.
