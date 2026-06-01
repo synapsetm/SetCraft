@@ -6,6 +6,7 @@ struct ContentView: View {
     @Bindable var player: PlayerViewModel
     @Bindable var library: LibraryViewModel
     @Bindable var transport: TransportViewModel
+    @Bindable var waveform: WaveformViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -28,6 +29,8 @@ struct ContentView: View {
             library.setActiveTrack(newURL)
             // Master-Werte auf den neu geladenen Track anwenden.
             transport.applyMasterToLoadedTrack()
+            // Waveform für den neuen Track im Hintergrund laden.
+            waveform.setActiveURL(newURL)
         }
         .onAppear {
             // Wird die Library-Analyse für den aktuell geladenen Track
@@ -49,6 +52,7 @@ struct ContentView: View {
             header
             transportControls
             timeRow
+            waveformRow
             chipsBar
             if let error = player.lastError {
                 Text(error)
@@ -56,6 +60,47 @@ struct ContentView: View {
                     .foregroundStyle(.red)
             }
         }
+    }
+
+    private var waveformRow: some View {
+        ZStack(alignment: .topLeading) {
+            WaveformView(
+                data: waveform.data,
+                progress: waveformProgress,
+                cueProgress: cueProgress,
+                onSeek: { fraction in
+                    let duration = max(player.player.duration, 0.01)
+                    player.seek(to: fraction * duration)
+                }
+            )
+            if waveform.isLoading {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small).tint(.white)
+                    Text("Waveform wird analysiert…")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+                .padding(8)
+            } else if let error = waveform.lastError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .lineLimit(1)
+                    .padding(8)
+            }
+        }
+    }
+
+    private var waveformProgress: Double {
+        let duration = player.player.duration
+        guard duration > 0 else { return 0 }
+        return max(0, min(1, player.player.position / duration))
+    }
+
+    private var cueProgress: Double? {
+        let duration = player.player.duration
+        guard duration > 0, let cue = player.player.cuePoint else { return nil }
+        return max(0, min(1, cue / duration))
     }
 
     private var chipsBar: some View {
@@ -169,6 +214,7 @@ struct ContentView: View {
     return ContentView(
         player: player,
         library: LibraryViewModel(),
-        transport: TransportViewModel(player: player)
+        transport: TransportViewModel(player: player),
+        waveform: WaveformViewModel()
     )
 }
