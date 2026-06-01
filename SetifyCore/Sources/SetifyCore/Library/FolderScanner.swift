@@ -30,7 +30,7 @@ public enum FolderScanner {
 
     /// Synchrones Sammeln aller Audio-URLs unter `folder`. Versteckte Dateien
     /// und macOS-Pakete (z. B. Logic-Sessions) werden übersprungen.
-    private static func collectAudioFiles(in folder: URL) -> [URL] {
+    public static func collectAudioFiles(in folder: URL) -> [URL] {
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(
             at: folder,

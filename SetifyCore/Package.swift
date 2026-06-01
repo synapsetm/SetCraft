@@ -10,6 +10,9 @@ let package = Package(
     products: [
         .library(name: "SetifyCore", targets: ["SetifyCore"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0")
+    ],
     targets: [
         .binaryTarget(
             name: "TagLib",
@@ -39,7 +42,10 @@ let package = Package(
         ),
         .target(
             name: "SetifyCore",
-            dependencies: ["SetifyCoreObjC"],
+            dependencies: [
+                "SetifyCoreObjC",
+                .product(name: "GRDB", package: "GRDB.swift")
+            ],
             path: "Sources/SetifyCore"
         ),
         .testTarget(

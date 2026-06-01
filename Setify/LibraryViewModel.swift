@@ -53,10 +53,14 @@ final class LibraryViewModel {
     /// geladen ist — sonst zeigen die Player-Chips weiter "—".
     var onTrackAnalyzed: ((Track) -> Void)?
 
-    private let store = TagLibTrackStore()
+    private let repository: LibraryRepository
     private let analyzer = AnalysisCoordinator()
     private var scanTask: Task<Void, Never>?
     private var pendingSaves: [Track.ID: Task<Void, Never>] = [:]
+
+    init(repository: LibraryRepository) {
+        self.repository = repository
+    }
 
     /// Tracks, deren Schreibvorgang abgelehnt wurde, weil die Datei im Player
     /// aktiv ist. Werden automatisch nachgeholt, sobald `setActiveTrack` auf
@@ -85,8 +89,8 @@ final class LibraryViewModel {
         tracks = []
         isScanning = true
 
-        scanTask = Task { [folder] in
-            for await track in FolderScanner.scan(folder: folder) {
+        scanTask = Task { [folder, repository] in
+            for await track in repository.scan(folder: folder) {
                 if Task.isCancelled { break }
                 tracks.append(track)
             }
@@ -130,7 +134,7 @@ final class LibraryViewModel {
 
     private func performSave(_ track: Track) async {
         do {
-            try await store.save(track)
+            try await repository.save(track)
             unsavedTrackIDs.remove(track.id)
             blockedByActivePlayer.remove(track.id)
             lastWriteError = nil
@@ -151,8 +155,8 @@ final class LibraryViewModel {
     func setActiveTrack(_ url: URL?) {
         let previous = previousActiveURL
         previousActiveURL = url
-        Task { [weak self, store, previous, url] in
-            await store.setActiveTrack(url)
+        Task { [weak self, repository, previous, url] in
+            await repository.setActiveTrack(url)
             await MainActor.run {
                 guard let self else { return }
                 if let previous, previous != url {
@@ -191,7 +195,7 @@ final class LibraryViewModel {
         analysisState[track.id] = .scheduled
         let preset = bpmPreset
         let analyzer = analyzer
-        let store = store
+        let repository = repository
 
         Task { [weak self, track, needsBPM, needsKey, preset] in
             do {
@@ -215,7 +219,7 @@ final class LibraryViewModel {
                     self.tracks[idx] = updated
                     self.analysisState[track.id] = .done
                     if gotBPM || gotKey {
-                        self.persistAfterAnalysis(updated, store: store)
+                        self.persistAfterAnalysis(updated)
                         self.onTrackAnalyzed?(updated)
                     }
                     if needsBPM && !gotBPM && needsKey && !gotKey {
@@ -248,7 +252,7 @@ final class LibraryViewModel {
     /// damit Auto-Werte beim nächsten Programmstart vorhanden sind. Ist die
     /// Datei gerade im Player aktiv, lehnt der Store ab — `performSave`
     /// markiert sie dann für Nachschreiben beim nächsten Player-Wechsel.
-    private func persistAfterAnalysis(_ track: Track, store: TagLibTrackStore) {
+    private func persistAfterAnalysis(_ track: Track) {
         unsavedTrackIDs.insert(track.id)
         pendingSaves[track.id]?.cancel()
         pendingSaves[track.id] = nil

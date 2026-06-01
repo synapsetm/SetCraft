@@ -188,24 +188,16 @@ struct ContentView: View {
         }
     }
 
+    /// Nur noch die Zeitanzeige — gesucht wird ab Phase 4 ausschliesslich
+    /// über die Waveform.
     private var timeRow: some View {
-        VStack(spacing: 4) {
-            Slider(
-                value: Binding(
-                    get: { player.player.position },
-                    set: { player.seek(to: $0) }
-                ),
-                in: 0...max(player.player.duration, 0.01)
-            )
-            .disabled(player.player.loadedURL == nil)
-            HStack {
-                Text(formatTime(player.player.position))
-                Spacer()
-                Text(formatTime(player.player.duration))
-            }
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.secondary)
+        HStack {
+            Text(formatTime(player.player.position))
+            Spacer()
+            Text(formatTime(player.player.duration))
         }
+        .font(.caption.monospacedDigit())
+        .foregroundStyle(.secondary)
     }
 
     private func formatTime(_ secs: TimeInterval) -> String {
@@ -215,12 +207,5 @@ struct ContentView: View {
     }
 }
 
-#Preview {
-    let player = PlayerViewModel()
-    return ContentView(
-        player: player,
-        library: LibraryViewModel(),
-        transport: TransportViewModel(player: player),
-        waveform: WaveformViewModel()
-    )
-}
+// (Preview entfernt — LibraryViewModel braucht jetzt eine LibraryRepository
+//  mit DatabaseService, was im Preview-Kontext zu viel Setup wäre.)

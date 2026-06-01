@@ -12,9 +12,13 @@ final class WaveformViewModel {
     var isLoading: Bool = false
     var lastError: String?
 
-    private let cache = WaveformCache()
+    private let cache: WaveformCache
     private var currentURL: URL?
     private var loadTask: Task<Void, Never>?
+
+    init(database: DatabaseService? = nil) {
+        self.cache = WaveformCache(database: database)
+    }
 
     /// Wird aus ContentView.onChange(loadedURL) angestossen.
     func setActiveURL(_ url: URL?) {

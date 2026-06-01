@@ -1,4 +1,5 @@
 import SwiftUI
+import SetifyCore
 
 enum AppearancePreference: String, CaseIterable, Identifiable {
     case system
@@ -36,12 +37,28 @@ struct SetifyApp: App {
     @AppStorage("appearance") private var appearanceRaw: String = AppearancePreference.system.rawValue
 
     init() {
+        // SQLite-Datei im macOS-Sandbox-Application-Support.
+        let supportDir = (try? FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )) ?? URL(fileURLWithPath: NSTemporaryDirectory())
+        let databaseURL = supportDir.appendingPathComponent("library.sqlite")
+
+        let database: DatabaseService
+        do {
+            database = try DatabaseService(databaseURL: databaseURL)
+        } catch {
+            fatalError("Konnte SQLite-Datenbank nicht öffnen: \(error.localizedDescription)")
+        }
+
         let p = PlayerViewModel()
-        let lib = LibraryViewModel()
+        let lib = LibraryViewModel(repository: LibraryRepository(database: database))
         _player = State(initialValue: p)
         _library = State(initialValue: lib)
         _transport = State(initialValue: TransportViewModel(player: p))
-        _waveform = State(initialValue: WaveformViewModel())
+        _waveform = State(initialValue: WaveformViewModel(database: database))
         AppDelegate.unsavedQuery = { [weak lib] in lib?.hasUnsavedChanges ?? false }
         AppDelegate.saveAllNow  = { [weak lib] in lib?.saveAllNow() }
     }
