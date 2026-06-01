@@ -634,3 +634,74 @@ sind grün).
   Englisch → englische Texte (ohne neu zu kompilieren).
 - Library mit altem Cache öffnen → einmaliger v3-Wipe lässt
   Year/Bitrate/Size beim Re-Scan auftauchen.
+
+---
+
+## Distribution-Setup (2026-06-01)
+
+App ist vorbereitet, um **außerhalb des App Stores** als notarisiertes,
+selbst-aktualisierendes DMG verteilt zu werden.
+
+### Im Repo
+
+- **Sparkle 2.x** als `XCRemoteSwiftPackageReference` ins Xcode-Projekt
+  eingebunden (`https://github.com/sparkle-project/Sparkle`, minor-stable
+  ab 2.6.0).
+- `Setify/UpdaterController.swift` kapselt
+  `SPUStandardUpdaterController`; `SetifyApp` hält den Updater als
+  `@State` über die App-Lebenszeit und ergänzt einen Menüpunkt
+  „Setify → Check for Updates…" (`CommandGroup(after: .appInfo)`).
+- `Setify/Info.plist` bekommt `SUFeedURL`, `SUPublicEDKey`,
+  `SUEnableAutomaticChecks`, `SUScheduledCheckInterval=86400`. Beide
+  REPLACE_ME-Platzhalter werden vom Release-Skript als harter Fehler
+  gemeldet, damit kein Release versehentlich ungültige Sparkle-Werte
+  ausliefert.
+- `Setify/Setify.entitlements` zusätzlich `network.client` (Sparkle muss
+  HTTPS gegen den Appcast können).
+- `scripts/ExportOptions.plist` für `developer-id`-Export mit
+  Hardened Runtime.
+- `scripts/release.sh` — vollständige Pipeline:
+  1. `xcodebuild archive`
+  2. `xcodebuild -exportArchive`
+  3. ZIP-Upload + `notarytool submit --wait` für die `.app`
+  4. `stapler staple` auf die `.app`
+  5. DMG via `hdiutil create` (inkl. `/Applications`-Symlink)
+  6. `codesign --timestamp` auf das DMG
+  7. `notarytool submit --wait` für das DMG
+  8. `stapler staple` auf das DMG
+  9. Falls Sparkles `generate_appcast` im `$SPARKLE_BIN_DIR` oder
+     `$PATH` liegt: signiert die DMGs in `build/release/dist` mit dem
+     EdDSA-Privat-Key aus dem Keychain und schreibt `appcast.xml`.
+  10. `spctl --assess` als informativer Selbsttest.
+  Vorflug-Checks: Developer-ID-Identity im Keychain vorhanden, Notarytool-
+  Profil eingerichtet, keine REPLACE_ME-Reste in `Info.plist`.
+- `build/release/` in `.gitignore`.
+- `docs/DISTRIBUTION.md` — vollständige Einrichtungs- und Release-
+  Anleitung: Developer-ID-Zertifikat, Notarytool-Profil
+  (`xcrun notarytool store-credentials`), Sparkle-EdDSA-Schlüssel
+  (`generate_keys`), Appcast-Hosting, Version-Bump, GPL-Hinweis,
+  Troubleshooting.
+
+### Was du vor dem ersten Release tun musst
+
+1. „Developer ID Application"-Zertifikat im Apple-Developer-Account
+   erstellen und ins Login-Keychain laden.
+2. App-spezifisches Passwort generieren und
+   `xcrun notarytool store-credentials AC_SETIFY ...` ausführen.
+3. `generate_keys` aus dem Sparkle-Bin-Verzeichnis laufen lassen; den
+   Public-Key in `Setify/Info.plist` als `SUPublicEDKey` eintragen.
+   Private-Key bleibt im Keychain.
+4. `SUFeedURL` in `Setify/Info.plist` auf die echte Appcast-URL setzen.
+5. `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION` im Xcode-Projekt
+   bumpen.
+6. `./scripts/release.sh` ausführen.
+
+### Was bewusst NICHT mit drin ist
+
+- **App-Store-Distribution** — Pfad wäre `app-store-connect`-Method im
+  ExportOptionsPlist und ein eigener Skript-Zweig. Solange das Ziel
+  „außerhalb des App Stores" ist, würde das nur Komplexität ohne Nutzen
+  bringen.
+- **CI/CD** (GitHub-Actions-Workflow). Der lokale Pfad reicht
+  vorerst; einen CI-Wrapper kann man später um `release.sh` legen.
+- **Deployment-Target-Senkung** — bleibt bei macOS 26.5, wie besprochen.

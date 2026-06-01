@@ -48,6 +48,10 @@ struct SetifyApp: App {
     @State private var transport: TransportViewModel
     @State private var waveform: WaveformViewModel
 
+    /// Sparkle-Updater. Lebt über die gesamte App-Lebenszeit, damit
+    /// Hintergrund-Checks gemäss `SUScheduledCheckInterval` laufen können.
+    @State private var updater = UpdaterController()
+
     @AppStorage("appearance") private var appearanceRaw: String = AppearancePreference.system.rawValue
 
     init() {
@@ -102,6 +106,12 @@ struct SetifyApp: App {
                 .onChange(of: appearanceRaw) { _, _ in applyAppearance(appearance) }
         }
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    updater.checkForUpdates()
+                }
+                .disabled(!updater.canCheckForUpdates)
+            }
             CommandGroup(replacing: .newItem) {
                 Button("Open audio file…") {
                     player.openFile()

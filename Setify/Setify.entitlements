@@ -8,5 +8,9 @@
 	<true/>
 	<key>com.apple.security.files.bookmarks.app-scope</key>
 	<true/>
+	<!-- Sparkle braucht Outbound-HTTPS, um den Appcast und Update-Dateien
+	     vom Distributionsserver zu laden. -->
+	<key>com.apple.security.network.client</key>
+	<true/>
 </dict>
 </plist>

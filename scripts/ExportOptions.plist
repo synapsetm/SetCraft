@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Distribution ausserhalb des App Stores: Developer ID Application,
+	     hardened runtime + notarisierungsfähig. -->
+	<key>method</key>
+	<string>developer-id</string>
+	<key>destination</key>
+	<string>export</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>teamID</key>
+	<string>D75S77JA58</string>
+	<!-- dSYMs werden für spätere Crash-Reports mit ausgeworfen. -->
+	<key>uploadSymbols</key>
+	<true/>
+</dict>
+</plist>

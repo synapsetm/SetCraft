@@ -4,6 +4,9 @@
 # Xcode
 build/
 DerivedData/
+# Release-Artefakte (xcarchive, exportiertes .app, DMG, appcast). Bewusst
+# ausgenommen — alles, was scripts/release.sh produziert.
+build/release/
 *.xcuserstate
 *.xcscmblueprint
 *.xccheckout

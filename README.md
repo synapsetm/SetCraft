@@ -26,6 +26,11 @@ iOS/iPad-Port.
 - **Manuelles Erscheinungsbild** (System / Light / Dark) über das Menü
   „View" — gesetzt direkt auf `NSApp.appearance`, damit auch
   AppKit-Subviews (List, Table, Canvas) zuverlässig mitwechseln.
+- **Auto-Updates** via Sparkle 2.x, signiert mit EdDSA. Menüpunkt
+  „Setify → Check for Updates…", plus täglicher Hintergrund-Check.
+- **Distribution außerhalb des App Stores**: `scripts/release.sh`
+  produziert ein Developer-ID-signiertes, notarisiertes, gestapeltes DMG
+  inkl. Sparkle-Appcast-Eintrag. Siehe `docs/DISTRIBUTION.md`.
 
 Privates, nicht-kommerzielles Projekt — GPL-Libraries sind daher zulässig.
 

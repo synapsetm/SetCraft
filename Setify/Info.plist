@@ -25,5 +25,23 @@
 			</array>
 		</dict>
 	</array>
+	<!-- ============================================================
+	     Sparkle-Update-Konfiguration
+	     ============================================================
+	     SUFeedURL    : statisch gehosteter Appcast (XML). Vor dem ersten
+	                    notarisierten Release auf die echte URL setzen.
+	     SUPublicEDKey: EdDSA-Public-Key, mit dessen privatem Pendant das
+	                    Release-Skript jedes DMG signiert. Wird einmalig
+	                    mit Sparkles `generate_keys` erzeugt (Private-Key
+	                    landet im Keychain, Public-Key kommt hier rein).
+	     Siehe `docs/DISTRIBUTION.md` für die Einrichtung. -->
+	<key>SUFeedURL</key>
+	<string>https://REPLACE_ME.example.com/setify/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>REPLACE_ME_WITH_SPARKLE_ED_PUBLIC_KEY</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>

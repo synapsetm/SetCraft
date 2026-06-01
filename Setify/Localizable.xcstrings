@@ -214,6 +214,16 @@
         }
       }
     },
+    "Check for Updates…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf Updates prüfen…"
+          }
+        }
+      }
+    },
     "Choose folder…" : {
       "localizations" : {
         "de" : {
