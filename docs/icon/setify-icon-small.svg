@@ -1,0 +1,17 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>Setify App Icon (small / reduced)</title>
+<desc>Reduzierte RGB-Waveform mit Playhead für kleine Auflösungen, sechs Balken plus Playhead, um beide Achsen zentriert.</desc>
+<defs>
+<clipPath id="squircleSmall"><rect x="0" y="0" width="1024" height="1024" rx="230"/></clipPath>
+</defs>
+<g clip-path="url(#squircleSmall)">
+<rect x="0" y="0" width="1024" height="1024" fill="#15151a"/>
+<rect x="276" y="432" width="52" height="160" rx="26" fill="#FF7A33"/>
+<rect x="346" y="336" width="52" height="352" rx="26" fill="#F5B544"/>
+<rect x="416" y="448" width="52" height="128" rx="26" fill="#7DC850"/>
+<rect x="486" y="208" width="52" height="608" rx="26" fill="#ffffff"/>
+<rect x="556" y="448" width="52" height="128" rx="26" fill="#4A8DF0"/>
+<rect x="626" y="336" width="52" height="352" rx="26" fill="#7A6CEC"/>
+<rect x="696" y="432" width="52" height="160" rx="26" fill="#B57BE0"/>
+</g>
+</svg>

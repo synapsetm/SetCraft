@@ -21,6 +21,10 @@ struct ContentView: View {
         .frame(minWidth: 760, minHeight: 520)
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
+            // Track muss im Player landen UND in der Library erscheinen.
+            // Falls der Eltern-Ordner noch nicht als Quelle bekannt ist,
+            // fragt die Library den Nutzer einmalig (sandbox-bedingt).
+            library.handleDroppedFile(url)
             player.load(url: url)
             return true
         }
@@ -68,7 +72,6 @@ struct ContentView: View {
             WaveformView(
                 data: waveform.data,
                 progress: waveformProgress,
-                cueProgress: cueProgress,
                 onSeek: { fraction in
                     let duration = max(player.player.duration, 0.01)
                     player.seek(to: fraction * duration)
@@ -76,10 +79,10 @@ struct ContentView: View {
             )
             if waveform.isLoading {
                 HStack(spacing: 6) {
-                    ProgressView().controlSize(.small).tint(.white)
-                    Text("Waveform wird analysiert…")
+                    ProgressView().controlSize(.small)
+                    Text("Analyzing waveform…")
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.85))
+                        .foregroundStyle(.primary.opacity(0.85))
                 }
                 .padding(8)
             } else if let error = waveform.lastError {
@@ -98,51 +101,56 @@ struct ContentView: View {
         return max(0, min(1, player.player.position / duration))
     }
 
-    private var cueProgress: Double? {
-        let duration = player.player.duration
-        guard duration > 0, let cue = player.player.cuePoint else { return nil }
-        return max(0, min(1, cue / duration))
-    }
-
     private var chipsBar: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             TempoChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
             KeyChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
-
             Spacer()
-
-            Toggle(isOn: $transport.keyLock) {
-                Label("Key-Lock", systemImage: transport.keyLock ? "lock.fill" : "lock.open")
-                    .labelStyle(.iconOnly)
-            }
-            .toggleStyle(.button)
-            .controlSize(.small)
-            .help(transport.keyLock
-                ? "Key-Lock aktiv: Tempo ändert Tonhöhe nicht"
-                : "Key-Lock aus: Tempo zieht die Tonhöhe mit")
         }
     }
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(player.player.loadedURL?.lastPathComponent ?? "Keine Datei geladen")
+                Text(titleLine)
                     .font(.headline)
-                Text(subtitle)
-                    .font(.caption)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Text(artistLine)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .truncationMode(.middle)
+                    .truncationMode(.tail)
             }
             Spacer()
         }
     }
 
-    private var subtitle: String {
-        if let url = player.player.loadedURL {
-            return url.deletingLastPathComponent().path
+    /// Track gerade im Player — falls in der Library bekannt, holen wir
+    /// Titel und Artist daraus. Sonst Fallback auf den Dateinamen.
+    private var loadedTrack: Track? {
+        guard let url = player.player.loadedURL else { return nil }
+        return library.tracks.first(where: { $0.url == url })
+    }
+
+    private var titleLine: String {
+        guard let url = player.player.loadedURL else {
+            return String(localized: "No file loaded")
         }
-        return "Datei öffnen, hineinziehen oder aus der Bibliothek laden"
+        if let t = loadedTrack, !t.title.isEmpty {
+            return t.title
+        }
+        return url.deletingPathExtension().lastPathComponent
+    }
+
+    private var artistLine: String {
+        guard player.player.loadedURL != nil else {
+            return String(localized: "Open a file, drop one here, or load one from the library")
+        }
+        if let t = loadedTrack, !t.artist.isEmpty {
+            return t.artist
+        }
+        return String(localized: "Unknown artist")
     }
 
     private var transportControls: some View {
@@ -150,25 +158,23 @@ struct ContentView: View {
             Button {
                 player.openFile()
             } label: {
-                Label("Datei öffnen…", systemImage: "folder.badge.plus")
+                Label("Open file…", systemImage: "folder.badge.plus")
             }
             .keyboardShortcut("o", modifiers: .command)
-            .help("Audiodatei laden")
+            .help("Load an audio file")
 
             Button {
-                player.cue()
+                loadSelectedFromLibrary()
             } label: {
-                Label("Cue", systemImage: "smallcircle.filled.circle")
+                Label("Load", systemImage: "tray.and.arrow.down.fill")
             }
-            .disabled(player.player.loadedURL == nil)
+            .disabled(library.selectedTrack == nil)
+            .help("Load the selected track from the library")
 
             Button {
                 player.togglePlay()
             } label: {
-                Label(
-                    player.player.isPlaying ? "Pause" : "Play",
-                    systemImage: player.player.isPlaying ? "pause.fill" : "play.fill"
-                )
+                Label("Play/Pause", systemImage: "playpause.fill")
             }
             .disabled(player.player.loadedURL == nil)
             .keyboardShortcut(.space, modifiers: [])
@@ -176,17 +182,17 @@ struct ContentView: View {
             Button {
                 player.unload()
             } label: {
-                Label("Entladen", systemImage: "eject.fill")
+                Label("Unload", systemImage: "eject.fill")
             }
             .disabled(player.player.loadedURL == nil)
-            .help("Track aus dem Player entfernen")
-
-            if let cue = player.player.cuePoint {
-                Text("Cue: \(formatTime(cue))")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
+            .help("Remove the track from the player")
         }
+    }
+
+    private func loadSelectedFromLibrary() {
+        guard let track = library.selectedTrack else { return }
+        player.loadTrack(track)
+        library.analyzeIfNeeded(track)
     }
 
     /// Nur noch die Zeitanzeige — gesucht wird ab Phase 4 ausschliesslich

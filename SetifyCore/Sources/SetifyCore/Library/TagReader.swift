@@ -18,6 +18,7 @@ public enum TagReader {
     public static func read(url: URL) throws -> Track {
         let raw = try SetifyTagBridge.readTags(atPath: url.path)
         let (ratingFromComment, cleanComment) = RatingPrefix.parse(raw.comment)
+        let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { Int64($0) }
 
         return Track(
             url: url,
@@ -29,7 +30,11 @@ public enum TagReader {
             durationSeconds: raw.durationSeconds,
             bpm: parseBPM(raw.bpm),
             key: raw.initialKey.flatMap(CamelotKey.init),
-            rating: ratingFromComment
+            rating: ratingFromComment,
+            year: raw.year > 0 ? Int(raw.year) : nil,
+            bitrate: raw.bitrate > 0 ? Int(raw.bitrate) : nil,
+            label: raw.label ?? "",
+            fileSize: fileSize
         )
     }
 

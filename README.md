@@ -5,18 +5,27 @@ iOS/iPad-Port.
 
 - **Frequenzbasierte RGB-Waveform** (vDSP-FFT, additiv R = Bass, G = Mitten,
   B = Höhen; SwiftUI-Canvas).
-- **Tempo- und Key-Steuerung** (`AVAudioUnitTimePitch`): pro Track änderbar
-  *und* global als „Master" setzbar; jeder neu geöffnete Track wird auf den
-  Master-Wert gezogen.
-- **Editierbare Library** (Inline-TextFields für Titel, Artist, BPM, Genre +
-  klickbare 5-Sterne-Bewertung). Atomares Zurückschreiben via TagLib;
-  Schreibvorgänge auf aktive Player-Dateien werden vorgemerkt und beim
-  Entladen nachgeholt.
+- **Tempo-Steuerung** (`AVAudioUnitTimePitch`): pro Track änderbar und global
+  als „Master" setzbar; jeder neu geöffnete Track wird auf den Master-Wert
+  gezogen. Key-Lock ist immer aktiv — Tempo-Änderungen lassen die Tonart
+  unverändert.
+- **Editierbare Library** (Inline-TextFields für Titel, Artist, BPM, Genre,
+  Album, Label, Comment + klickbare 5-Sterne-Bewertung). Zusätzliche
+  Read-only-Spalten für Year, Type, Bitrate und Size. Atomares
+  Zurückschreiben via TagLib; Schreibvorgänge auf aktive Player-Dateien
+  werden vorgemerkt und beim Entladen nachgeholt.
 - **Automatische BPM- und Key-Analyse** (aubio + libKeyFinder) beim Öffnen
   oder per Batch-Button für alle fehlenden Werte. BPM-Oktavkorrektur per
   Genre-Preset (Universal / DnB / House / HipHop / Disco).
-- **Manuelles Erscheinungsbild** (System / Hell / Dunkel) über das Menü
-  „Ansicht".
+- **Camelot-Key-Färbung** im Player-Chip und in der Library, in den von
+  DJ-Apps gewohnten Farben (Position 1–12 als Hue-Wheel, Moll satter, Dur
+  heller).
+- **Drag & Drop** lädt den Track sofort in den Player und nimmt seinen
+  Ordner ggf. als neue Bibliotheks-Quelle auf.
+- **Lokalisiert** (Englisch + Deutsch, automatisch nach Systemsprache).
+- **Manuelles Erscheinungsbild** (System / Light / Dark) über das Menü
+  „View" — gesetzt direkt auf `NSApp.appearance`, damit auch
+  AppKit-Subviews (List, Table, Canvas) zuverlässig mitwechseln.
 
 Privates, nicht-kommerzielles Projekt — GPL-Libraries sind daher zulässig.
 
@@ -29,9 +38,9 @@ Privates, nicht-kommerzielles Projekt — GPL-Libraries sind daher zulässig.
 
 ## Stand
 
-Phasen **0 – 4** sind durchgespielt, siehe `STATUS.md` für Details und die
-nachgeführten Bugfixes. Tests: `swift test` im `SetifyCore`-Paket — aktuell
-**36 grün**.
+Phasen **0 – 5a** sind durchgespielt, plus eine zusätzliche UI-Politur-Runde
+(siehe „Sitzung 2026-06-01" in `STATUS.md`). Tests: `swift test` im
+`SetifyCore`-Paket — aktuell **36 grün**.
 
 ---
 

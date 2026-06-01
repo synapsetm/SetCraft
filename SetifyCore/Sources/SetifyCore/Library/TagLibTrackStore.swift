@@ -14,11 +14,11 @@ public actor TagLibTrackStore: TrackStore {
         public var errorDescription: String? {
             switch self {
             case .fileInUse:
-                return "Datei ist gerade im Player aktiv — Schreiben übersprungen."
+                return "File is currently active in the player — write skipped."
             case .bridgeFailed(let url, let underlying):
-                return "TagLib konnte \(url.lastPathComponent) nicht schreiben: \(underlying?.localizedDescription ?? "unbekannt")"
+                return "TagLib could not write \(url.lastPathComponent): \(underlying?.localizedDescription ?? "unknown")"
             case .fileSystem(let url, let underlying):
-                return "Dateisystem-Fehler bei \(url.lastPathComponent): \(underlying.localizedDescription)"
+                return "Filesystem error for \(url.lastPathComponent): \(underlying.localizedDescription)"
             }
         }
     }
@@ -72,7 +72,8 @@ public actor TagLibTrackStore: TrackStore {
                 genre: track.genre,
                 comment: comment,
                 bpm: bpmString,
-                initialKey: keyString
+                initialKey: keyString,
+                label: track.label
             )
         } catch {
             throw StoreError.bridgeFailed(original, underlying: error)

@@ -21,7 +21,7 @@ final class PlayerViewModel {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.title = "Audiodatei öffnen"
+        panel.title = String(localized: "Open audio file")
         if panel.runModal() == .OK, let url = panel.url {
             load(url: url)
         }
@@ -59,8 +59,6 @@ final class PlayerViewModel {
         originalBPM = nil
         originalKey = nil
     }
-
-    func cue() { player.cue() }
 
     func seek(to seconds: TimeInterval) {
         player.seek(to: seconds)

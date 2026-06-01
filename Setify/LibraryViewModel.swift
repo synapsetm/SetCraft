@@ -95,10 +95,46 @@ final class LibraryViewModel {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.title = "Musikordner wählen"
+        panel.title = String(localized: "Choose music folder")
         if panel.runModal() == .OK, let url = panel.url {
             persistAndScan(url)
         }
+    }
+
+    /// Verarbeitet eine per Drag & Drop hineingezogene Datei: stellt sicher,
+    /// dass der Eltern-Ordner als Quelle bekannt ist (notfalls per
+    /// `NSOpenPanel`, damit der Sandbox-Scope vom Nutzer freigegeben wird),
+    /// schaltet die Sidebar auf diese Quelle und stösst einen Scan an.
+    /// Liefert `true`, wenn die Datei nach Abschluss in der Liste auftauchen
+    /// sollte; `false`, wenn der Nutzer den Picker abgebrochen hat.
+    @discardableResult
+    func handleDroppedFile(_ url: URL) -> Bool {
+        let parent = url.deletingLastPathComponent().standardizedFileURL
+        let parentPath = parent.path
+
+        // Bekannte Quelle? Dann ggf. nur umschalten — die Datei kommt durchs
+        // Re-Scannen automatisch in die Liste.
+        if let existing = folders.first(where: { $0.url == parentPath }) {
+            if selectedFolderID != existing.id {
+                Task { await selectFolder(id: existing.id) }
+            }
+            return true
+        }
+
+        // Unbekannte Quelle: Picker pre-positioned auf den Eltern-Ordner.
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = parent
+        panel.title = String(localized: "Add folder as a source")
+        panel.message = String(localized: "Grant access to this folder so its tracks can appear in the library.")
+        panel.prompt = String(localized: "Add as source")
+        if panel.runModal() == .OK, let folderURL = panel.url {
+            persistAndScan(folderURL)
+            return true
+        }
+        return false
     }
 
     /// Lädt die gespeicherten Ordner und scannt automatisch den zuletzt
@@ -345,11 +381,11 @@ final class LibraryViewModel {
                         self.onTrackAnalyzed?(updated)
                     }
                     if needsBPM && !gotBPM && needsKey && !gotKey {
-                        self.lastAnalysisError = "Keine BPM und keine Tonart erkannt: \(track.url.lastPathComponent)"
+                        self.lastAnalysisError = String(localized: "No BPM and no key detected: \(track.url.lastPathComponent)")
                     } else if needsBPM && !gotBPM {
-                        self.lastAnalysisError = "Keine BPM erkannt: \(track.url.lastPathComponent)"
+                        self.lastAnalysisError = String(localized: "No BPM detected: \(track.url.lastPathComponent)")
                     } else if needsKey && !gotKey {
-                        self.lastAnalysisError = "Keine Tonart erkannt: \(track.url.lastPathComponent)"
+                        self.lastAnalysisError = String(localized: "No key detected: \(track.url.lastPathComponent)")
                     } else {
                         self.lastAnalysisError = nil
                     }

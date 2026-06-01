@@ -11,7 +11,6 @@ import SetifyCore
 struct WaveformView: View {
     let data: WaveformData?
     let progress: Double          // 0…1 (player.position / duration)
-    let cueProgress: Double?      // 0…1 oder nil
     let onSeek: (Double) -> Void  // mit fraction 0…1
 
     @Environment(\.colorScheme) private var colorScheme
@@ -50,7 +49,6 @@ struct WaveformView: View {
 
         let skeletonColor: Color = isDark ? .white.opacity(0.18) : .black.opacity(0.2)
         let playheadColor: Color = isDark ? .white.opacity(0.85) : .black.opacity(0.8)
-        let cueColor = Color(red: 1.0, green: 0.54, blue: 0.24)
 
         // Skeleton-Linie in der Mitte, solange wir noch keine Daten haben.
         guard let data, !data.bins.isEmpty else {
@@ -119,21 +117,6 @@ struct WaveformView: View {
             path.move(to: CGPoint(x: x, y: midY - amp))
             path.addLine(to: CGPoint(x: x, y: midY + amp))
             ctx.stroke(path, with: .color(color), lineWidth: 1.0)
-        }
-
-        // Cue-Marker als kleine orange Markierung unten.
-        if let cueProgress {
-            let cueX = CGFloat(cueProgress) * width
-            var cueMarker = Path()
-            cueMarker.move(to: CGPoint(x: cueX, y: height - 6))
-            cueMarker.addLine(to: CGPoint(x: cueX - 4, y: height))
-            cueMarker.addLine(to: CGPoint(x: cueX + 4, y: height))
-            cueMarker.closeSubpath()
-            ctx.fill(cueMarker, with: .color(cueColor))
-            var cueLine = Path()
-            cueLine.move(to: CGPoint(x: cueX, y: 0))
-            cueLine.addLine(to: CGPoint(x: cueX, y: height))
-            ctx.stroke(cueLine, with: .color(cueColor.opacity(0.45)), lineWidth: 1)
         }
 
         // Playhead als vertikale Linie.

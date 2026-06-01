@@ -42,7 +42,7 @@ static NSString * _Nullable nonEmptyString(const TagLib::String &s) {
         if (error) {
             *error = [NSError errorWithDomain:@"SetifyTagBridge"
                                          code:1
-                                     userInfo:@{NSLocalizedDescriptionKey: @"Datei konnte nicht gelesen werden"}];
+                                     userInfo:@{NSLocalizedDescriptionKey: @"File could not be read"}];
         }
         return nil;
     }
@@ -62,6 +62,13 @@ static NSString * _Nullable nonEmptyString(const TagLib::String &s) {
     TagLib::PropertyMap props = fileRef.file()->properties();
     result.bpm        = firstProperty(props, "BPM");
     result.initialKey = firstProperty(props, "INITIALKEY");
+    // Label: ID3 TPUB ↔ PropertyMap "LABEL" (Format-übergreifend); manche
+    // Dateien hinterlegen den Wert stattdessen unter "PUBLISHER".
+    NSString *labelValue = firstProperty(props, "LABEL");
+    if (labelValue == nil) {
+        labelValue = firstProperty(props, "PUBLISHER");
+    }
+    result.label      = labelValue;
 
     // POPM-Rating wird erst beim Schreiben relevant; Lesen kommt in einer
     // späteren Iteration. Für jetzt: 0 = nicht gelesen.
@@ -104,6 +111,7 @@ static void setOrErase(TagLib::PropertyMap &props, const char *key, NSString *va
                 comment:(NSString *)comment
                     bpm:(NSString *)bpm
              initialKey:(NSString *)initialKey
+                  label:(NSString *)label
                   error:(NSError * _Nullable * _Nullable)error {
 
     TagLib::FileRef fileRef([path fileSystemRepresentation], false);
@@ -111,7 +119,7 @@ static void setOrErase(TagLib::PropertyMap &props, const char *key, NSString *va
         if (error) {
             *error = [NSError errorWithDomain:@"SetifyTagBridge"
                                          code:2
-                                     userInfo:@{NSLocalizedDescriptionKey: @"Datei nicht beschreibbar"}];
+                                     userInfo:@{NSLocalizedDescriptionKey: @"File is not writable"}];
         }
         return NO;
     }
@@ -128,13 +136,14 @@ static void setOrErase(TagLib::PropertyMap &props, const char *key, NSString *va
     TagLib::PropertyMap props = fileRef.file()->properties();
     setOrErase(props, "BPM", bpm);
     setOrErase(props, "INITIALKEY", initialKey);
+    setOrErase(props, "LABEL", label);
     fileRef.file()->setProperties(props);
 
     if (!fileRef.save()) {
         if (error) {
             *error = [NSError errorWithDomain:@"SetifyTagBridge"
                                          code:3
-                                     userInfo:@{NSLocalizedDescriptionKey: @"TagLib konnte die Datei nicht speichern"}];
+                                     userInfo:@{NSLocalizedDescriptionKey: @"TagLib could not save the file"}];
         }
         return NO;
     }

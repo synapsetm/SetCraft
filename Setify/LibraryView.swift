@@ -35,7 +35,7 @@ struct LibraryView: View {
                     Task { await library.selectFolder(id: newID) }
                 }
             )) {
-                Section("Quellen") {
+                Section("Sources") {
                     ForEach(library.folders) { folder in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(folder.name).font(.body)
@@ -47,7 +47,7 @@ struct LibraryView: View {
                         }
                         .tag(folder.id)
                         .contextMenu {
-                            Button("Quelle entfernen", role: .destructive) {
+                            Button("Remove source", role: .destructive) {
                                 library.removeFolder(id: folder.id)
                             }
                         }
@@ -61,7 +61,7 @@ struct LibraryView: View {
             Button {
                 library.chooseFolder()
             } label: {
-                Label("Ordner hinzufügen…", systemImage: "plus.circle")
+                Label("Add folder…", systemImage: "plus.circle")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
@@ -75,7 +75,7 @@ struct LibraryView: View {
             Button {
                 library.chooseFolder()
             } label: {
-                Label("Ordner wählen…", systemImage: "folder")
+                Label("Choose folder…", systemImage: "folder")
             }
 
             if let folder = library.folderURL {
@@ -91,11 +91,11 @@ struct LibraryView: View {
             if library.isScanning {
                 ProgressView()
                     .controlSize(.small)
-                Text("\(library.tracks.count) gefunden")
+                Text("\(library.tracks.count) found")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else if !library.tracks.isEmpty {
-                Text("\(library.tracks.count) Tracks")
+                Text("\(library.tracks.count) tracks")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -132,17 +132,17 @@ struct LibraryView: View {
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
-            .help("BPM-Erwartungsbereich für die Oktav-Korrektur")
+            .help("Expected BPM range for the octave correction")
 
             Button {
                 library.analyzeAllMissing()
             } label: {
                 let missing = library.tracks.filter { $0.bpm == nil || $0.key == nil }.count
                 if library.pendingAnalysisCount > 0 {
-                    Label("Analysiere (\(library.pendingAnalysisCount))", systemImage: "wand.and.stars")
+                    Label("Analyzing (\(library.pendingAnalysisCount))", systemImage: "wand.and.stars")
                 } else {
                     Label(
-                        missing > 0 ? "Fehlende analysieren (\(missing))" : "Analysieren",
+                        missing > 0 ? "Analyze missing (\(missing))" : "Analyze",
                         systemImage: "wand.and.stars"
                     )
                 }
@@ -154,8 +154,8 @@ struct LibraryView: View {
             } label: {
                 Label(
                     library.hasUnsavedChanges
-                        ? "Speichern (\(library.unsavedTrackIDs.count))"
-                        : "Speichern",
+                        ? "Save (\(library.unsavedTrackIDs.count))"
+                        : "Save",
                     systemImage: "square.and.arrow.down"
                 )
             }
@@ -171,97 +171,162 @@ struct LibraryView: View {
             sortOrder: $library.sortOrder,
             columnCustomization: $columnCustomization
         ) {
-            // Status-Spalte: immer sichtbar, nicht sortier-/verschiebbar.
-            TableColumn("●") { track in
-                Circle()
-                    .fill(library.unsavedTrackIDs.contains(track.id) ? Color.red : Color.clear)
-                    .frame(width: 8, height: 8)
-                    .help(library.unsavedTrackIDs.contains(track.id) ? "Ungespeicherte Änderungen" : "")
-            }
-            .width(14)
-            .customizationID("status")
-            .disabledCustomizationBehavior([.visibility, .reorder])
-
-            TableColumn("Titel", value: \.title) { track in
-                TextField("Titel", text: binding(track, \.title))
-                    .textFieldStyle(.plain)
-            }
-            .customizationID("title")
-            .disabledCustomizationBehavior(.visibility)
-
-            TableColumn("Artist", value: \.artist) { track in
-                TextField("Artist", text: binding(track, \.artist))
-                    .textFieldStyle(.plain)
-            }
-            .customizationID("artist")
-
-            TableColumn("BPM", value: \.bpmSortable) { track in
-                HStack(spacing: 4) {
-                    TextField("BPM", text: bpmBinding(for: track))
-                        .textFieldStyle(.plain)
-                        .multilineTextAlignment(.trailing)
-                        .monospacedDigit()
-                    if library.analysisState[track.id] == .scheduled && track.bpm == nil {
-                        ProgressView().controlSize(.mini)
-                    }
-                }
-            }
-            .width(min: 60, ideal: 75, max: 100)
-            .customizationID("bpm")
-
-            TableColumn("Key", value: \.keySortable) { track in
-                HStack(spacing: 4) {
-                    Text(track.key?.description ?? "—")
-                        .foregroundStyle(track.key != nil ? Color.green : Color.secondary)
-                        .monospacedDigit()
-                    if library.analysisState[track.id] == .scheduled && track.key == nil {
-                        ProgressView().controlSize(.mini)
-                    }
-                }
-            }
-            .width(min: 50, ideal: 65, max: 80)
-            .customizationID("key")
-
-            TableColumn("Rating", value: \.rating.stars) { track in
-                StarRatingView(rating: track.rating) { newRating in
-                    update(track) { $0.rating = newRating }
-                }
-            }
-            .width(min: 90, ideal: 100, max: 120)
-            .customizationID("rating")
-
-            TableColumn("Genre", value: \.genre) { track in
-                TextField("Genre", text: binding(track, \.genre))
-                    .textFieldStyle(.plain)
-            }
-            .width(min: 80, ideal: 120)
-            .customizationID("genre")
-
-            TableColumn("Kommentar", value: \.comment) { track in
-                TextField("Kommentar", text: binding(track, \.comment))
-                    .textFieldStyle(.plain)
-            }
-            .width(min: 100, ideal: 180)
-            .customizationID("comment")
-
-            TableColumn("Zeit", value: \.durationSeconds) { track in
-                Text(formatTime(track.durationSeconds))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-            }
-            .width(min: 50, ideal: 55, max: 70)
-            .customizationID("time")
+            // Aufgeteilt in Gruppen, weil SwiftUIs Table-ViewBuilder pro
+            // direktem Kind nur bis ca. zehn Spalten unterstützt.
+            primaryColumns
+            metadataColumns
+            fileInfoColumns
+            tailColumns
         }
         .onAppear { restoreColumnCustomization() }
         .onChange(of: columnCustomization) { _, _ in persistColumnCustomization() }
         .contextMenu(forSelectionType: Track.ID.self) { ids in
-            Button("In Player laden") {
+            Button("Load in player") {
                 loadFirst(ids)
             }
             .disabled(ids.isEmpty)
         } primaryAction: { ids in
             loadFirst(ids)
         }
+    }
+
+    // MARK: - Spaltengruppen
+
+    @TableColumnBuilder<Track, KeyPathComparator<Track>>
+    private var primaryColumns: some TableColumnContent<Track, KeyPathComparator<Track>> {
+        TableColumn("●") { track in
+            Circle()
+                .fill(library.unsavedTrackIDs.contains(track.id) ? Color.red : Color.clear)
+                .frame(width: 8, height: 8)
+                .help(library.unsavedTrackIDs.contains(track.id) ? "Unsaved changes" : "")
+        }
+        .width(14)
+        .customizationID("status")
+        .disabledCustomizationBehavior([.visibility, .reorder])
+
+        TableColumn("Title", value: \.title) { track in
+            TextField("Title", text: binding(track, \.title))
+                .textFieldStyle(.plain)
+        }
+        .customizationID("title")
+        .disabledCustomizationBehavior(.visibility)
+
+        TableColumn("Artist", value: \.artist) { track in
+            TextField("Artist", text: binding(track, \.artist))
+                .textFieldStyle(.plain)
+        }
+        .customizationID("artist")
+
+        TableColumn("BPM", value: \.bpmSortable) { track in
+            HStack(spacing: 4) {
+                TextField("BPM", text: bpmBinding(for: track))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
+                if library.analysisState[track.id] == .scheduled && track.bpm == nil {
+                    ProgressView().controlSize(.mini)
+                }
+            }
+        }
+        .width(min: 60, ideal: 75, max: 100)
+        .customizationID("bpm")
+
+        TableColumn("Key", value: \.keySortable) { track in
+            HStack(spacing: 4) {
+                Text(track.key?.description ?? "—")
+                    .foregroundStyle(track.key?.color ?? Color.secondary)
+                    .monospacedDigit()
+                if library.analysisState[track.id] == .scheduled && track.key == nil {
+                    ProgressView().controlSize(.mini)
+                }
+            }
+        }
+        .width(min: 50, ideal: 65, max: 80)
+        .customizationID("key")
+
+        TableColumn("Rating", value: \.rating.stars) { track in
+            StarRatingView(rating: track.rating) { newRating in
+                update(track) { $0.rating = newRating }
+            }
+        }
+        .width(min: 90, ideal: 100, max: 120)
+        .customizationID("rating")
+    }
+
+    @TableColumnBuilder<Track, KeyPathComparator<Track>>
+    private var metadataColumns: some TableColumnContent<Track, KeyPathComparator<Track>> {
+        TableColumn("Genre", value: \.genre) { track in
+            TextField("Genre", text: binding(track, \.genre))
+                .textFieldStyle(.plain)
+        }
+        .width(min: 80, ideal: 120)
+        .customizationID("genre")
+
+        TableColumn("Album", value: \.album) { track in
+            TextField("Album", text: binding(track, \.album))
+                .textFieldStyle(.plain)
+        }
+        .width(min: 80, ideal: 140)
+        .customizationID("album")
+
+        TableColumn("Label", value: \.label) { track in
+            TextField("Label", text: binding(track, \.label))
+                .textFieldStyle(.plain)
+        }
+        .width(min: 80, ideal: 120)
+        .customizationID("label")
+
+        TableColumn("Year", value: \.yearSortable) { track in
+            Text(track.year.map(String.init) ?? "—")
+                .monospacedDigit()
+                .foregroundStyle(track.year != nil ? .primary : .secondary)
+        }
+        .width(min: 45, ideal: 55, max: 70)
+        .customizationID("year")
+    }
+
+    @TableColumnBuilder<Track, KeyPathComparator<Track>>
+    private var fileInfoColumns: some TableColumnContent<Track, KeyPathComparator<Track>> {
+        TableColumn("Type", value: \.fileType) { track in
+            Text(track.fileType.isEmpty ? "—" : track.fileType)
+                .foregroundStyle(.secondary)
+        }
+        .width(min: 40, ideal: 50, max: 70)
+        .customizationID("filetype")
+
+        TableColumn("Bitrate", value: \.bitrateSortable) { track in
+            Text(track.bitrate.map { "\($0) kbps" } ?? "—")
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .width(min: 60, ideal: 75, max: 100)
+        .customizationID("bitrate")
+
+        TableColumn("Size", value: \.fileSizeSortable) { track in
+            Text(formatSize(track.fileSize))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .width(min: 55, ideal: 70, max: 90)
+        .customizationID("size")
+    }
+
+    @TableColumnBuilder<Track, KeyPathComparator<Track>>
+    private var tailColumns: some TableColumnContent<Track, KeyPathComparator<Track>> {
+        TableColumn("Comment", value: \.comment) { track in
+            TextField("Comment", text: binding(track, \.comment))
+                .textFieldStyle(.plain)
+        }
+        .width(min: 100, ideal: 180)
+        .customizationID("comment")
+
+        TableColumn("Time", value: \.durationSeconds) { track in
+            Text(formatTime(track.durationSeconds))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .width(min: 50, ideal: 55, max: 70)
+        .customizationID("time")
     }
 
     // MARK: - Bindings
@@ -318,6 +383,18 @@ struct LibraryView: View {
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 
+    private func formatSize(_ bytes: Int64?) -> String {
+        guard let bytes else { return "—" }
+        return Self.sizeFormatter.string(fromByteCount: bytes)
+    }
+
+    private static let sizeFormatter: ByteCountFormatter = {
+        let f = ByteCountFormatter()
+        f.countStyle = .file
+        f.allowedUnits = [.useMB, .useKB, .useGB]
+        return f
+    }()
+
     // MARK: - Spalten-Persistenz
 
     /// `TableColumnCustomization` ist Codable; wir serialisieren als JSON
@@ -344,5 +421,11 @@ extension Track {
     var bpmSortable: Double { bpm ?? -1 }
     /// Key zum Sortieren: Camelot-String (z. B. "8A"), nil → "" (oben).
     var keySortable: String { key?.description ?? "" }
+    /// Year zum Sortieren: nil → -1 (Anfang/Ende der Liste).
+    var yearSortable: Int { year ?? -1 }
+    /// Bitrate zum Sortieren: nil → -1.
+    var bitrateSortable: Int { bitrate ?? -1 }
+    /// File size zum Sortieren: nil → -1.
+    var fileSizeSortable: Int64 { fileSize ?? -1 }
 }
 

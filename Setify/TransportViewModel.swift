@@ -2,13 +2,13 @@ import Foundation
 import Observation
 import SetifyCore
 
-/// Hält die Tempo-/Key-Steuerung über alle Tracks hinweg: Original- und
-/// effektive Werte des gerade geladenen Tracks plus die optionalen Master-
-/// Werte (BPM, Key), die auf jeden neu geladenen Track angewendet werden.
+/// Hält die Tempo-/Key-Anzeige über alle Tracks hinweg: Original- und
+/// effektive Werte des gerade geladenen Tracks plus den optionalen
+/// Master-BPM, der auf jeden neu geladenen Track angewendet wird.
 ///
-/// Modus für Master-Key: **A — exakter Halbton-Shift**, beschränkt auf
-/// gleichen Mode (Dur ↔ Moll). Bei Mode-Mismatch bleibt der Track auf
-/// seinem Original-Key; `keyMasterApplicable` wird `false`.
+/// Hinweis: Die Möglichkeit, den Key zu verändern, wurde absichtlich entfernt.
+/// `effectiveKey` zeigt nur an, was sich aus dem Original-Tag und einem
+/// eventuellen Pitch-Offset ergibt — gesetzt wird er nicht mehr.
 @MainActor
 @Observable
 final class TransportViewModel {
@@ -29,16 +29,7 @@ final class TransportViewModel {
     // MARK: - Master-State
 
     var masterBPM: Double? = nil
-    var masterKey: CamelotKey? = nil
     var isGlobalBPM: Bool = false
-    var isGlobalKey: Bool = false
-    var keyLock: Bool = true {
-        didSet { applyKeyLock() }
-    }
-
-    /// `true`, wenn ein Master-Key gesetzt, aber gerade nicht anwendbar ist
-    /// (z. B. Track ist Dur, Master ist Moll). Nur als UI-Hinweis.
-    private(set) var keyMasterApplicable: Bool = true
 
     // MARK: - Effektiv geltende Werte (für UI-Anzeige)
 
@@ -71,13 +62,8 @@ final class TransportViewModel {
     /// Track an. Wird aus `ContentView.onChange(loadedURL)` aufgerufen.
     func applyMasterToLoadedTrack() {
         guard let player else { return }
-        guard player.player.loadedURL != nil else {
-            keyMasterApplicable = true
-            return
-        }
-        applyKeyLock()
+        guard player.player.loadedURL != nil else { return }
         applyMasterBPM()
-        applyMasterKey()
     }
 
     private func applyMasterBPM() {
@@ -87,28 +73,6 @@ final class TransportViewModel {
         }
         let rate = clampRate(target / original)
         player.player.rate = rate
-    }
-
-    private func applyMasterKey() {
-        guard let player else {
-            keyMasterApplicable = true
-            return
-        }
-        guard isGlobalKey, let target = masterKey, let original = player.originalKey else {
-            keyMasterApplicable = true
-            return
-        }
-        if let semitones = original.semitoneShift(to: target) {
-            player.player.pitchCents = Double(semitones) * 100.0
-            keyMasterApplicable = true
-        } else {
-            // Mode-Mismatch: Track unangetastet lassen (Phase-2-Entscheidung).
-            keyMasterApplicable = false
-        }
-    }
-
-    private func applyKeyLock() {
-        player?.player.keyLock = keyLock
     }
 
     // MARK: - User-Eingaben am Tempo-Chip
@@ -139,40 +103,6 @@ final class TransportViewModel {
             masterBPM = bpm
         } else if !enabled {
             masterBPM = nil
-        }
-    }
-
-    // MARK: - User-Eingaben am Key-Chip
-
-    func setKey(_ key: CamelotKey) {
-        guard let player, let original = player.originalKey else { return }
-        if let semitones = original.semitoneShift(to: key) {
-            player.player.pitchCents = Double(semitones) * 100.0
-        }
-        if isGlobalKey {
-            masterKey = key
-            keyMasterApplicable = true
-        }
-    }
-
-    func nudgeSemitone(_ delta: Int) {
-        guard let player else { return }
-        player.player.pitchCents += Double(delta) * 100.0
-        if isGlobalKey, let original = player.originalKey {
-            let cents = Int(player.player.pitchCents)
-            let semitones = Int((Double(cents) / 100.0).rounded())
-            masterKey = original.nudged(bySemitones: semitones)
-        }
-    }
-
-    func setIsGlobalKey(_ enabled: Bool) {
-        isGlobalKey = enabled
-        if enabled, let key = effectiveKey {
-            masterKey = key
-            keyMasterApplicable = true
-        } else if !enabled {
-            masterKey = nil
-            keyMasterApplicable = true
         }
     }
 

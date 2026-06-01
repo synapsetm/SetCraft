@@ -61,6 +61,20 @@ public actor DatabaseService {
                 t.column("added_at", .double).notNull()
             }
         }
+        m.registerMigration("v2_extra_track_columns") { db in
+            try db.alter(table: "tracks") { t in
+                t.add(column: "year",      .integer)
+                t.add(column: "bitrate",   .integer)
+                t.add(column: "label",     .text).notNull().defaults(to: "")
+                t.add(column: "file_size", .integer)
+            }
+        }
+        // v3: alte Cache-Zeilen haben year/bitrate/file_size = NULL, weil sie
+        // vor der Erweiterung geschrieben wurden. Wir leeren die Tabelle, damit
+        // beim nächsten Scan TagLib + FileManager die neuen Felder auffüllen.
+        m.registerMigration("v3_refresh_cache_after_extra_columns") { db in
+            try db.execute(sql: "DELETE FROM tracks")
+        }
         return m
     }()
 

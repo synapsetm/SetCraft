@@ -511,3 +511,126 @@ Für die nächste Sitzung:
   „Speichern" hält die Beendigung bis zum Abschluss zurück.
 - Auf einem zweiten Lauf der Library: Waveform erscheint praktisch
   sofort, weil die Bins aus der DB kommen.
+
+---
+
+## Sitzung 2026-06-01 — UI-Politur und Lokalisierung
+
+Eine zusammenhängende UI-Runde, ohne neue Phase. Keine Tests gebrochen
+(`swift build` im Package und `xcodebuild ... -destination 'platform=macOS'`
+sind grün).
+
+### Branding & Assets
+
+- **App-Icon eingesetzt.** Render-Skript (`docs/icon/render_icons.py`,
+  Pillow) erzeugt die zehn macOS-Größen 16…1024 plus ein 1024-Master für
+  den iOS-Slot. Die PNGs liegen im `AppIcon.appiconset`, `Contents.json`
+  trägt alle mac- und iOS-Slots inkl. light/dark/tinted. `Assets.car`
+  führt nachweislich alle Größen (`assetutil --info`); die kompakte
+  `AppIcon.icns` (nur 16/32/128/256) ist gewollt — macOS zieht hochauf-
+  lösende Varianten zur Laufzeit aus dem Asset Catalog. Wenn der Finder
+  weiterhin ein altes Icon zeigt, ist es **immer** der Icon Services
+  Cache (`sudo rm -rf /Library/Caches/com.apple.iconservices.store;
+  killall Dock Finder`).
+
+### Player
+
+- **Transport-Bar neu sortiert:** Open file → Load → Play/Pause →
+  Unload. Der neue Load-Button lädt den in der Library markierten
+  Track in den Player. Play/Pause nutzt jetzt `playpause.fill` als
+  Symbol — eindeutig, egal in welchem Zustand.
+- **Cue-Funktion komplett raus** (Button, ViewModel, `AudioEngine`-
+  Protokoll, Cue-Marker auf der Waveform).
+- **Key-Editierung entfernt.** Der `KeyChip` ist jetzt ein reines
+  Label (kein Capsule-Hintergrund, keine Border), damit visuell klar
+  wird: hier ist nichts antippbar. Master-Key-State,
+  `setKey`/`nudgeSemitone`/`setIsGlobalKey` und der Mode-Mismatch-
+  Indikator sind aus `TransportViewModel` raus.
+- **Key-Lock-Toggle entfernt.** Schloss-Symbol existierte als Knopf,
+  hatte aber faktisch keine Wirkung (`AVAudioUnitTimePitch`
+  entkoppelt Rate und Pitch ohnehin, das Flag war „always on"). Mit
+  dem Schalter raus auch die `keyLock`-Property auf `AudioEngine`-
+  Protokoll und `AVAudioEnginePlayer`.
+- **`TempoChip` signalisiert Editierbarkeit deutlicher.** Behält
+  Capsule + Border, hat jetzt ein `chevron.down` rechts und tauscht
+  beim Hover den Cursor auf `pointingHand`. Differenziert sich klar
+  vom (read-only) `KeyChip`.
+- **Camelot-Farben im Player-Chip und in der Library-Key-Spalte.**
+  `CamelotKey.color` (in `Setify/CamelotKeyColor.swift`) bildet
+  Position 1–12 auf ein Hue-Wheel ab; Moll (A) ist satter/dunkler,
+  Dur (B) heller. Konvention orientiert sich an DJ-Apps.
+- **Player-Header zeigt Artist & Titel** (statt nur den Dateinamen).
+  Titel kommt aus den Tags via Library-Lookup; Fallback ist der
+  Dateiname ohne Endung. Untertitel ist der Artist; Fallback
+  „Unknown artist".
+
+### Library
+
+- **Neue Spalten:** Album, Label, Year, Type, Bitrate, Size. Album
+  und Label sind editierbar; Year, Bitrate, Size kommen read-only
+  aus den Tags + `FileManager`. Da der SwiftUI-`Table`-Builder bei
+  ≈10 Spalten dichtmacht, sind die Spalten in vier
+  `@TableColumnBuilder`-Gruppen (`primaryColumns`,
+  `metadataColumns`, `fileInfoColumns`, `tailColumns`) aufgeteilt.
+- **`Track` erweitert** um `year`, `bitrate`, `label`, `fileSize`
+  plus `fileType` (computed aus URL-Extension). `SetifyTagBridge`
+  liest/schreibt LABEL (Fallback PUBLISHER) via PropertyMap.
+- **Cache-Migration v2** ergänzt die Spalten in der SQLite-Tabelle.
+  **Migration v3** leert die `tracks`-Tabelle einmalig, damit alte
+  Cache-Zeilen ohne year/bitrate/file_size beim nächsten Scan aus
+  den Tags neu befüllt werden.
+- **Drag & Drop integriert in die Library.** Wird eine Datei in den
+  Player gezogen, prüft `LibraryViewModel.handleDroppedFile(_:)`:
+  - Ist der Eltern-Ordner schon Quelle → Sidebar schaltet darauf um.
+  - Ist er unbekannt → `NSOpenPanel` öffnet sich pre-positioned auf
+    den Ordner, der User bestätigt einmalig (sandbox-bedingt, damit
+    das Security-Scoped Bookmark sauber registriert wird), danach
+    persistAndScan.
+
+### Lokalisierung
+
+- **Komplette App auf Englisch übersetzt**, deutsche Übersetzungen
+  in `Setify/Localizable.xcstrings`. `developmentRegion = en`,
+  `knownRegions` enthält jetzt zusätzlich `de`. System mit DE-
+  Sprache zeigt deutsch, alle anderen Englisch.
+
+### Erscheinungsbild — Bugfix
+
+- **Light/Dark/System-Schalter wirkt zuverlässig.** `.preferred-
+  ColorScheme(.dark) → .preferredColorScheme(nil)` ließ auf macOS
+  `List`, `Table` und `Canvas` im dunklen Zustand hängen (Sidebar
+  und Library-Tabelle blieben schwarz, obwohl der Player-Bereich
+  schon hell war). Fix:
+  - `.preferredColorScheme(...)` entfernt — kein SwiftUI-Modifier
+    mehr für das Schema.
+  - `NSApplication.shared.appearance` ist die einzige Wahrheits-
+    quelle, gesetzt in `SetifyApp.init()` (vor dem ersten Window)
+    und per `.onChange(of: appearanceRaw)`.
+  - Zusätzlich wird `appearance` auf **jedem** existierenden
+    Window gesetzt, weil ein Window, das einmal explizit
+    `.darkAqua` zugewiesen bekam, sonst auf diesem Wert hängen
+    bleibt.
+- **Hardcoded `.white`** im Waveform-Loading-Overlay durch
+  `.primary.opacity(0.85)` ersetzt — sonst stand der Text im
+  Light-Mode unsichtbar auf weißem Hintergrund.
+
+### Architektur-Notiz
+
+- Es entstand kein zweites Modell für „Track in der Library, aber
+  ohne Source". Wir bleiben bei der Regel „jeder sichtbare Track
+  gehört zu einer Folder-Source". Drag-and-Drop zwingt deshalb in
+  den Pfad „Source hinzufügen", was zwar einen Picker-Klick
+  kostet, aber das Sandbox- und Bookmark-Modell konsistent hält.
+
+### Manuelle Tests, die jetzt sinnvoll sind
+
+- App im Light-Mode starten → manuell auf Dark schalten → auf
+  System zurück → alle Bereiche (Player, Waveform, Sidebar,
+  Tabelle) wechseln synchron.
+- Track aus Finder in den Player ziehen, dessen Ordner noch keine
+  Quelle ist → `NSOpenPanel` poppt vorausgewählt auf, nach
+  „Add as source" erscheint der Track in der Liste.
+- Sprach-Setting auf Deutsch → App-Texte in Deutsch; System auf
+  Englisch → englische Texte (ohne neu zu kompilieren).
+- Library mit altem Cache öffnen → einmaliger v3-Wipe lässt
+  Year/Bitrate/Size beim Re-Scan auftauchen.

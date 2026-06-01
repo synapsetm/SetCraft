@@ -18,12 +18,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard Self.unsavedQuery?() == true else { return .terminateNow }
 
         let alert = NSAlert()
-        alert.messageText = "Ungespeicherte Änderungen"
-        alert.informativeText = "Es gibt Bibliotheks-Änderungen, die noch nicht in die Dateien geschrieben wurden. Was möchtest du tun?"
+        alert.messageText = String(localized: "Unsaved changes")
+        alert.informativeText = String(localized: "There are library changes that haven't been written to the files yet. What would you like to do?")
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "Speichern")
-        alert.addButton(withTitle: "Verwerfen")
-        alert.addButton(withTitle: "Abbrechen")
+        alert.addButton(withTitle: String(localized: "Save"))
+        alert.addButton(withTitle: String(localized: "Discard"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
 
         let response = alert.runModal()
         switch response {

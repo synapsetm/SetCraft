@@ -10,15 +10,11 @@ public protocol AudioEngine: AnyObject {
 
     var rate: Double { get set }
     var pitchCents: Double { get set }
-    var keyLock: Bool { get set }
 
     var isPlaying: Bool { get }
     var position: TimeInterval { get }
     var duration: TimeInterval { get }
     var loadedURL: URL? { get }
-
-    var cuePoint: TimeInterval? { get }
-    func cue()
 }
 
 public enum AudioEngineError: Error, Sendable {

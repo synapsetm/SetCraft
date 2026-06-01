@@ -18,6 +18,10 @@ public struct CachedTrack: Codable, FetchableRecord, PersistableRecord, Sendable
     public var duration_seconds: Double
     public var modified_at: Double
     public var cached_at: Double
+    public var year: Int?
+    public var bitrate: Int?
+    public var label: String
+    public var file_size: Int64?
 
     public init(track: Track, modifiedAt: Date, cachedAt: Date) {
         self.url               = track.url.standardizedFileURL.path
@@ -32,6 +36,10 @@ public struct CachedTrack: Codable, FetchableRecord, PersistableRecord, Sendable
         self.duration_seconds  = track.durationSeconds
         self.modified_at       = modifiedAt.timeIntervalSince1970
         self.cached_at         = cachedAt.timeIntervalSince1970
+        self.year              = track.year
+        self.bitrate           = track.bitrate
+        self.label             = track.label
+        self.file_size         = track.fileSize
     }
 
     /// Baut wieder ein domain-`Track` aus der Cache-Zeile. Die `id` wird
@@ -48,7 +56,11 @@ public struct CachedTrack: Codable, FetchableRecord, PersistableRecord, Sendable
             durationSeconds: duration_seconds,
             bpm: bpm,
             key: camelot_key.flatMap(CamelotKey.init),
-            rating: Rating(stars: rating)
+            rating: Rating(stars: rating),
+            year: year,
+            bitrate: bitrate,
+            label: label,
+            fileSize: file_size
         )
     }
 

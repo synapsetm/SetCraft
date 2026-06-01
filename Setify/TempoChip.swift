@@ -16,7 +16,7 @@ struct TempoChip: View {
                 Image(systemName: "metronome")
                     .imageScale(.small)
                 Text(displayBPM)
-                    .font(.body.monospacedDigit())
+                    .font(.body.monospacedDigit().weight(.medium))
                 Text("BPM")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -28,6 +28,11 @@ struct TempoChip: View {
                         .background(.orange.opacity(0.25), in: Capsule())
                         .foregroundStyle(.orange)
                 }
+                // Chevron als sichtbarer Hinweis: hier öffnet sich ein Popover.
+                Image(systemName: "chevron.down")
+                    .imageScale(.small)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
@@ -36,6 +41,14 @@ struct TempoChip: View {
         }
         .buttonStyle(.plain)
         .disabled(!hasLoadedTrack)
+        .help("Adjust tempo")
+        .onHover { hovering in
+            if hovering && hasLoadedTrack {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
         .popover(isPresented: $showPopover, arrowEdge: .bottom) {
             popover
                 .padding(16)
@@ -82,7 +95,7 @@ struct TempoChip: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Feinregelung")
+                    Text("Fine adjust")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()

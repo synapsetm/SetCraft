@@ -12,7 +12,6 @@ public final class AVAudioEnginePlayer: AudioEngine {
     public private(set) var position: TimeInterval = 0
     public private(set) var duration: TimeInterval = 0
     public private(set) var loadedURL: URL?
-    public private(set) var cuePoint: TimeInterval?
 
     // Stored properties, damit @Observable die Änderungen mitbekommt und
     // SwiftUI-Views (Chips, Slider, Anzeige) sich erneuern. didSet syncht
@@ -32,11 +31,6 @@ public final class AVAudioEnginePlayer: AudioEngine {
             if pitchCents != clamped { pitchCents = clamped }
         }
     }
-
-    // AVAudioUnitTimePitch decouples rate and pitch by design,
-    // so key-lock is effectively always on in Phase 0. The flag is kept
-    // for protocol parity; a future "off" mode would couple pitch to rate.
-    public var keyLock: Bool = true
 
     // MARK: - Private audio graph
 
@@ -74,7 +68,6 @@ public final class AVAudioEnginePlayer: AudioEngine {
         duration = TimeInterval(file.length) / file.processingFormat.sampleRate
         seekFrame = 0
         position = 0
-        cuePoint = nil
 
         engine.disconnectNodeOutput(playerNode)
         engine.disconnectNodeOutput(timePitch)
@@ -94,7 +87,6 @@ public final class AVAudioEnginePlayer: AudioEngine {
         duration = 0
         position = 0
         seekFrame = 0
-        cuePoint = nil
     }
 
     public func play() {
@@ -133,17 +125,6 @@ public final class AVAudioEnginePlayer: AudioEngine {
         if wasPlaying {
             if !engine.isRunning { try? startEngine() }
             playerNode.play()
-        }
-    }
-
-    public func cue() {
-        guard audioFile != nil else { return }
-        if isPlaying {
-            if cuePoint == nil { cuePoint = position }
-            pause()
-            seek(to: cuePoint ?? 0)
-        } else {
-            cuePoint = position
         }
     }
 

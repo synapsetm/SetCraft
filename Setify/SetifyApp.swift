@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import SetifyCore
 
@@ -8,11 +9,11 @@ enum AppearancePreference: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    var label: LocalizedStringKey {
         switch self {
         case .system: return "System"
-        case .light:  return "Hell"
-        case .dark:   return "Dunkel"
+        case .light:  return "Light"
+        case .dark:   return "Dark"
         }
     }
 
@@ -21,6 +22,19 @@ enum AppearancePreference: String, CaseIterable, Identifiable {
         case .system: return nil
         case .light:  return .light
         case .dark:   return .dark
+        }
+    }
+
+    /// Pendant zu `colorScheme` auf der AppKit-Seite. SwiftUIs
+    /// `.preferredColorScheme(nil)` updatet auf macOS Listen/Tables/Canvas-
+    /// Subviews nicht zuverlässig zurück auf das System-Schema; durch
+    /// gleichzeitiges Setzen von `NSApp.appearance` zwingen wir den ganzen
+    /// AppKit-Baum nachzuziehen.
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: return nil
+        case .light:  return NSAppearance(named: .aqua)
+        case .dark:   return NSAppearance(named: .darkAqua)
         }
     }
 }
@@ -37,6 +51,13 @@ struct SetifyApp: App {
     @AppStorage("appearance") private var appearanceRaw: String = AppearancePreference.system.rawValue
 
     init() {
+        // Appearance VOR der Fenstererzeugung setzen — sonst öffnet das erste
+        // Window mit dem System-Schema, bevor unser Override greift.
+        let storedAppearance = UserDefaults.standard.string(forKey: "appearance")
+            ?? AppearancePreference.system.rawValue
+        let initialPref = AppearancePreference(rawValue: storedAppearance) ?? .system
+        NSApplication.shared.appearance = initialPref.nsAppearance
+
         // SQLite-Datei im macOS-Sandbox-Application-Support.
         let supportDir = (try? FileManager.default.url(
             for: .applicationSupportDirectory,
@@ -50,7 +71,7 @@ struct SetifyApp: App {
         do {
             database = try DatabaseService(databaseURL: databaseURL)
         } catch {
-            fatalError("Konnte SQLite-Datenbank nicht öffnen: \(error.localizedDescription)")
+            fatalError("Could not open SQLite database: \(error.localizedDescription)")
         }
 
         let p = PlayerViewModel()
@@ -72,22 +93,28 @@ struct SetifyApp: App {
                 .onOpenURL { url in
                     player.load(url: url)
                 }
-                .preferredColorScheme(appearance.colorScheme)
+                // Bewusst KEIN `.preferredColorScheme(...)` — der SwiftUI-Modifier
+                // schiebt das Schema in das Environment, hinterlässt aber bei
+                // AppKit-Subviews (List, Table, Canvas) hängende Zustände, wenn
+                // er von `.dark` → `nil` wechselt. `NSApp.appearance` plus
+                // explizites Setzen pro Window löst das robust.
+                .onAppear { applyAppearance(appearance) }
+                .onChange(of: appearanceRaw) { _, _ in applyAppearance(appearance) }
         }
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Audiodatei öffnen…") {
+                Button("Open audio file…") {
                     player.openFile()
                 }
                 .keyboardShortcut("o", modifiers: .command)
 
-                Button("Ordner wählen…") {
+                Button("Choose folder…") {
                     library.chooseFolder()
                 }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
             }
-            CommandMenu("Ansicht") {
-                Picker("Erscheinungsbild", selection: $appearanceRaw) {
+            CommandMenu("View") {
+                Picker("Appearance", selection: $appearanceRaw) {
                     ForEach(AppearancePreference.allCases) { mode in
                         Text(mode.label).tag(mode.rawValue)
                     }
@@ -98,5 +125,18 @@ struct SetifyApp: App {
 
     private var appearance: AppearancePreference {
         AppearancePreference(rawValue: appearanceRaw) ?? .system
+    }
+
+    /// Setzt das NSApplication-Appearance UND zwingt jedes existierende Window,
+    /// seine eigene `appearance`-Property nachzuziehen. Letzteres ist nötig,
+    /// weil ein Window, das einmal explizit `.darkAqua` gesetzt bekam, sonst
+    /// auf diesem Wert hängen bleibt — auch wenn `NSApp.appearance` danach
+    /// auf `nil` (System folgen) zurückgesetzt wird.
+    private func applyAppearance(_ pref: AppearancePreference) {
+        let target = pref.nsAppearance
+        NSApplication.shared.appearance = target
+        for window in NSApplication.shared.windows {
+            window.appearance = target
+        }
     }
 }

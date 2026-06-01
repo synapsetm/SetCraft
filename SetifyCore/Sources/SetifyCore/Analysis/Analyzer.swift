@@ -18,11 +18,11 @@ public enum AnalysisError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .decodeFailed(let url, let underlying):
-            return "Konnte \(url.lastPathComponent) nicht dekodieren: \(underlying?.localizedDescription ?? "-")"
+            return "Could not decode \(url.lastPathComponent): \(underlying?.localizedDescription ?? "-")"
         case .noSamples(let url):
-            return "Keine Samples in \(url.lastPathComponent) gefunden."
+            return "No samples found in \(url.lastPathComponent)."
         case .analysisFailed(let url, let reason):
-            return "Analyse für \(url.lastPathComponent) fehlgeschlagen: \(reason)"
+            return "Analysis failed for \(url.lastPathComponent): \(reason)"
         }
     }
 }

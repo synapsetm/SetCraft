@@ -22,6 +22,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// Initialer Key (Camelot oder roh), z. B. "8A".
 @property (nonatomic, copy, nullable) NSString *initialKey;
 
+/// Label / Publisher (TPUB / "LABEL" Frame), falls hinterlegt.
+@property (nonatomic, copy, nullable) NSString *label;
+
 /// POPM-Wert (0–255). 0 = nicht gesetzt. Nur ID3 (MP3/AIFF).
 @property (nonatomic, assign) NSInteger popmRating;
 
@@ -56,6 +59,7 @@ NS_ASSUME_NONNULL_BEGIN
                 comment:(NSString *)comment
                     bpm:(NSString *)bpm
              initialKey:(NSString *)initialKey
+                  label:(NSString *)label
                   error:(NSError * _Nullable * _Nullable)error;
 
 @end

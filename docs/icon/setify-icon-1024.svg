@@ -1,0 +1,17 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>Setify App Icon</title>
+<desc>Frequenzbasierte RGB-Waveform mit zentraler, überragender Playhead auf dunklem Squircle.</desc>
+<defs><clipPath id="sq"><rect x="0" y="0" width="1024" height="1024" rx="230"/></clipPath></defs>
+<g clip-path="url(#sq)">
+<rect x="0" y="0" width="1024" height="1024" fill="#15151a"/>
+<rect x="203.5" y="437" width="41" height="150" rx="20" fill="#FF5630"/>
+<rect x="275.5" y="347" width="41" height="330" rx="20" fill="#FF7A33"/>
+<rect x="347.5" y="232" width="41" height="560" rx="20" fill="#F5B544"/>
+<rect x="419.5" y="387" width="41" height="250" rx="20" fill="#7DC850"/>
+<rect x="497" y="132" width="30" height="760" rx="15" fill="#ffffff"/>
+<rect x="563.5" y="387" width="41" height="250" rx="20" fill="#4A8DF0"/>
+<rect x="635.5" y="232" width="41" height="560" rx="20" fill="#7A6CEC"/>
+<rect x="707.5" y="347" width="41" height="330" rx="20" fill="#5E7BEE"/>
+<rect x="779.5" y="437" width="41" height="150" rx="20" fill="#B57BE0"/>
+</g>
+</svg>
