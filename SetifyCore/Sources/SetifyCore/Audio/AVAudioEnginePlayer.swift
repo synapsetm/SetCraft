@@ -48,6 +48,14 @@ public final class AVAudioEnginePlayer: AudioEngine {
     private var seekFrame: AVAudioFramePosition = 0
     private var positionTimer: Timer?
 
+    /// Jeder Aufruf von `scheduleFromSeekFrame()` erhöht den Zähler. Die
+    /// Completion-Closure speichert ihren Generation-Wert und vergleicht ihn
+    /// in handlePlaybackFinished. So lehnen wir Callbacks ab, die zum
+    /// abgebrochenen alten Schedule gehören (sonst springt der Playhead
+    /// nach einem Seek während der Wiedergabe wieder an den Trackanfang
+    /// zurück, weil der alte Buffer als "fertig abgespielt" gemeldet wird).
+    private var scheduleGeneration: Int = 0
+
     public init() {
         engine.attach(playerNode)
         engine.attach(timePitch)
@@ -164,6 +172,8 @@ public final class AVAudioEnginePlayer: AudioEngine {
         let startFrame = seekFrame
         let remaining = file.length - startFrame
         guard remaining > 0 else { return }
+        scheduleGeneration &+= 1
+        let myGeneration = scheduleGeneration
         playerNode.scheduleSegment(
             file,
             startingFrame: startFrame,
@@ -172,7 +182,11 @@ public final class AVAudioEnginePlayer: AudioEngine {
             completionCallbackType: .dataPlayedBack
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.handlePlaybackFinished()
+                guard let self else { return }
+                // Stale-Callback verwerfen: gehört zu einem Schedule,
+                // den ein späteres seek/pause/load längst abgebrochen hat.
+                guard self.scheduleGeneration == myGeneration else { return }
+                self.handlePlaybackFinished()
             }
         }
     }
