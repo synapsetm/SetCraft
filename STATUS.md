@@ -358,13 +358,68 @@ Eine Reihe von Praxis-Bugs, die nach dem Live-Test sichtbar wurden:
 
 ---
 
-## Phase 5 — geplant (SPEC §7)
+## Phase 5a — abgeschlossen
 
-Politur und iOS-Vorbereitung:
+SQLite-Persistenz und Multi-Folder. iOS-Target (5b) und SFBAudioEngine
+(5c) stehen noch aus.
 
-- SQLite-Cache hinter `TrackStore` (GRDB) für Bibliothek, Suche,
-  Waveform-Persistenz, Crates/Playlists, History.
-- Optional SFBAudioEngine als Decoder-Layer (Ogg Vorbis, schnelleres FLAC).
-- Security-Scoped Bookmarks für persistente Ordner.
-- iOS/iPad-Target anlegen, plattformspezifische Stellen mit `#if os(...)`
-  kapseln. xcframeworks bei Bedarf um iOS-Slice ergänzen.
+### Was steht
+
+- **GRDB.swift 7.x** als SPM-Dep in `SetifyCore`. `DatabaseService`
+  (Actor) liegt unter Application Support; Migration `v1` mit drei
+  Tabellen: `tracks` (URL als Primary Key, Metadaten + Audio-Properties
+  + mtime/cached_at), `waveforms` (URL/mtime/bins-Blob; 4 Float32 pro
+  Bin), `folders` (UUID/URL/name/bookmark_data/added_at).
+- **CachedTrack / CachedWaveform / FolderRecord** als GRDB-Records.
+- **LibraryRepository** (Actor, `TrackStore`-konform) orchestriert
+  `TagLibTrackStore` + `DatabaseService`. `loadTrack(url:)` macht
+  Cache-First mit mtime-Vergleich und fällt sonst auf `TagReader`
+  zurück. `scan(folder:)` streamt durch den Cache, was den App-Restart
+  praktisch lautlos macht.
+- **WaveformCache** nimmt eine optionale `DatabaseService` an und prüft
+  bei jeder Anfrage die DB (Stale-Check via mtime). Frische
+  Berechnungen werden persistiert.
+- **Security-Scoped Bookmarks**: NSOpenPanel-Pick erzeugt ein
+  Bookmark, das im `FolderRecord` persistiert wird. Beim App-Start
+  resolved `restoreSavedFolders` alle Bookmarks; der zuletzt
+  gewählte Ordner wird automatisch aktiv. Stale Bookmarks werden
+  refresht, unbrauchbare gelöscht.
+- **Multi-Folder-Sidebar**: `LibraryView` hat jetzt eine 200-px-
+  Sidebar mit „Quellen"-Liste und „Ordner hinzufügen…"-Button.
+  Klick auf eine Quelle wechselt die Anzeige; Kontextmenü erlaubt
+  „Quelle entfernen". Aktive Quelle wird unten in der Status-
+  Zeile ausgewiesen.
+- **Position-Slider entfernt** — gesucht wird ausschliesslich über
+  die Waveform (Tap = Seek).
+
+### Bewusst nicht in Phase 5a
+
+- **Multi-Source-Aggregation** („Alle Tracks"-Ansicht über mehrere
+  Ordner hinweg). Aktuell zeigt die Tabelle immer nur eine Quelle.
+- **Crates / Playlists / History** — die SQLite-Basis ist da, die
+  konkreten Features kommen in einer eigenen Phase.
+- **Disk-Cache für PCM-Decodes** (für noch schnellere Waveform-
+  Berechnung) — nicht nötig, solange die Waveform-Blobs gecached
+  werden.
+
+---
+
+## Phase 5b — geplant (iOS/iPad)
+
+Plattform-Vorbereitung:
+
+- xcframeworks (TagLib, aubio, KeyFinder) um iOS-Slices erweitern:
+  iOS-arm64-Device + iOS-arm64-Simulator + x86_64-Simulator. Die
+  bestehenden Build-Skripte in `Vendor/` müssen entsprechend
+  ausgebaut werden.
+- iOS/iPad-Target im Xcode-Projekt anlegen. Code, der auf NSOpenPanel/
+  NSApplicationDelegate/AppKit verweist, mit `#if os(macOS)` kapseln;
+  DocumentPicker als iOS-Pendant.
+- `AVAudioSession`-Konfiguration für iOS einrichten (Category playback,
+  Background-Audio, Interruption-Handling).
+- ColorScheme- und Appearance-Toggle bleiben SwiftUI-übergreifend.
+
+## Phase 5c — optional (SFBAudioEngine)
+
+- Ogg Vorbis / WavPack / Monkey's Audio-Unterstützung via
+  SFBAudioEngine. Erst einziehen, wenn die Library es verlangt.
