@@ -99,30 +99,16 @@ struct WaveformView: View {
             let amp = CGFloat(pow(maxRms, 0.6)) * (height * 0.45)
             let x = CGFloat(col) + 0.5
 
-            // Sättigung anheben: den "Weißanteil" (gemeinsame Helligkeit
-            // aller Bänder) zum Teil abziehen. So sticht der dominante Anteil
-            // klarer heraus, gleichverteilte Bänder bleiben neutral grau.
-            let minBand = Swift.min(Float(bass), Swift.min(Float(mid), Float(high)))
-            let satBoost: Float = 0.55
-            let sr = max(0, Float(bass) - satBoost * minBand)
-            let sg = max(0, Float(mid)  - satBoost * minBand)
-            let sb = max(0, Float(high) - satBoost * minBand)
-
-            // Helligkeit modus-abhängig:
-            //   Dark  → sqrt() hebt mittlere Energien an (sichtbar auf Schwarz).
-            //   Light → linear, dafür voller Sättigung; dunkle Farben heben
-            //           sich auf Weiß ab, helle Farben wären eh unsichtbar.
-            let cr: Double, cg: Double, cb: Double
-            if isDark {
-                cr = sqrt(Double(sr))
-                cg = sqrt(Double(sg))
-                cb = sqrt(Double(sb))
-            } else {
-                cr = Double(sr)
-                cg = Double(sg)
-                cb = Double(sb)
-            }
-            let baseColor = Color(red: cr, green: cg, blue: cb)
+            // Additive RGB: R = Bass, G = Mitten, B = Höhen. pow(0.4) hebt
+            // mittlere Energien deutlich perzeptuell an — sonst landen die
+            // Werte nach der Normalisierung oft im 0.2–0.4-Bereich und
+            // die Säulen sehen flau/grau aus. Knalligere Farben sind das Ziel.
+            let gamma: Double = 0.4
+            let baseColor = Color(
+                red:   pow(Double(bass), gamma),
+                green: pow(Double(mid),  gamma),
+                blue:  pow(Double(high), gamma)
+            )
 
             let played = CGFloat(x) < progressX
             let color: Color = played
