@@ -50,6 +50,14 @@ struct LibraryView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
                     .lineLimit(1)
+                    .help(error)
+            }
+            if let error = library.lastAnalysisError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .lineLimit(1)
+                    .help(error)
             }
 
             Menu {

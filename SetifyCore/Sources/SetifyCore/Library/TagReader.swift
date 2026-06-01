@@ -36,6 +36,7 @@ public enum TagReader {
     private static func parseBPM(_ raw: String?) -> Double? {
         guard let raw, !raw.isEmpty else { return nil }
         let normalized = raw.replacingOccurrences(of: ",", with: ".")
-        return Double(normalized)
+        guard let value = Double(normalized), value > 0 else { return nil }
+        return value
     }
 }

@@ -17,6 +17,7 @@ final class LibraryViewModel {
     var isScanning = false
     var selectedTrackID: Track.ID?
     var lastWriteError: String?
+    var lastAnalysisError: String?
 
     /// IDs der Tracks mit Änderungen, die noch nicht auf der Platte sind.
     /// Erst nach erfolgreichem `save` wird die ID hier wieder entfernt.
@@ -189,16 +190,29 @@ final class LibraryViewModel {
                         return
                     }
                     var updated = self.tracks[idx]
+                    let gotBPM = result.bpm != nil
+                    let gotKey = result.key != nil
                     if let bpm = result.bpm { updated.bpm = bpm }
                     if let key = result.key { updated.key = key }
                     self.tracks[idx] = updated
                     self.analysisState[track.id] = .done
-                    self.persistAfterAnalysis(updated, store: store)
+                    if gotBPM || gotKey {
+                        self.persistAfterAnalysis(updated, store: store)
+                    }
+                    if needsBPM && !gotBPM && needsKey && !gotKey {
+                        self.lastAnalysisError = "Keine BPM und keine Tonart erkannt: \(track.url.lastPathComponent)"
+                    } else if needsBPM && !gotBPM {
+                        self.lastAnalysisError = "Keine BPM erkannt: \(track.url.lastPathComponent)"
+                    } else if needsKey && !gotKey {
+                        self.lastAnalysisError = "Keine Tonart erkannt: \(track.url.lastPathComponent)"
+                    } else {
+                        self.lastAnalysisError = nil
+                    }
                 }
             } catch {
                 await MainActor.run {
                     self?.analysisState[track.id] = .failed
-                    self?.lastWriteError = error.localizedDescription
+                    self?.lastAnalysisError = error.localizedDescription
                 }
             }
         }
