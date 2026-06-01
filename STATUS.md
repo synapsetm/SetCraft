@@ -314,6 +314,50 @@ gesamte `TagLibTrackStore` ohne Schreibrechte ohnehin nicht testbar ist.
 
 ---
 
+## Nachträge nach Phase 4 (Bugfixes & Politur)
+
+Eine Reihe von Praxis-Bugs, die nach dem Live-Test sichtbar wurden:
+
+- **PCMLoader-Format-Mismatch** (Commit `9673de9`): Die Analyse blieb bei
+  Stereodateien stumm, weil `AVAudioFile.read(into:)` einen Buffer
+  verlangt, der dem `processingFormat` der Datei entspricht
+  (typischerweise Float32 *non-interleaved*). Der PCMLoader hat einen
+  eigenen `interleaved: true`-Buffer gebaut — bei Mono zufällig OK,
+  bei Stereo Crash im Stillen. Behoben + Tests, die Mono/Stereo round-
+  trippen.
+- **Player-Chips ohne Reaktion** (Commit `c2d626c`): `rate` und
+  `pitchCents` waren Computed-Properties auf `AVAudioUnitTimePitch` —
+  Observation-Framework hat sie nicht getrackt, also haben die Chips
+  Änderungen verschluckt. Jetzt stored properties mit `didSet`-Sync.
+- **Analyse-Werte erreichten den Player nicht** (gleicher Commit): beim
+  Doppelklick eines Tracks ohne BPM/Key blieben `player.originalBPM/
+  originalKey` `nil`. `LibraryViewModel.onTrackAnalyzed`-Hook zieht die
+  Werte nach Abschluss der Analyse nach.
+- **Schreibvorgang an aktiver Datei wurde nie nachgeholt**
+  (Commit `f4ad9c6`): `TagLibTrackStore.save` lehnt mit `fileInUse`
+  ab, wenn die Datei gerade im Player läuft. `LibraryViewModel` merkt
+  sich das in `blockedByActivePlayer`, der rote Punkt bleibt sichtbar,
+  und beim Entladen/Wechsel des Tracks wird der Save automatisch
+  ausgeführt.
+- **Waveform-Farben** (Commits `86bf164` → `640cb95`): Hintergrund
+  reagiert jetzt auf den ColorScheme (weiss/schwarz). Höhen hatten im
+  DSP strukturell ~100× mehr Bins als Bass — die FFT-Summen wurden
+  daher *pro Band* durch die Bin-Anzahl geteilt, bevor track-weit
+  normiert wird. Im Renderer reichte `sqrt()` nicht; mit `pow(0.4)`
+  werden mittlere Energien deutlich knackiger.
+- **Seek während Wiedergabe sprang an den Trackanfang**
+  (Commit `fce3537`): `AVAudioPlayerNode.scheduleSegment` ruft den
+  Completion-Handler auch dann, wenn der Segment durch ein
+  anschliessendes `stop()` abgebrochen wurde. Der Handler hat das nicht
+  unterschieden und alles auf null gesetzt. Lösung:
+  `scheduleGeneration`-Zähler, die Closure ignoriert Callbacks zu
+  Schedules, die längst überholt sind.
+- **Erscheinungsbild manuell wählbar** (gleicher Commit):
+  System/Hell/Dunkel über das neue Menü „Ansicht", persistiert via
+  `@AppStorage` und appliziert über `.preferredColorScheme(...)`.
+
+---
+
 ## Phase 5 — geplant (SPEC §7)
 
 Politur und iOS-Vorbereitung:
