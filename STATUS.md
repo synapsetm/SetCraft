@@ -404,22 +404,110 @@ SQLite-Persistenz und Multi-Folder. iOS-Target (5b) und SFBAudioEngine
 
 ---
 
-## Phase 5b — geplant (iOS/iPad)
+## Phase 5b — angefangen, Schritt 1/2
 
-Plattform-Vorbereitung:
+### Schritt 1 — abgeschlossen: xcframeworks um iOS-Slices erweitern
 
-- xcframeworks (TagLib, aubio, KeyFinder) um iOS-Slices erweitern:
-  iOS-arm64-Device + iOS-arm64-Simulator + x86_64-Simulator. Die
-  bestehenden Build-Skripte in `Vendor/` müssen entsprechend
-  ausgebaut werden.
-- iOS/iPad-Target im Xcode-Projekt anlegen. Code, der auf NSOpenPanel/
-  NSApplicationDelegate/AppKit verweist, mit `#if os(macOS)` kapseln;
-  DocumentPicker als iOS-Pendant.
-- `AVAudioSession`-Konfiguration für iOS einrichten (Category playback,
+Alle drei Vendor-`.xcframework`s tragen jetzt **drei** Plattform-Slices
+(`macos-arm64_x86_64`, `ios-arm64`, `ios-arm64_x86_64-simulator`). Damit
+ist `SetifyCore`-`Package.swift` auf iOS auflösbar — der eigentliche
+iOS-App-Code folgt im nächsten Schritt.
+
+- `Vendor/TagLib/build-taglib.sh`: `build_taglib_variant()`-Funktion
+  baut pro Plattform mit den passenden `CMAKE_OSX_*`-Flags. Echo-
+  Statements nach stderr verschoben, damit `$(…)` nur den Pfad
+  einfängt. `3rdparty/utfcpp` wird aus dem entpackten utfcpp-Quellbaum
+  bestückt (im Tarball ist's eine leere Submodul-Hülle).
+- `Vendor/aubio/build-aubio.sh`: `build_aubio_variant()` cross-
+  compiliert via `CFLAGS/LDFLAGS` auf `iphoneos`/`iphonesimulator`-SDK
+  + `mios-version-min`. Configure-Tests laufen weiter; einige
+  Runtime-Checks der iOS-Simulator-Binaries schlagen fehl, sind aber
+  für die statische Lib irrelevant.
+- `Vendor/KeyFinder/build-keyfinder.sh`: `build_combined_variant()`
+  baut fftw3 und libKeyFinder pro Plattform und mergt sie via
+  `libtool`. libKeyFinders mitgeliefertes `FindFFTW3.cmake` honoriert
+  `FFTW3_ROOT` unter der iOS-Toolchain nicht — wir setzen jetzt
+  zusätzlich `FFTW3_LIBRARY` und `FFTW3_INCLUDE_DIR` explizit.
+
+Repo-Größe der Vendor-Binaries danach: TagLib 13 MB, KeyFinder 8 MB,
+aubio 5 MB. macOS-Build und 36 Tests unverändert grün.
+
+### Schritt 2 — offen: iOS-App-Code
+
+Für die nächste Sitzung:
+
+- iOS/iPad-Target im Xcode-Projekt anlegen.
+- AppKit-Code mit `#if os(macOS)` kapseln (`AppDelegate`,
+  `NSOpenPanel` in `PlayerViewModel`/`LibraryViewModel`,
+  `NSApplicationDelegateAdaptor`).
+- `DocumentPicker` als iOS-Pendant für Datei- und Ordnerwahl.
+- `AVAudioSession` für iOS konfigurieren (Category playback,
   Background-Audio, Interruption-Handling).
 - ColorScheme- und Appearance-Toggle bleiben SwiftUI-übergreifend.
+
+---
 
 ## Phase 5c — optional (SFBAudioEngine)
 
 - Ogg Vorbis / WavPack / Monkey's Audio-Unterstützung via
   SFBAudioEngine. Erst einziehen, wenn die Library es verlangt.
+
+---
+
+## Stand am Sitzungsende (Commit `65c1e17`)
+
+- **Phasen 0–5a komplett**, Phase 5b ist auf Build-Infrastruktur-
+  Ebene vorbereitet (iOS-xcframeworks vorhanden).
+- **Tests:** 36/36 grün (`swift test` im `SetifyCore`-Paket).
+- **macOS-Build:** `xcodebuild -project Setify.xcodeproj -scheme Setify
+  -destination 'platform=macOS' build` läuft sauber.
+- **Repo:** sauber lokal und auf
+  https://github.com/synapsetm/Setify
+  (`main` ist mit `origin/main` synchron).
+
+### Was die App heute kann
+
+- Library-Sidebar mit mehreren persistenten Quellen (Security-Scoped
+  Bookmarks). Beim Start wird die zuletzt aktive Quelle automatisch
+  wiederhergestellt.
+- SQLite-Cache (GRDB) für Track-Metadaten und Waveforms. Datei =
+  Quelle der Wahrheit; Cache invalidiert sich über `mtime`.
+- Library-Tabelle: sortierbar, Spalten ein-/ausblendbar und
+  reorderbar (per `TableColumnCustomization`, persistiert), inkl.
+  Kommentar-Spalte. Inline-Edit für Text-Spalten und BPM.
+- Rote-Punkt-Indikator pro Track mit ungespeicherten Änderungen;
+  automatisches Nachholen bei aktiver Player-Datei; manueller
+  ⌘S-Befehl; Quit-Dialog (Speichern / Verwerfen / Abbrechen).
+- Player: Datei-öffnen-/Cue-/Play-Pause-/Entladen-Toolbar.
+  Position-Slider wurde entfernt — gesucht wird über die Waveform
+  (Tap = Seek).
+- Tempo- und Key-Chips mit Master-Logik (Modus A, Mode-Mismatch wird
+  signalisiert), Key-Lock-Toggle, Tempo-Slider ±8 %.
+- Auto-Analyse beim Track-Load (aubio BPM + libKeyFinder Key) inkl.
+  BPM-Range-Preset und Batch-Button „Fehlende analysieren". Resultate
+  fliessen direkt zurück in die Datei-Tags und in den Player-Chip.
+- RGB-Waveform: vDSP-FFT, drei Bänder (Bass < 200 Hz / Mitten /
+  Höhen > 2 kHz), Light/Dark-adaptiver Hintergrund, perzeptuelle
+  Helligkeit, Cue-Marker und Playhead.
+- Manuelle Erscheinungsbild-Wahl (System / Hell / Dunkel) über das
+  „Ansicht"-Menü.
+
+### Was noch ansteht
+
+- **Phase 5b Schritt 2** (siehe oben): iOS-Target + DocumentPicker +
+  AVAudioSession + AppKit-Conditionals.
+- **Phase 5c**: SFBAudioEngine, wenn Ogg Vorbis / WavPack benötigt
+  werden.
+- **Folge-Phasen**: Crates / Playlists / History (SQLite-Basis steht),
+  Beat-Marker auf der Waveform, Metal-Renderer für die Waveform,
+  Settings-UI für Defaults.
+
+### Manuelle Tests, die nach 5a noch sinnvoll sind
+
+- Ordner als Quelle hinzufügen → App schliessen → wieder öffnen →
+  Quelle wird automatisch gescannt (Bookmark wurde resolved, Cache
+  liefert die Tracks schnell).
+- Track inline editieren, Quit auslösen → Dialog erscheint,
+  „Speichern" hält die Beendigung bis zum Abschluss zurück.
+- Auf einem zweiten Lauf der Library: Waveform erscheint praktisch
+  sofort, weil die Bins aus der DB kommen.
