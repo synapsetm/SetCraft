@@ -19,6 +19,14 @@ final class LibraryViewModel {
     var lastWriteError: String?
     var lastAnalysisError: String?
 
+    /// Liste aller persistierten Quellen (Ordner). Wird beim App-Start
+    /// aus der DB geladen.
+    var folders: [FolderRecord] = []
+
+    /// ID des aktuell angezeigten Ordners. Schaltet beim Wechsel den
+    /// `tracks`-Inhalt um.
+    var selectedFolderID: String?
+
     /// Aktuell aktive Sortierreihenfolge. Default: Titel A→Z. Mehrere
     /// Comparators sind möglich (z. B. Artist → Album → Titel).
     var sortOrder: [KeyPathComparator<Track>] = [
@@ -54,12 +62,22 @@ final class LibraryViewModel {
     var onTrackAnalyzed: ((Track) -> Void)?
 
     private let repository: LibraryRepository
+    private let database: DatabaseService
     private let analyzer = AnalysisCoordinator()
     private var scanTask: Task<Void, Never>?
     private var pendingSaves: [Track.ID: Task<Void, Never>] = [:]
 
-    init(repository: LibraryRepository) {
+    /// Hält den Security-Scoped Resource Access offen, solange die Library
+    /// aktiv ist. Wird beim Wechsel/Schliessen freigegeben.
+    private var accessingScopedURL: URL?
+
+    init(repository: LibraryRepository, database: DatabaseService) {
         self.repository = repository
+        self.database = database
+    }
+
+    deinit {
+        accessingScopedURL?.stopAccessingSecurityScopedResource()
     }
 
     /// Tracks, deren Schreibvorgang abgelehnt wurde, weil die Datei im Player
@@ -79,8 +97,112 @@ final class LibraryViewModel {
         panel.allowsMultipleSelection = false
         panel.title = "Musikordner wählen"
         if panel.runModal() == .OK, let url = panel.url {
-            scan(folder: url)
+            persistAndScan(url)
         }
+    }
+
+    /// Lädt die gespeicherten Ordner und scannt automatisch den zuletzt
+    /// hinzugefügten. Wird in `ContentView.onAppear` ausgelöst.
+    func restoreSavedFolders() {
+        Task { [weak self, database] in
+            let folders = (try? await database.listFolders()) ?? []
+            await MainActor.run {
+                guard let self else { return }
+                self.folders = folders
+            }
+            if let last = folders.last {
+                await self?.selectFolder(id: last.id)
+            }
+        }
+    }
+
+    /// Schaltet die aktive Quelle um: alter Scope wird freigegeben, das
+    /// gespeicherte Bookmark des neuen Ordners wird resolved, dann gescannt.
+    /// Schlägt das Resolve fehl (Ordner verschoben), wird der Eintrag
+    /// stillschweigend gelöscht.
+    @MainActor
+    func selectFolder(id: String?) async {
+        guard let id, let record = folders.first(where: { $0.id == id }) else {
+            accessingScopedURL?.stopAccessingSecurityScopedResource()
+            accessingScopedURL = nil
+            selectedFolderID = nil
+            tracks = []
+            folderURL = nil
+            return
+        }
+
+        var isStale = false
+        do {
+            let url = try URL(
+                resolvingBookmarkData: record.bookmark_data,
+                options: .withSecurityScope,
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
+            guard url.startAccessingSecurityScopedResource() else { return }
+
+            accessingScopedURL?.stopAccessingSecurityScopedResource()
+            accessingScopedURL = url
+            selectedFolderID = id
+            scan(folder: url)
+
+            if isStale,
+               let refreshed = try? url.bookmarkData(
+                   options: .withSecurityScope,
+                   includingResourceValuesForKeys: nil,
+                   relativeTo: nil
+               ) {
+                var updated = record
+                updated.bookmark_data = refreshed
+                Task { [database] in
+                    try? await database.saveFolder(updated)
+                }
+            }
+        } catch {
+            try? await database.deleteFolder(id: id)
+            folders.removeAll { $0.id == id }
+            if selectedFolderID == id { selectedFolderID = nil; tracks = [] }
+        }
+    }
+
+    /// Entfernt einen Ordner aus der Library. Datei-Inhalt bleibt
+    /// unangetastet — nur das Bookmark wird vergessen.
+    func removeFolder(id: String) {
+        Task { [weak self, database] in
+            try? await database.deleteFolder(id: id)
+            await MainActor.run {
+                guard let self else { return }
+                self.folders.removeAll { $0.id == id }
+                if self.selectedFolderID == id {
+                    Task { await self.selectFolder(id: self.folders.last?.id) }
+                }
+            }
+        }
+    }
+
+    /// Persistiert den vom Nutzer gewählten Ordner als FolderRecord mit
+    /// Security-Scoped Bookmark, übernimmt den Scope und startet den Scan.
+    private func persistAndScan(_ url: URL) {
+        let bookmark = try? url.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        accessingScopedURL?.stopAccessingSecurityScopedResource()
+        accessingScopedURL = url
+        if let bookmark {
+            let record = FolderRecord(
+                url: url,
+                name: url.lastPathComponent,
+                bookmarkData: bookmark
+            )
+            folders.append(record)
+            selectedFolderID = record.id
+            Task { [database] in
+                try? await database.saveFolder(record)
+            }
+        }
+        scan(folder: url)
     }
 
     func scan(folder: URL) {

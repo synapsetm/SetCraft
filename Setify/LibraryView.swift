@@ -13,12 +13,60 @@ struct LibraryView: View {
     @State private var columnCustomization = TableColumnCustomization<Track>()
 
     var body: some View {
-        VStack(spacing: 0) {
-            toolbar
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+        HStack(spacing: 0) {
+            sidebar
+                .frame(width: 200)
             Divider()
-            table
+            VStack(spacing: 0) {
+                toolbar
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                Divider()
+                table
+            }
+        }
+    }
+
+    private var sidebar: some View {
+        VStack(spacing: 0) {
+            List(selection: Binding(
+                get: { library.selectedFolderID },
+                set: { newID in
+                    Task { await library.selectFolder(id: newID) }
+                }
+            )) {
+                Section("Quellen") {
+                    ForEach(library.folders) { folder in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(folder.name).font(.body)
+                            Text(folder.displayURL.path)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        .tag(folder.id)
+                        .contextMenu {
+                            Button("Quelle entfernen", role: .destructive) {
+                                library.removeFolder(id: folder.id)
+                            }
+                        }
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+
+            Divider()
+
+            Button {
+                library.chooseFolder()
+            } label: {
+                Label("Ordner hinzufügen…", systemImage: "plus.circle")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
     }
 

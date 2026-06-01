@@ -42,6 +42,7 @@ struct ContentView: View {
                 player.originalKey = track.key
                 transport.applyMasterToLoadedTrack()
             }
+            library.restoreSavedFolders()
         }
     }
 
