@@ -35,6 +35,12 @@ final class LibraryViewModel {
         analysisState.values.lazy.filter { $0 == .scheduled }.count
     }
 
+    /// Wird nach jeder abgeschlossenen Analyse mit dem aktualisierten Track
+    /// gerufen. ContentView verdrahtet das so, dass der PlayerViewModel
+    /// seine originalBPM/originalKey nachzieht, wenn der Analysetrack gerade
+    /// geladen ist — sonst zeigen die Player-Chips weiter "—".
+    var onTrackAnalyzed: ((Track) -> Void)?
+
     private let store = TagLibTrackStore()
     private let analyzer = AnalysisCoordinator()
     private var scanTask: Task<Void, Never>?
@@ -198,6 +204,7 @@ final class LibraryViewModel {
                     self.analysisState[track.id] = .done
                     if gotBPM || gotKey {
                         self.persistAfterAnalysis(updated, store: store)
+                        self.onTrackAnalyzed?(updated)
                     }
                     if needsBPM && !gotBPM && needsKey && !gotKey {
                         self.lastAnalysisError = "Keine BPM und keine Tonart erkannt: \(track.url.lastPathComponent)"

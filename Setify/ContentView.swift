@@ -29,6 +29,17 @@ struct ContentView: View {
             // Master-Werte auf den neu geladenen Track anwenden.
             transport.applyMasterToLoadedTrack()
         }
+        .onAppear {
+            // Wird die Library-Analyse für den aktuell geladenen Track
+            // fertig, holen wir die frischen Original-Werte ab und legen
+            // sie als Player-Baseline an (damit die Chips sie anzeigen).
+            library.onTrackAnalyzed = { [weak player, transport] track in
+                guard let player, player.player.loadedURL == track.url else { return }
+                player.originalBPM = track.bpm
+                player.originalKey = track.key
+                transport.applyMasterToLoadedTrack()
+            }
+        }
     }
 
     // MARK: - Player

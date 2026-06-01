@@ -14,14 +14,23 @@ public final class AVAudioEnginePlayer: AudioEngine {
     public private(set) var loadedURL: URL?
     public private(set) var cuePoint: TimeInterval?
 
-    public var rate: Double {
-        get { Double(timePitch.rate) }
-        set { timePitch.rate = Float(max(0.5, min(2.0, newValue))) }
+    // Stored properties, damit @Observable die Änderungen mitbekommt und
+    // SwiftUI-Views (Chips, Slider, Anzeige) sich erneuern. didSet syncht
+    // den geklemmten Wert auf den nicht-observable AVAudioUnitTimePitch-Knoten.
+    public var rate: Double = 1.0 {
+        didSet {
+            let clamped = max(0.5, min(2.0, rate))
+            timePitch.rate = Float(clamped)
+            if rate != clamped { rate = clamped }
+        }
     }
 
-    public var pitchCents: Double {
-        get { Double(timePitch.pitch) }
-        set { timePitch.pitch = Float(max(-2400, min(2400, newValue))) }
+    public var pitchCents: Double = 0 {
+        didSet {
+            let clamped = max(-2400, min(2400, pitchCents))
+            timePitch.pitch = Float(clamped)
+            if pitchCents != clamped { pitchCents = clamped }
+        }
     }
 
     // AVAudioUnitTimePitch decouples rate and pitch by design,
