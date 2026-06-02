@@ -38,7 +38,7 @@
 	                    landet im Keychain, Public-Key kommt hier rein).
 	     Siehe `docs/DISTRIBUTION.md` für die Einrichtung. -->
 	<key>SUFeedURL</key>
-	<string>https://synapsetm.github.io/Setify/appcast.xml</string>
+	<string>https://synapsetm.github.io/SetCraft/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>dSzx1684Glnr7zn9W3Xmbw8W05gdtc0LH6cRFL9JREI=</string>
 	<key>SUEnableAutomaticChecks</key>
