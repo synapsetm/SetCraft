@@ -12,26 +12,26 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		C63B1E272FCC6D8800CEB823 /* Setify.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Setify.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C63B1E272FCC6D8800CEB823 /* SetCraft.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SetCraft.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A001000000000000000000C1 /* Exceptions for "Setify" folder in "Setify" target */ = {
+		A001000000000000000000C1 /* Exceptions for "SetCraft" folder in "SetCraft" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = C63B1E262FCC6D8800CEB823 /* Setify */;
+			target = C63B1E262FCC6D8800CEB823 /* SetCraft */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		C63B1E292FCC6D8800CEB823 /* Setify */ = {
+		C63B1E292FCC6D8800CEB823 /* SetCraft */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				A001000000000000000000C1 /* Exceptions for "Setify" folder in "Setify" target */,
+				A001000000000000000000C1 /* Exceptions for "SetCraft" folder in "SetCraft" target */,
 			);
-			path = Setify;
+			path = SetCraft;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -52,7 +52,7 @@
 		C63B1E1E2FCC6D8800CEB823 = {
 			isa = PBXGroup;
 			children = (
-				C63B1E292FCC6D8800CEB823 /* Setify */,
+				C63B1E292FCC6D8800CEB823 /* SetCraft */,
 				C63B1E282FCC6D8800CEB823 /* Products */,
 				A001000000000000000000B1 /* Packages */,
 			);
@@ -68,7 +68,7 @@
 		C63B1E282FCC6D8800CEB823 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				C63B1E272FCC6D8800CEB823 /* Setify.app */,
+				C63B1E272FCC6D8800CEB823 /* SetCraft.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -76,9 +76,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		C63B1E262FCC6D8800CEB823 /* Setify */ = {
+		C63B1E262FCC6D8800CEB823 /* SetCraft */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = C63B1E322FCC6D8A00CEB823 /* Build configuration list for PBXNativeTarget "Setify" */;
+			buildConfigurationList = C63B1E322FCC6D8A00CEB823 /* Build configuration list for PBXNativeTarget "SetCraft" */;
 			buildPhases = (
 				C63B1E232FCC6D8800CEB823 /* Sources */,
 				C63B1E242FCC6D8800CEB823 /* Frameworks */,
@@ -89,15 +89,15 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				C63B1E292FCC6D8800CEB823 /* Setify */,
+				C63B1E292FCC6D8800CEB823 /* SetCraft */,
 			);
-			name = Setify;
+			name = SetCraft;
 			packageProductDependencies = (
 				A001000000000000000000A2 /* SetCraftCore */,
 				A001000000000000000000D2 /* Sparkle */,
 			);
-			productName = Setify;
-			productReference = C63B1E272FCC6D8800CEB823 /* Setify.app */;
+			productName = SetCraft;
+			productReference = C63B1E272FCC6D8800CEB823 /* SetCraft.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -115,7 +115,7 @@
 					};
 				};
 			};
-			buildConfigurationList = C63B1E222FCC6D8800CEB823 /* Build configuration list for PBXProject "Setify" */;
+			buildConfigurationList = C63B1E222FCC6D8800CEB823 /* Build configuration list for PBXProject "SetCraft" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -134,7 +134,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				C63B1E262FCC6D8800CEB823 /* Setify */,
+				C63B1E262FCC6D8800CEB823 /* SetCraft */,
 			);
 		};
 /* End PBXProject section */
@@ -311,7 +311,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Setify/Setify.entitlements;
+				CODE_SIGN_ENTITLEMENTS = SetCraft/SetCraft.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D75S77JA58;
@@ -319,7 +319,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Setify/Info.plist;
+				INFOPLIST_FILE = SetCraft/Info.plist;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -356,7 +356,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Setify/Setify.entitlements;
+				CODE_SIGN_ENTITLEMENTS = SetCraft/SetCraft.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D75S77JA58;
@@ -364,7 +364,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Setify/Info.plist;
+				INFOPLIST_FILE = SetCraft/Info.plist;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -399,7 +399,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		C63B1E222FCC6D8800CEB823 /* Build configuration list for PBXProject "Setify" */ = {
+		C63B1E222FCC6D8800CEB823 /* Build configuration list for PBXProject "SetCraft" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C63B1E302FCC6D8A00CEB823 /* Debug */,
@@ -408,7 +408,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		C63B1E322FCC6D8A00CEB823 /* Build configuration list for PBXNativeTarget "Setify" */ = {
+		C63B1E322FCC6D8A00CEB823 /* Build configuration list for PBXNativeTarget "SetCraft" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C63B1E332FCC6D8A00CEB823 /* Debug */,
