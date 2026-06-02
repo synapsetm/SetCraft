@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Setify</title>
+        <item>
+            <title>1.0</title>
+            <pubDate>Tue, 02 Jun 2026 21:31:08 +0200</pubDate>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/synapsetm/Setify/releases/download/v1.0-1/Setify-1.0-1.dmg" length="5795832" type="application/octet-stream" sparkle:edSignature="UGyA3JROFn7Lg2qi9yAKfw6m4RxdFyvZBVSaFRzoiRH8E8OLREEqdzodicD2h3XPPeGx3QlBaLOa+OAAz7JwCQ=="/>
+        </item>
+    </channel>
+</rss>
