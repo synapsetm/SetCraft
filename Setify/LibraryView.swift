@@ -150,6 +150,16 @@ struct LibraryView: View {
             .disabled(library.tracks.allSatisfy { $0.bpm != nil && $0.key != nil })
 
             Button {
+                if let track = library.selectedTrack {
+                    library.reanalyze(track)
+                }
+            } label: {
+                Label("Re-analyze", systemImage: "arrow.clockwise")
+            }
+            .disabled(library.selectedTrack == nil)
+            .help("Force a fresh BPM/key analysis for the selected track")
+
+            Button {
                 library.saveAllNow()
             } label: {
                 Label(
@@ -183,6 +193,27 @@ struct LibraryView: View {
         .contextMenu(forSelectionType: Track.ID.self) { ids in
             Button("Load in player") {
                 loadFirst(ids)
+            }
+            .disabled(ids.isEmpty)
+            Button("Re-analyze") {
+                reanalyzeAll(ids)
+            }
+            .disabled(ids.isEmpty)
+            Divider()
+            Button("Double BPM (×2)") {
+                scaleBPM(ids, factor: 2)
+            }
+            .disabled(ids.isEmpty)
+            Button("Halve BPM (÷2)") {
+                scaleBPM(ids, factor: 0.5)
+            }
+            .disabled(ids.isEmpty)
+            Button("BPM ×1.5 (triplet fix)") {
+                scaleBPM(ids, factor: 1.5)
+            }
+            .disabled(ids.isEmpty)
+            Button("BPM ÷1.5 (triplet fix)") {
+                scaleBPM(ids, factor: 2.0 / 3.0)
             }
             .disabled(ids.isEmpty)
         } primaryAction: { ids in
@@ -375,6 +406,20 @@ struct LibraryView: View {
             let track = library.tracks.first(where: { $0.id == id })
         else { return }
         onLoadInPlayer(track)
+    }
+
+    private func reanalyzeAll(_ ids: Set<Track.ID>) {
+        for id in ids {
+            guard let track = library.tracks.first(where: { $0.id == id }) else { continue }
+            library.reanalyze(track)
+        }
+    }
+
+    private func scaleBPM(_ ids: Set<Track.ID>, factor: Double) {
+        for id in ids {
+            guard let track = library.tracks.first(where: { $0.id == id }) else { continue }
+            library.scaleBPM(track, factor: factor)
+        }
     }
 
     private func formatTime(_ secs: TimeInterval) -> String {

@@ -420,6 +420,71 @@ final class LibraryViewModel {
         }
     }
 
+    /// Verdoppelt bzw. halbiert den BPM-Wert manuell und persistiert die
+    /// Änderung. Hilft bei einzelnen Tracks, bei denen aubio die Oktave
+    /// daneben gegriffen hat (typisch: 71 statt 142, 87 statt 174).
+    /// Tracks ohne BPM-Wert werden übersprungen.
+    func scaleBPM(_ track: Track, factor: Double) {
+        guard let idx = tracks.firstIndex(where: { $0.id == track.id }),
+              let current = tracks[idx].bpm,
+              current > 0 else { return }
+        let updated = (current * factor * 10).rounded() / 10
+        tracks[idx].bpm = updated
+        scheduleSave(tracks[idx])
+        onTrackAnalyzed?(tracks[idx])
+    }
+
+    /// Erzwingt eine komplette Neuanalyse (BPM + Key) für `track` — auch wenn
+    /// bereits Werte vorhanden sind. Wird vom Re-Analyze-Befehl in der Library
+    /// verwendet, wenn man den Auto-Werten nicht traut.
+    func reanalyze(_ track: Track) {
+        prefetchWaveform(track)
+        if analysisState[track.id] == .scheduled { return }
+
+        analysisState[track.id] = .scheduled
+        let preset = bpmPreset
+        let analyzer = analyzer
+
+        Task { [weak self, track, preset] in
+            do {
+                let result = try await analyzer.analyze(
+                    url: track.url,
+                    needsBPM: true,
+                    needsKey: true,
+                    bpmRange: preset
+                )
+                await MainActor.run {
+                    guard let self else { return }
+                    guard let idx = self.tracks.firstIndex(where: { $0.id == track.id }) else {
+                        self.analysisState[track.id] = .done
+                        return
+                    }
+                    var updated = self.tracks[idx]
+                    let gotBPM = result.bpm != nil
+                    let gotKey = result.key != nil
+                    if let bpm = result.bpm { updated.bpm = bpm }
+                    if let key = result.key { updated.key = key }
+                    self.tracks[idx] = updated
+                    self.analysisState[track.id] = .done
+                    if gotBPM || gotKey {
+                        self.persistAfterAnalysis(updated)
+                        self.onTrackAnalyzed?(updated)
+                    }
+                    if !gotBPM && !gotKey {
+                        self.lastAnalysisError = String(localized: "No BPM and no key detected: \(track.url.lastPathComponent)")
+                    } else {
+                        self.lastAnalysisError = nil
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self?.analysisState[track.id] = .failed
+                    self?.lastAnalysisError = error.localizedDescription
+                }
+            }
+        }
+    }
+
     /// Stellt sicher, dass die Waveform für `track` im Cache (Memory oder DB)
     /// liegt. Idempotent — pro URL läuft hoechstens ein Detached-Task. Ergebnis
     /// wird nicht verbraucht; `WaveformViewModel.setActiveURL` greift später

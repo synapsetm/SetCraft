@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import SetifyCore
 
@@ -7,11 +8,12 @@ import SetifyCore
 ///   sqrt() perzeptuell aufgehellt, damit auch mittlere Energien sichtbar
 ///   bleiben.
 /// - Vor dem Playhead leicht gedimmt (bereits gespielt), dahinter voll.
-/// - Klick = Seek.
+/// - Klick = Seek. Mausrad = Scrubbing relativ zur aktuellen Position.
 struct WaveformView: View {
     let data: WaveformData?
-    let progress: Double          // 0…1 (player.position / duration)
-    let onSeek: (Double) -> Void  // mit fraction 0…1
+    let progress: Double                  // 0…1 (player.position / duration)
+    let onSeek: (Double) -> Void          // absolute Position als fraction 0…1
+    let onScrub: (Double) -> Void         // relatives Scrubbing in fraction-Einheiten
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -28,6 +30,21 @@ struct WaveformView: View {
                         let fraction = max(0, min(1, value.location.x / proxy.size.width))
                         onSeek(fraction)
                     }
+            )
+            .overlay(
+                ScrollWheelCatcher { deltaX, deltaY in
+                    // Trackpad liefert deltaX bei horizontaler Geste, ein
+                    // klassisches Rad nur deltaY. Beide Achsen kombinieren,
+                    // damit beide Eingabearten natürlich wirken.
+                    let raw = deltaX != 0 ? Double(deltaX) : Double(deltaY)
+                    guard raw != 0 else { return }
+                    // 1 Wheel-Tick ≈ 0,5 % der Trackbreite. Trackpad-Pixel-
+                    // Deltas werden durch die Breite geteilt und fühlen sich
+                    // damit unabhängig von der Fensterbreite konstant an.
+                    let width = max(proxy.size.width, 1)
+                    let fractionDelta = raw / width
+                    onScrub(fractionDelta)
+                }
             )
         }
         .frame(height: 80)
@@ -124,5 +141,38 @@ struct WaveformView: View {
         playhead.move(to: CGPoint(x: progressX, y: 0))
         playhead.addLine(to: CGPoint(x: progressX, y: height))
         ctx.stroke(playhead, with: .color(playheadColor), lineWidth: 1.5)
+    }
+}
+
+/// Transparente NSView, die nur eines tut: `scrollWheel:`-Events auffangen
+/// und über einen Callback an SwiftUI weiterreichen. SwiftUI hat (noch) keinen
+/// nativen Modifier für Mausrad-Events auf macOS.
+private struct ScrollWheelCatcher: NSViewRepresentable {
+    let onScroll: (CGFloat, CGFloat) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let v = ScrollView()
+        v.onScroll = onScroll
+        return v
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        (nsView as? ScrollView)?.onScroll = onScroll
+    }
+
+    final class ScrollView: NSView {
+        var onScroll: ((CGFloat, CGFloat) -> Void)?
+
+        override func scrollWheel(with event: NSEvent) {
+            onScroll?(event.scrollingDeltaX, event.scrollingDeltaY)
+        }
+
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            // Nur Scroll-Events fangen wir ab; Mausklicks reichen wir an
+            // SwiftUI darunter durch (sonst kommt die Drag-Geste fürs Seeken
+            // nicht mehr an).
+            if NSApp.currentEvent?.type == .scrollWheel { return self }
+            return nil
+        }
     }
 }

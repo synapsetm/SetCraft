@@ -1,7 +1,12 @@
 {
   "sourceLanguage" : "en",
-  "version" : "1.0",
   "strings" : {
+    "" : {
+
+    },
+    "—" : {
+
+    },
     "%lld found" : {
       "comment" : "Library toolbar: number of tracks found while scanning",
       "localizations" : {
@@ -12,6 +17,9 @@
           }
         }
       }
+    },
+    "%lld kbps" : {
+
     },
     "%lld tracks" : {
       "comment" : "Library toolbar: total track count",
@@ -24,15 +32,8 @@
         }
       }
     },
-    "Adjust tempo" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tempo anpassen"
-          }
-        }
-      }
+    "●" : {
+
     },
     "Add as source" : {
       "localizations" : {
@@ -64,52 +65,12 @@
         }
       }
     },
-    "Grant access to this folder so its tracks can appear in the library." : {
+    "Adjust tempo" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Erteile Zugriff auf diesen Ordner, damit seine Tracks in der Bibliothek erscheinen."
-          }
-        }
-      }
-    },
-    "Load" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Laden"
-          }
-        }
-      }
-    },
-    "Load the selected track from the library" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Markierten Track aus der Bibliothek laden"
-          }
-        }
-      }
-    },
-    "Play/Pause" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Play/Pause"
-          }
-        }
-      }
-    },
-    "Unknown artist" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unbekannter Artist"
+            "value" : "Tempo anpassen"
           }
         }
       }
@@ -203,6 +164,9 @@
           }
         }
       }
+    },
+    "BPM: %@" : {
+
     },
     "Cancel" : {
       "localizations" : {
@@ -314,6 +278,16 @@
         }
       }
     },
+    "Grant access to this folder so its tracks can appear in the library." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erteile Zugriff auf diesen Ordner, damit seine Tracks in der Bibliothek erscheinen."
+          }
+        }
+      }
+    },
     "Key" : {
       "localizations" : {
         "de" : {
@@ -344,6 +318,16 @@
         }
       }
     },
+    "Load" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laden"
+          }
+        }
+      }
+    },
     "Load an audio file" : {
       "localizations" : {
         "de" : {
@@ -360,6 +344,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "In Player laden"
+          }
+        }
+      }
+    },
+    "Load the selected track from the library" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Markierten Track aus der Bibliothek laden"
           }
         }
       }
@@ -445,6 +439,7 @@
       }
     },
     "Pause" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -455,11 +450,22 @@
       }
     },
     "Play" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Play"
+          }
+        }
+      }
+    },
+    "Play/Pause" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play/Pause"
           }
         }
       }
@@ -604,6 +610,16 @@
         }
       }
     },
+    "Unknown artist" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unbekannter Artist"
+          }
+        }
+      }
+    },
     "Unload" : {
       "localizations" : {
         "de" : {
@@ -644,5 +660,6 @@
         }
       }
     }
-  }
+  },
+  "version" : "1.0"
 }

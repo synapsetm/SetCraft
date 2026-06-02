@@ -75,6 +75,17 @@ struct ContentView: View {
                 onSeek: { fraction in
                     let duration = max(player.player.duration, 0.01)
                     player.seek(to: fraction * duration)
+                },
+                onScrub: { fractionDelta in
+                    // Mausrad-Tick: Sprungweite ~ Track-Position +
+                    // (Delta × Track-Länge × Sensitivity-Faktor).
+                    // Faktor 0.5 macht eine volle Drehung über die ganze
+                    // Waveform-Breite ≈ 50 % des Tracks lang.
+                    let duration = player.player.duration
+                    guard duration > 0 else { return }
+                    let current = player.player.position
+                    let target = current + fractionDelta * duration * 0.5
+                    player.seek(to: max(0, min(duration, target)))
                 }
             )
             if waveform.isLoading {
@@ -196,15 +207,19 @@ struct ContentView: View {
     }
 
     /// Nur noch die Zeitanzeige — gesucht wird ab Phase 4 ausschliesslich
-    /// über die Waveform.
+    /// über die Waveform. Format: gespielte Zeit / -verbleibend.
     private var timeRow: some View {
         HStack {
-            Text(formatTime(player.player.position))
+            Text("\(formatTime(player.player.position)) / -\(formatTime(remainingTime))")
             Spacer()
             Text(formatTime(player.player.duration))
         }
         .font(.caption.monospacedDigit())
         .foregroundStyle(.secondary)
+    }
+
+    private var remainingTime: TimeInterval {
+        max(0, player.player.duration - player.player.position)
     }
 
     private func formatTime(_ secs: TimeInterval) -> String {

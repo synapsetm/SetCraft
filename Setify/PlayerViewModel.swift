@@ -33,6 +33,9 @@ final class PlayerViewModel {
             lastError = nil
             originalBPM = nil
             originalKey = nil
+            // Direkt nach dem Laden mitlaufen — DJ-typisch erwartet man hier
+            // keinen separaten Play-Klick.
+            player.play()
         } catch {
             lastError = error.localizedDescription
         }
