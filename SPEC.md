@@ -1,4 +1,4 @@
-# SPEC.md — Vollständige Projektspezifikation (Setify)
+# SPEC.md — Vollständige Projektspezifikation (SetCraft)
 
 > Begleitdokument zu `CLAUDE.md`. Hier stehen die Details und Begründungen.
 > Bei Konflikten gewinnt `CLAUDE.md` für die harten Regeln; dieses Dokument liefert den Kontext.
@@ -7,7 +7,7 @@
 
 ## 1. Ziel & Rahmen
 
-Ein DJ-orientierter Musikplayer („Setify") für **macOS** (zuerst), mit vorbereitetem **iOS/iPad**-Port.
+Ein DJ-orientierter Musikplayer („SetCraft") für **macOS** (zuerst), mit vorbereitetem **iOS/iPad**-Port.
 Es geht **nicht** um eine Mixing-Software mit zwei Decks, sondern um einen **Player + Bibliotheks-/Vorbereitungstool**:
 Tracks sichten, analysieren, bewerten, Tempo/Key prüfen und anpassen, Metadaten pflegen.
 
@@ -90,7 +90,7 @@ Suche, Crates/Playlists, Verlauf — ohne dass UI/Engine etwas merken.
 └──────────────────────────────────────────────┘
 ```
 
-Ob die Core-Logik ein eigenes Swift Package `SetifyCore` wird oder eine Ordnergruppe im bestehenden
+Ob die Core-Logik ein eigenes Swift Package `SetCraftCore` wird oder eine Ordnergruppe im bestehenden
 Projekt bleibt, entscheiden wir in Phase 0 (siehe §6). Die **Trennung UI ↔ Logik ↔ Bridge** gilt in
 beiden Fällen.
 
@@ -214,26 +214,26 @@ Pitch-Shifts erzeugen. Zwei mögliche Modi (zunächst Modus A bauen, B als spät
 **Aktueller Ist-Zustand** (Xcode-Default, bereits vorhanden):
 
 ```
-Setify/                         # Repo-Wurzel — hier liegen CLAUDE.md/SPEC.md, hier läuft `claude`
+SetCraft/                         # Repo-Wurzel — hier liegen CLAUDE.md/SPEC.md, hier läuft `claude`
 ├── CLAUDE.md
 ├── SPEC.md
 ├── README.md
 ├── .gitignore
 ├── docs/
 │   └── mockup-main.html
-├── Setify/                     # Quellcode-Ordner der App
-│   ├── SetifyApp.swift
+├── SetCraft/                     # Quellcode-Ordner der App
+│   ├── SetCraftApp.swift
 │   ├── ContentView.swift
 │   └── Assets.xcassets/
-└── Setify.xcodeproj
+└── SetCraft.xcodeproj
 ```
 
 **In Phase 0 zu entscheiden — zwei Wege für die Code-Organisation:**
 
-- **Weg A (flach, einfach):** Die Core-Logik als Ordnergruppen **im bestehenden `Setify/`-Ordner**:
+- **Weg A (flach, einfach):** Die Core-Logik als Ordnergruppen **im bestehenden `SetCraft/`-Ordner**:
   ```
-  Setify/Setify/
-  ├── App/            (SetifyApp.swift, ContentView.swift)
+  SetCraft/SetCraft/
+  ├── App/            (SetCraftApp.swift, ContentView.swift)
   ├── Models/
   ├── Audio/          (AudioEngine + AVAudioEngine-Impl)
   ├── Analysis/       (Analyzer, Camelot-Mapping, BPM-Oktavkorrektur)
@@ -245,7 +245,7 @@ Setify/                         # Repo-Wurzel — hier liegen CLAUDE.md/SPEC.md,
   ```
   Schnellster Start, alles in einem Target.
 
-- **Weg B (sauber getrennt):** Ein lokales Swift Package `SetifyCore` neben dem App-Ordner, das die
+- **Weg B (sauber getrennt):** Ein lokales Swift Package `SetCraftCore` neben dem App-Ordner, das die
   plattformfreie Logik + Bridge enthält; die App importiert es. Mehr Aufwand beim Einrichten, aber
   bessere Kapselung und der iOS-Port wird trivialer.
 
@@ -259,7 +259,7 @@ die Protokoll-Trennung macht den Umzug später überschaubar. Endgültig in Phas
 Jede Phase endet lauffähig und wird committet. Vor jeder Phase: Plan zusammenfassen, dann bauen.
 
 **Phase 0 — Bestandsaufnahme & Grundgerüst**
-Bestehendes Setify-Projekt sichten. Code-Organisation festlegen (Weg A oder B, siehe §6).
+Bestehendes SetCraft-Projekt sichten. Code-Organisation festlegen (Weg A oder B, siehe §6).
 Leere Protokolle (`AudioEngine`, `Analyzer`, `TrackStore`) und Basis-Modelle anlegen. Minimales
 SwiftUI-Fenster steht ja schon — eine einzelne Audiodatei über `AVAudioEngine` laden und
 Play/Pause/Cue, **ohne** Analyse, ohne Bibliothek.

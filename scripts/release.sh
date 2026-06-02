@@ -27,12 +27,12 @@ set -euo pipefail
 readonly PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-readonly PROJECT="Setify.xcodeproj"
-readonly SCHEME="Setify"
+readonly PROJECT="SetCraft.xcodeproj"
+readonly SCHEME="SetCraft"
 readonly CONFIGURATION="Release"
 readonly TEAM_ID="D75S77JA58"
-readonly BUNDLE_ID="ch.beat.buehler.Setify"
-readonly APP_NAME="Setify"
+readonly BUNDLE_ID="ch.buehler.beat.SetCraft"
+readonly APP_NAME="SetCraft"
 
 readonly BUILD_DIR="$PROJECT_ROOT/build/release"
 readonly ARCHIVE_PATH="$BUILD_DIR/$APP_NAME.xcarchive"
@@ -43,10 +43,13 @@ readonly DIST_DIR="$BUILD_DIR/dist"
 readonly EXPORT_OPTIONS_PLIST="$PROJECT_ROOT/scripts/ExportOptions.plist"
 
 # Notarytool-Keychain-Profil. Einmalig erzeugen mit:
-#   xcrun notarytool store-credentials AC_SETIFY \
+#   xcrun notarytool store-credentials AC_SETCRAFT \
 #     --apple-id <apple-id> --team-id D75S77JA58 \
 #     --password <app-specific-password>
-readonly NOTARY_PROFILE="${NOTARY_PROFILE:-AC_SETIFY}"
+# Das alte AC_SETIFY-Profil funktioniert weiter, ist nur kosmetisch falsch
+# beschriftet — als Fallback kann es per `NOTARY_PROFILE=AC_SETIFY ./release.sh`
+# weiter benutzt werden.
+readonly NOTARY_PROFILE="${NOTARY_PROFILE:-AC_SETCRAFT}"
 
 # Sparkle. Wenn `generate_appcast` im PATH oder unter SPARKLE_BIN_DIR liegt,
 # wird Schritt 7 ausgeführt. Andernfalls schlägt das Skript fehl, weil ohne
@@ -55,7 +58,7 @@ readonly SPARKLE_BIN_DIR="${SPARKLE_BIN_DIR:-}"
 
 # GitHub-Repo, in dem das DMG als Release-Asset landet und an dessen
 # Pages-Site `docs/appcast.xml` ausgeliefert wird.
-readonly REPO_SLUG="${REPO_SLUG:-synapsetm/Setify}"
+readonly REPO_SLUG="${REPO_SLUG:-synapsetm/SetCraft}"
 
 # Version aus dem Projekt ziehen, damit das DMG einen sprechenden Namen hat.
 readonly MARKETING_VERSION="$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
@@ -95,8 +98,8 @@ if ! security find-identity -v -p codesigning | grep -q "Developer ID Applicatio
 fi
 
 # Sparkle-Placeholder dürfen nicht im Release stehen.
-if grep -q "REPLACE_ME" Setify/Info.plist; then
-    die "Setify/Info.plist enthält noch REPLACE_ME-Platzhalter (SUFeedURL / SUPublicEDKey). Siehe docs/DISTRIBUTION.md."
+if grep -q "REPLACE_ME" SetCraft/Info.plist; then
+    die "SetCraft/Info.plist enthält noch REPLACE_ME-Platzhalter (SUFeedURL / SUPublicEDKey). Siehe docs/DISTRIBUTION.md."
 fi
 
 if ! xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
@@ -244,8 +247,8 @@ else
     gh release create "$RELEASE_TAG" "$DMG_PATH" \
         --repo "$REPO_SLUG" \
         --target "$CURRENT_BRANCH" \
-        --title "Setify $MARKETING_VERSION" \
-        --notes "Setify $MARKETING_VERSION (build $BUILD_NUMBER)"
+        --title "SetCraft $MARKETING_VERSION" \
+        --notes "SetCraft $MARKETING_VERSION (build $BUILD_NUMBER)"
 fi
 
 # ---------- 8) Sparkle-Appcast erzeugen + via Pages veröffentlichen ----------

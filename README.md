@@ -1,4 +1,4 @@
-# Setify
+# SetCraft
 
 Ein DJ-orientierter Musikplayer für macOS (Swift / SwiftUI), mit geplantem
 iOS/iPad-Port.
@@ -27,7 +27,7 @@ iOS/iPad-Port.
   Default ist **Dark**. Direkt auf `NSApp.appearance` gesetzt, damit auch
   AppKit-Subviews (List, Table, Canvas) zuverlässig mitwechseln.
 - **Auto-Updates** via Sparkle 2.x, signiert mit EdDSA. Menüpunkt
-  „Setify → Check for Updates…", plus täglicher Hintergrund-Check.
+  „SetCraft → Check for Updates…", plus täglicher Hintergrund-Check.
 - **Distribution außerhalb des App Stores**: `scripts/release.sh`
   produziert ein Developer-ID-signiertes, notarisiertes, gestapeltes DMG
   inkl. Sparkle-Appcast-Eintrag. Siehe `docs/DISTRIBUTION.md`.
@@ -53,7 +53,7 @@ Privates, nicht-kommerzielles Projekt — GPL-Libraries sind daher zulässig.
 
 Die C/C++-Libraries werden **nicht** über Homebrew gezogen, sondern aus
 Quellen als universelle macOS-`.xcframework`s reproduzierbar gebaut und in
-`SetifyCore/Vendor/` eingecheckt.
+`SetCraftCore/Vendor/` eingecheckt.
 
 ---
 
@@ -68,7 +68,7 @@ Vendor/KeyFinder/build-keyfinder.sh
 ```
 
 Jedes Skript lädt die Quellen, baut für `arm64 + x86_64` und legt das
-`.xcframework` unter `SetifyCore/Vendor/` ab. Die `Vendor/*/build/`- und
+`.xcframework` unter `SetCraftCore/Vendor/` ab. Die `Vendor/*/build/`- und
 `Vendor/*/src/`-Verzeichnisse sind in `.gitignore`.
 
 Die fertigen `.xcframework`s sind im Repository eingecheckt; die Skripte
@@ -77,7 +77,7 @@ muss man nur ausführen, wenn man eine Library aktualisiert.
 ### 2) App bauen
 
 ```bash
-xcodebuild -project Setify.xcodeproj -scheme Setify \
+xcodebuild -project SetCraft.xcodeproj -scheme SetCraft \
   -destination 'platform=macOS' build
 ```
 
@@ -88,7 +88,7 @@ vorbereitet).
 ### 3) Tests
 
 ```bash
-cd SetifyCore && swift test
+cd SetCraftCore && swift test
 ```
 
 ---
@@ -97,32 +97,32 @@ cd SetifyCore && swift test
 
 ```
 ┌────────────────────────────────────────────────────┐
-│ App-Target Setify (SwiftUI, macOS)                 │
+│ App-Target SetCraft (SwiftUI, macOS)               │
 │  ContentView • PlayerViewModel • LibraryViewModel  │
 │  TransportViewModel • WaveformViewModel            │
 │  LibraryView • WaveformView • Tempo/KeyChip        │
 └──────────────────────┬─────────────────────────────┘
                        │  importiert
 ┌──────────────────────▼─────────────────────────────┐
-│ Swift Package SetifyCore (plattformfrei)           │
+│ Swift Package SetCraftCore (plattformfrei)           │
 │  Models • AudioEngine • Analyzer • TrackStore      │
 │  Waveform • Library • Analysis                     │
 └──────────────────────┬─────────────────────────────┘
                        │  Objective-C++ (.mm)
 ┌──────────────────────▼─────────────────────────────┐
-│ SetifyCoreObjC Target                              │
-│  SetifyTagBridge      → TagLib                     │
-│  SetifyAnalyzerBridge → aubio + libKeyFinder       │
+│ SetCraftCoreObjC Target                              │
+│  SetCraftTagBridge      → TagLib                     │
+│  SetCraftAnalyzerBridge → aubio + libKeyFinder       │
 └──────────────────────┬─────────────────────────────┘
                        │  static libs (binaryTarget)
 ┌──────────────────────▼─────────────────────────────┐
-│ SetifyCore/Vendor/                                 │
+│ SetCraftCore/Vendor/                                 │
 │  TagLib.xcframework • aubio.xcframework            │
 │  KeyFinder.xcframework (inkl. fftw3)               │
 └────────────────────────────────────────────────────┘
 ```
 
-Die UI hängt **nur** an den Protokollen aus `SetifyCore`; die C++-Libraries
+Die UI hängt **nur** an den Protokollen aus `SetCraftCore`; die C++-Libraries
 sind hinter der ObjC++-Bridge gekapselt.
 
 ---

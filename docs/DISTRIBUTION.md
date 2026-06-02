@@ -1,6 +1,6 @@
-# Distribution — Setify
+# Distribution — SetCraft
 
-Anleitung, um Setify als notarisiertes, automatisch-updatebares macOS-DMG
+Anleitung, um SetCraft als notarisiertes, automatisch-updatebares macOS-DMG
 **außerhalb des App Stores** auszuliefern. Das Repo enthält bereits den
 fertigen Build-Pfad in `scripts/release.sh`; diese Doku erklärt, was du einmalig
 einrichten musst, bevor das Skript durchläuft.
@@ -36,21 +36,21 @@ Notarytool akzeptiert entweder Apple-ID + App-spezifisches Passwort **oder**
 einen App-Store-Connect-API-Key. Variante mit App-spezifischem Passwort:
 
 1. https://appleid.apple.com → **Sign-In and Security → App-Specific Passwords**
-   → neues Passwort `Setify Notary` erzeugen.
+   → neues Passwort `SetCraft Notary` erzeugen.
 2. Profil im Keychain ablegen (passiert einmalig):
    ```sh
-   xcrun notarytool store-credentials AC_SETIFY \
+   xcrun notarytool store-credentials AC_SETCRAFT \
      --apple-id "deine-apple-id@example.com" \
      --team-id "D75S77JA58" \
      --password "abcd-efgh-ijkl-mnop"
    ```
 3. Smoke-Test:
    ```sh
-   xcrun notarytool history --keychain-profile AC_SETIFY
+   xcrun notarytool history --keychain-profile AC_SETCRAFT
    ```
    Sollte ohne Fehler eine (leere) Liste zurückgeben.
 
-Der Profilname `AC_SETIFY` ist im Release-Skript der Default. Anderen Namen
+Der Profilname `AC_SETCRAFT` ist im Release-Skript der Default. Anderen Namen
 kannst du via `NOTARY_PROFILE=eigener_name ./scripts/release.sh` benutzen.
 
 ---
@@ -77,7 +77,7 @@ SPARKLE_BIN_DIR="$(find ~/Library/Developer/Xcode/DerivedData \
 (Sparkle wird ihn beim Signieren wiederfinden) und gibt den Public-Key als
 Base64-String auf stdout aus.
 
-### 3.2) Public-Key in `Setify/Info.plist` eintragen
+### 3.2) Public-Key in `SetCraft/Info.plist` eintragen
 
 ```xml
 <key>SUPublicEDKey</key>
@@ -86,11 +86,11 @@ Base64-String auf stdout aus.
 
 ### 3.3) Appcast-URL festlegen
 
-`Setify/Info.plist` zeigt mit `SUFeedURL` auf den statisch gehosteten Appcast:
+`SetCraft/Info.plist` zeigt mit `SUFeedURL` auf den statisch gehosteten Appcast:
 
 ```xml
 <key>SUFeedURL</key>
-<string>https://synapsetm.github.io/Setify/appcast.xml</string>
+<string>https://synapsetm.github.io/SetCraft/appcast.xml</string>
 ```
 
 Diese URL bedient GitHub Pages aus dem `docs/`-Ordner des Hauptrepos. Aktiviere
@@ -98,7 +98,7 @@ Pages einmalig unter *Repo → Settings → Pages → Source: Deploy from a bran
 Branch `main` / `/docs`*.
 
 Die DMG selbst landet **nicht** in `docs/`, sondern als Asset eines
-**GitHub-Releases** (`https://github.com/synapsetm/Setify/releases/download/<tag>/<dmg>`).
+**GitHub-Releases** (`https://github.com/synapsetm/SetCraft/releases/download/<tag>/<dmg>`).
 Das Release-Skript erzeugt den Tag, lädt die DMG hoch und schreibt im
 `enclosure`-Tag des Appcasts die korrekte Download-URL.
 
@@ -133,7 +133,7 @@ Vor jedem Release:
 - `MARKETING_VERSION` (z. B. `1.1`) und `CURRENT_PROJECT_VERSION` (Buildnummer,
   monoton steigend, z. B. `4`) in der Xcode-Projektkonfiguration anheben.
 - Das Skript zieht beide Werte automatisch und benennt das DMG entsprechend
-  (`Setify-1.1-4.dmg`).
+  (`SetCraft-1.1-4.dmg`).
 
 ---
 
@@ -159,22 +159,22 @@ Lokale Outputs unter `build/release/` (gitignored):
 
 ```
 build/release/
-├── Setify.xcarchive
-├── export/Setify.app          ← stapled, kann auch einzeln verschickt werden
+├── SetCraft.xcarchive
+├── export/SetCraft.app          ← stapled, kann auch einzeln verschickt werden
 └── dist/
-    ├── Setify-1.0-1.dmg       ← parallel an GitHub-Release hochgeladen
+    ├── SetCraft-1.0-1.dmg       ← parallel an GitHub-Release hochgeladen
     └── appcast.xml            ← Quelle für docs/appcast.xml
 ```
 
 Veröffentlicht wird automatisch:
-- `docs/appcast.xml` → `https://synapsetm.github.io/Setify/appcast.xml`
-- DMG → `https://github.com/synapsetm/Setify/releases/download/v<version>-<build>/Setify-<version>-<build>.dmg`
+- `docs/appcast.xml` → `https://synapsetm.github.io/SetCraft/appcast.xml`
+- DMG → `https://github.com/synapsetm/SetCraft/releases/download/v<version>-<build>/SetCraft-<version>-<build>.dmg`
 
 ---
 
 ## 6) GPL-Hinweis (Hintergrund)
 
-Setify linkt **aubio** (GPL) und **libKeyFinder** (GPL). Sobald du die
+SetCraft linkt **aubio** (GPL) und **libKeyFinder** (GPL). Sobald du die
 fertige App an Dritte weitergibst, musst du nach GPL §3 entweder:
 
 - den Quellcode mitliefern, oder
@@ -183,7 +183,7 @@ fertige App an Dritte weitergibst, musst du nach GPL §3 entweder:
 
 Beides ist trivial erfüllt, solange das GitHub-Repo öffentlich ist und in
 einer `README.md`-Notiz beim Download verlinkt wird. Die `.xcframework`s in
-`SetifyCore/Vendor/` sind aus reproduzierbaren Build-Skripten gebaut, deren
+`SetCraftCore/Vendor/` sind aus reproduzierbaren Build-Skripten gebaut, deren
 Quelle ebenfalls im Repo liegt.
 
 ---
@@ -195,12 +195,12 @@ User-Account, der die App noch nie gesehen hat) prüfen:
 
 ```sh
 # DMG mounten, App in /Applications ziehen, dann:
-spctl --assess --type execute --verbose=4 /Applications/Setify.app
+spctl --assess --type execute --verbose=4 /Applications/SetCraft.app
 ```
 
 Sollte `accepted, source=Notarized Developer ID` ausgeben. Wenn nicht:
 Stapling-Ticket fehlt oder Notarisierung nicht durchgelaufen — Log über
-`xcrun notarytool log <submission-id> --keychain-profile AC_SETIFY` anfordern.
+`xcrun notarytool log <submission-id> --keychain-profile AC_SETCRAFT` anfordern.
 
 ---
 
@@ -213,10 +213,10 @@ Stapling-Ticket fehlt oder Notarisierung nicht durchgelaufen — Log über
   beide aktiv sein, und alle eingebetteten Frameworks (auch Sparkle, auch die
   xcframeworks) müssen Developer-ID-signiert sein. `xcodebuild archive`
   übernimmt das normalerweise selbst — falls nicht, hilft ein Cleanbuild
-  (`rm -rf build/ ~/Library/Developer/Xcode/DerivedData/Setify-*`).
+  (`rm -rf build/ ~/Library/Developer/Xcode/DerivedData/SetCraft-*`).
 - **Sparkle meint „Update fehlerhaft"**: `SUPublicEDKey` in der installierten
   App passt nicht zum Private-Key, mit dem das DMG signiert wurde. Public-
   Key in `Info.plist` ersetzen und neu releasen.
 - **„The application can't be opened"** auf einem Test-Mac, der zuvor das
   unsignierte Dev-Build kannte: Quarantäne-Attribut hängt noch dran,
-  `xattr -dr com.apple.quarantine /Applications/Setify.app` räumt auf.
+  `xattr -dr com.apple.quarantine /Applications/SetCraft.app` räumt auf.

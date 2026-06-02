@@ -1,4 +1,4 @@
-# STATUS — Setify
+# STATUS — SetCraft
 
 Laufendes Protokoll des Projektstands. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (vollständige Spezifikation und Phasenplan).
@@ -7,17 +7,17 @@ und `SPEC.md` (vollständige Spezifikation und Phasenplan).
 
 ## Phase 0 — abgeschlossen (Commit `4595666`)
 
-**Build:** `xcodebuild -scheme Setify -destination 'platform=macOS' build` läuft
+**Build:** `xcodebuild -scheme SetCraft -destination 'platform=macOS' build` läuft
 sauber durch. Eine harmlose Info-Warnung („AppIntents.framework dependency not
 found") bleibt — kein Handlungsbedarf.
 
-**Code-Organisation:** Weg B (lokales Swift Package `SetifyCore`) gewählt.
+**Code-Organisation:** Weg B (lokales Swift Package `SetCraftCore`) gewählt.
 
 ### Was steht
 
-- `SetifyCore` als lokales Swift Package im Repo, eingebunden über
+- `SetCraftCore` als lokales Swift Package im Repo, eingebunden über
   `XCLocalSwiftPackageReference` im App-Target.
-- **Modelle** (plattformfrei, in `SetifyCore`):
+- **Modelle** (plattformfrei, in `SetCraftCore`):
   `Track`, `CamelotKey` (1A–12B), `Rating` (0–5), `EditableField`.
 - **Protokolle** (gem. SPEC §3): `AudioEngine`, `Analyzer`, `TrackStore` —
   noch ohne `Analyzer`/`TrackStore`-Implementierung.
@@ -29,11 +29,11 @@ found") bleibt — kein Handlungsbedarf.
     Tempo-/Key-UI kommt in Phase 2.
 - **App-UI**: `PlayerViewModel` + neue `ContentView`.
   - Datei-Öffnen via NSOpenPanel (Button, ⌘O), Drag & Drop (`.dropDestination`),
-    Finder-„Öffnen mit Setify" (`Info.plist` mit `CFBundleDocumentTypes`
+    Finder-„Öffnen mit SetCraft" (`Info.plist` mit `CFBundleDocumentTypes`
     für `public.audio`, `public.mp3`, `public.mpeg-4-audio`,
     `com.apple.m4a-audio`, `com.apple.coreaudio-format`, `org.xiph.flac`,
     `com.microsoft.waveform-audio`, `public.aifc-audio`, `public.aiff-audio`,
-    plus `.onOpenURL` in `SetifyApp`).
+    plus `.onOpenURL` in `SetCraftApp`).
   - Slider zum Seeken, Cue-/Play-Pause-Buttons, Laufzeit `mm:ss / mm:ss`,
     Space als Play-Pause-Shortcut.
 
@@ -75,7 +75,7 @@ gesamte `TagLibTrackStore` ohne Schreibrechte ohnehin nicht testbar ist.
 ### Weitere Klärungen, die wir vor Phase 1 nicht zwingend brauchen, aber gut zu wissen
 
 - **TagLib-Einbindung**: TagLib ist C++. Vorschlag aus SPEC §3 ist die
-  `.mm`-Brücke in `SetifyCore/Sources/SetifyCore/Bridge/` mit reinem
+  `.mm`-Brücke in `SetCraftCore/Sources/SetCraftCore/Bridge/` mit reinem
   Swift-Interface darüber. Bauoption: TagLib als
   `binaryTarget` (vorgebaute `.xcframework`) oder per Submodule + CMake-Build.
   Vorschlag: erste Iteration mit Homebrew-`libtag` linken, später durch
@@ -89,20 +89,20 @@ gesamte `TagLibTrackStore` ohne Schreibrechte ohnehin nicht testbar ist.
 
 ## Phase 1 — abgeschlossen
 
-**Build:** `xcodebuild -project Setify.xcodeproj -scheme Setify -destination
+**Build:** `xcodebuild -project SetCraft.xcodeproj -scheme SetCraft -destination
 'platform=macOS' build` läuft sauber durch.
-**Tests:** `swift test` im `SetifyCore`-Paket, 16/16 grün
+**Tests:** `swift test` im `SetCraftCore`-Paket, 16/16 grün
 (`RatingPrefixTests`).
 
 ### Entscheidungen aus dem Start von Phase 1
 
 - **Sandbox** wurde sofort auf `readwrite` umgestellt, plus
   `files.bookmarks.app-scope` (für persistente Library-Ordner in Phase 5).
-  Eigene `Setify/Setify.entitlements`-Datei als alleinige Quelle der Wahrheit;
+  Eigene `SetCraft/SetCraft.entitlements`-Datei als alleinige Quelle der Wahrheit;
   `ENABLE_USER_SELECTED_FILES` aus den Build-Settings entfernt.
 - **TagLib** wird via `Vendor/TagLib/build-taglib.sh` reproduzierbar als
   universelles macOS-`.xcframework` (arm64 + x86_64) gebaut und liegt in
-  `SetifyCore/Vendor/TagLib.xcframework`. CMake ist Build-Voraussetzung
+  `SetCraftCore/Vendor/TagLib.xcframework`. CMake ist Build-Voraussetzung
   (`brew install cmake`).
 - **Rating-Kommentar-Token-Format:** `★★★★☆ | <rest>` (menschenlesbar in
   Serato und Rekordbox). Implementiert in `RatingPrefix.parse/format`, mit
@@ -110,10 +110,10 @@ gesamte `TagLibTrackStore` ohne Schreibrechte ohnehin nicht testbar ist.
 
 ### Was steht
 
-- **`SetifyCore`** mit drei Targets in `Package.swift`:
+- **`SetCraftCore`** mit drei Targets in `Package.swift`:
   - `TagLib` (binaryTarget, statisches `.xcframework`)
-  - `SetifyCoreObjC` (Objective-C++-Brücke `SetifyTagBridge`)
-  - `SetifyCore` (reines Swift) und `SetifyCoreTests`.
+  - `SetCraftCoreObjC` (Objective-C++-Brücke `SetCraftTagBridge`)
+  - `SetCraftCore` (reines Swift) und `SetCraftCoreTests`.
 - **Brücke**: `readTagsAtPath:` (Title/Artist/Album/Genre/Comment/Year/
   Track + BPM/InitialKey via `PropertyMap` + Audio-Properties) und
   `writeTagsAtPath:…:` (alle Felder, leerer String = entfernen).
@@ -155,9 +155,9 @@ gesamte `TagLibTrackStore` ohne Schreibrechte ohnehin nicht testbar ist.
 
 ## Phase 2 — abgeschlossen
 
-**Build:** `xcodebuild -project Setify.xcodeproj -scheme Setify -destination
+**Build:** `xcodebuild -project SetCraft.xcodeproj -scheme SetCraft -destination
 'platform=macOS' build` läuft sauber durch.
-**Tests:** `swift test` im `SetifyCore`-Paket, 29/29 grün
+**Tests:** `swift test` im `SetCraftCore`-Paket, 29/29 grün
 (`RatingPrefixTests` + neue `CamelotKeyTests`).
 
 ### Entscheidungen aus dem Start von Phase 2
@@ -203,7 +203,7 @@ gesamte `TagLibTrackStore` ohne Schreibrechte ohnehin nicht testbar ist.
 
 ## Phase 3 — abgeschlossen
 
-**Build:** `xcodebuild -project Setify.xcodeproj -scheme Setify -destination
+**Build:** `xcodebuild -project SetCraft.xcodeproj -scheme SetCraft -destination
 'platform=macOS' build` läuft sauber durch.
 **Build-Dependencies:** Zusätzlich zu CMake/Xcode jetzt `python@3.11`
 (für aubio's waf). `brew install python@3.11`.
@@ -228,10 +228,10 @@ gesamte `TagLibTrackStore` ohne Schreibrechte ohnehin nicht testbar ist.
   `Vendor/KeyFinder/build-keyfinder.sh`. fftw3 3.3.10 wird mitgebaut,
   die beiden statischen Archive werden via `libtool` zu einem
   zusammengeführt.
-- **Bridge** (`SetifyAnalyzerBridge.mm`): nimmt mono Float32-PCM von
+- **Bridge** (`SetCraftAnalyzerBridge.mm`): nimmt mono Float32-PCM von
   Swift entgegen und ruft aubio (Tempo-Tracking, win 1024 / hop 512)
   bzw. libKeyFinder; key_t → Camelot-Notation.
-- **Swift-Layer** in `SetifyCore/Analysis/`: `PCMLoader` (AVAudioFile →
+- **Swift-Layer** in `SetCraftCore/Analysis/`: `PCMLoader` (AVAudioFile →
   mono Float32-Data, in 16k-Frame-Blöcken), `BPMRangePreset` mit
   `corrected(_:)`-Heuristik (Verdoppeln/Halbieren auf den Bereich),
   `AubioBPMAnalyzer`, `KeyFinderAnalyzer`, `AnalysisCoordinator`
@@ -263,9 +263,9 @@ gesamte `TagLibTrackStore` ohne Schreibrechte ohnehin nicht testbar ist.
 
 ## Phase 4 — abgeschlossen
 
-**Build:** `xcodebuild -project Setify.xcodeproj -scheme Setify -destination
+**Build:** `xcodebuild -project SetCraft.xcodeproj -scheme SetCraft -destination
 'platform=macOS' build` läuft sauber durch.
-**Tests:** `swift test` im `SetifyCore`-Paket, 36/36 grün (3 neue
+**Tests:** `swift test` im `SetCraftCore`-Paket, 36/36 grün (3 neue
 `WaveformAnalyzerTests`).
 
 ### Entscheidungen aus dem Start von Phase 4
@@ -365,7 +365,7 @@ SQLite-Persistenz und Multi-Folder. iOS-Target (5b) und SFBAudioEngine
 
 ### Was steht
 
-- **GRDB.swift 7.x** als SPM-Dep in `SetifyCore`. `DatabaseService`
+- **GRDB.swift 7.x** als SPM-Dep in `SetCraftCore`. `DatabaseService`
   (Actor) liegt unter Application Support; Migration `v1` mit drei
   Tabellen: `tracks` (URL als Primary Key, Metadaten + Audio-Properties
   + mtime/cached_at), `waveforms` (URL/mtime/bins-Blob; 4 Float32 pro
@@ -410,7 +410,7 @@ SQLite-Persistenz und Multi-Folder. iOS-Target (5b) und SFBAudioEngine
 
 Alle drei Vendor-`.xcframework`s tragen jetzt **drei** Plattform-Slices
 (`macos-arm64_x86_64`, `ios-arm64`, `ios-arm64_x86_64-simulator`). Damit
-ist `SetifyCore`-`Package.swift` auf iOS auflösbar — der eigentliche
+ist `SetCraftCore`-`Package.swift` auf iOS auflösbar — der eigentliche
 iOS-App-Code folgt im nächsten Schritt.
 
 - `Vendor/TagLib/build-taglib.sh`: `build_taglib_variant()`-Funktion
@@ -458,11 +458,11 @@ Für die nächste Sitzung:
 
 - **Phasen 0–5a komplett**, Phase 5b ist auf Build-Infrastruktur-
   Ebene vorbereitet (iOS-xcframeworks vorhanden).
-- **Tests:** 36/36 grün (`swift test` im `SetifyCore`-Paket).
-- **macOS-Build:** `xcodebuild -project Setify.xcodeproj -scheme Setify
+- **Tests:** 36/36 grün (`swift test` im `SetCraftCore`-Paket).
+- **macOS-Build:** `xcodebuild -project SetCraft.xcodeproj -scheme SetCraft
   -destination 'platform=macOS' build` läuft sauber.
 - **Repo:** sauber lokal und auf
-  https://github.com/synapsetm/Setify
+  https://github.com/synapsetm/SetCraft
   (`main` ist mit `origin/main` synchron).
 
 ### Was die App heute kann
@@ -556,7 +556,7 @@ sind grün).
   beim Hover den Cursor auf `pointingHand`. Differenziert sich klar
   vom (read-only) `KeyChip`.
 - **Camelot-Farben im Player-Chip und in der Library-Key-Spalte.**
-  `CamelotKey.color` (in `Setify/CamelotKeyColor.swift`) bildet
+  `CamelotKey.color` (in `SetCraft/CamelotKeyColor.swift`) bildet
   Position 1–12 auf ein Hue-Wheel ab; Moll (A) ist satter/dunkler,
   Dur (B) heller. Konvention orientiert sich an DJ-Apps.
 - **Player-Header zeigt Artist & Titel** (statt nur den Dateinamen).
@@ -573,7 +573,7 @@ sind grün).
   `@TableColumnBuilder`-Gruppen (`primaryColumns`,
   `metadataColumns`, `fileInfoColumns`, `tailColumns`) aufgeteilt.
 - **`Track` erweitert** um `year`, `bitrate`, `label`, `fileSize`
-  plus `fileType` (computed aus URL-Extension). `SetifyTagBridge`
+  plus `fileType` (computed aus URL-Extension). `SetCraftTagBridge`
   liest/schreibt LABEL (Fallback PUBLISHER) via PropertyMap.
 - **Cache-Migration v2** ergänzt die Spalten in der SQLite-Tabelle.
   **Migration v3** leert die `tracks`-Tabelle einmalig, damit alte
@@ -590,7 +590,7 @@ sind grün).
 ### Lokalisierung
 
 - **Komplette App auf Englisch übersetzt**, deutsche Übersetzungen
-  in `Setify/Localizable.xcstrings`. `developmentRegion = en`,
+  in `SetCraft/Localizable.xcstrings`. `developmentRegion = en`,
   `knownRegions` enthält jetzt zusätzlich `de`. System mit DE-
   Sprache zeigt deutsch, alle anderen Englisch.
 
@@ -604,7 +604,7 @@ sind grün).
   - `.preferredColorScheme(...)` entfernt — kein SwiftUI-Modifier
     mehr für das Schema.
   - `NSApplication.shared.appearance` ist die einzige Wahrheits-
-    quelle, gesetzt in `SetifyApp.init()` (vor dem ersten Window)
+    quelle, gesetzt in `SetCraftApp.init()` (vor dem ersten Window)
     und per `.onChange(of: appearanceRaw)`.
   - Zusätzlich wird `appearance` auf **jedem** existierenden
     Window gesetzt, weil ein Window, das einmal explizit
@@ -647,16 +647,16 @@ selbst-aktualisierendes DMG verteilt zu werden.
 - **Sparkle 2.x** als `XCRemoteSwiftPackageReference` ins Xcode-Projekt
   eingebunden (`https://github.com/sparkle-project/Sparkle`, minor-stable
   ab 2.6.0).
-- `Setify/UpdaterController.swift` kapselt
-  `SPUStandardUpdaterController`; `SetifyApp` hält den Updater als
+- `SetCraft/UpdaterController.swift` kapselt
+  `SPUStandardUpdaterController`; `SetCraftApp` hält den Updater als
   `@State` über die App-Lebenszeit und ergänzt einen Menüpunkt
-  „Setify → Check for Updates…" (`CommandGroup(after: .appInfo)`).
-- `Setify/Info.plist` bekommt `SUFeedURL`, `SUPublicEDKey`,
+  „SetCraft → Check for Updates…" (`CommandGroup(after: .appInfo)`).
+- `SetCraft/Info.plist` bekommt `SUFeedURL`, `SUPublicEDKey`,
   `SUEnableAutomaticChecks`, `SUScheduledCheckInterval=86400`. Beide
   REPLACE_ME-Platzhalter werden vom Release-Skript als harter Fehler
   gemeldet, damit kein Release versehentlich ungültige Sparkle-Werte
   ausliefert.
-- `Setify/Setify.entitlements` zusätzlich `network.client` (Sparkle muss
+- `SetCraft/SetCraft.entitlements` zusätzlich `network.client` (Sparkle muss
   HTTPS gegen den Appcast können).
 - `scripts/ExportOptions.plist` für `developer-id`-Export mit
   Hardened Runtime.
@@ -687,11 +687,11 @@ selbst-aktualisierendes DMG verteilt zu werden.
 1. „Developer ID Application"-Zertifikat im Apple-Developer-Account
    erstellen und ins Login-Keychain laden.
 2. App-spezifisches Passwort generieren und
-   `xcrun notarytool store-credentials AC_SETIFY ...` ausführen.
+   `xcrun notarytool store-credentials AC_SETCRAFT ...` ausführen.
 3. `generate_keys` aus dem Sparkle-Bin-Verzeichnis laufen lassen; den
-   Public-Key in `Setify/Info.plist` als `SUPublicEDKey` eintragen.
+   Public-Key in `SetCraft/Info.plist` als `SUPublicEDKey` eintragen.
    Private-Key bleibt im Keychain.
-4. `SUFeedURL` in `Setify/Info.plist` auf die echte Appcast-URL setzen.
+4. `SUFeedURL` in `SetCraft/Info.plist` auf die echte Appcast-URL setzen.
 5. `MARKETING_VERSION` und `CURRENT_PROJECT_VERSION` im Xcode-Projekt
    bumpen.
 6. `./scripts/release.sh` ausführen.
@@ -722,12 +722,12 @@ Release tun musst") ist abgehakt:
   (`Developer ID Application: Beat Buehler (D75S77JA58)`). Apple-Dev-Cert
   läuft daneben auf Team `RXLQ7SLWKT` — wirkt sich nicht auf den Release-
   Build aus, der ist hart auf `D75S77JA58` verdrahtet.
-- **Notarytool-Profil** `AC_SETIFY` angelegt
-  (`xcrun notarytool history --keychain-profile AC_SETIFY` antwortet).
+- **Notarytool-Profil** `AC_SETCRAFT` angelegt
+  (`xcrun notarytool history --keychain-profile AC_SETCRAFT` antwortet).
 - **Sparkle-EdDSA-Schlüsselpaar** erzeugt; Public-Key
-  `dSzx1684Glnr7zn9W3Xmbw8W05gdtc0LH6cRFL9JREI=` in `Setify/Info.plist` als
+  `dSzx1684Glnr7zn9W3Xmbw8W05gdtc0LH6cRFL9JREI=` in `SetCraft/Info.plist` als
   `SUPublicEDKey`, Private bleibt im Login-Keychain.
-- `SUFeedURL` zeigt auf `https://synapsetm.github.io/Setify/appcast.xml`.
+- `SUFeedURL` zeigt auf `https://synapsetm.github.io/SetCraft/appcast.xml`.
 - **Repo auf public** umgestellt (auch nötig wegen GPL-Pflicht), **GitHub
   Pages** auf `main` / `/docs` aktiviert. Verifiziert über `curl` auf
   bestehende Dateien im `docs/`-Ordner.
@@ -761,7 +761,7 @@ Vorher wurde die Waveform nur für den **aktiv geladenen** Player-Track via
 Button liess die Waveforms unberührt, und auch Tracks mit vollständigen
 Tags hatten beim Klick keinen Cache-Vorlauf.
 
-- `SetifyApp.init()` erzeugt jetzt **einen** `WaveformCache` und reicht
+- `SetCraftApp.init()` erzeugt jetzt **einen** `WaveformCache` und reicht
   ihn an `WaveformViewModel(cache:)` UND
   `LibraryViewModel(... waveformCache:)`. Memory-Cache wird geteilt,
   DB-Cache war es eh.
@@ -789,5 +789,5 @@ Key noch nicht existiert.
 
 ### Repo-Sichtbarkeit
 
-`synapsetm/Setify` ist jetzt **public** (Voraussetzung für GitHub Pages
+`synapsetm/SetCraft` ist jetzt **public** (Voraussetzung für GitHub Pages
 und ohnehin nötig wegen aubio/libKeyFinder = GPL).

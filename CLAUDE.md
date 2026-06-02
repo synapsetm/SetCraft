@@ -1,10 +1,10 @@
-# CLAUDE.md — Projektleitplanken (Setify)
+# CLAUDE.md — Projektleitplanken (SetCraft)
 
 Diese Datei wird bei jeder Sitzung gelesen. Sie enthält die **verbindlichen Kern-Regeln**.
 Den vollständigen Plan (Architektur, Phasen, Detailentscheidungen) findest du in **`SPEC.md`** — lies sie bei Bedarf.
 
-> **Status:** Das Xcode-Projekt **Setify** existiert bereits in der schlanken Xcode-Default-Struktur
-> (`Setify.xcodeproj` + innerer `Setify/`-Ordner mit `SetifyApp.swift`, `ContentView.swift`, `Assets.xcassets`).
+> **Status:** Das Xcode-Projekt **SetCraft** existiert bereits in der schlanken Xcode-Default-Struktur
+> (`SetCraft.xcodeproj` + innerer `SetCraft/`-Ordner mit `SetCraftApp.swift`, `ContentView.swift`, `Assets.xcassets`).
 > Die in `SPEC.md` skizzierte Aufteilung in ein separates Swift Package ist ein **Vorschlag**, kein Zwang —
 > in **Phase 0** entscheiden wir gemeinsam, ob wir bei der flachen Struktur bleiben oder das Package ergänzen.
 
@@ -44,7 +44,7 @@ Das Projekt ist **nicht-kommerziell / privat**. GPL-Libraries sind daher erlaubt
 ## Architektur-Grundsatz (nicht verletzen)
 
 - Die plattformunabhängige Logik (Modelle, Engine, Analyse, Store, Waveform-DSP) wird **sauber von der UI getrennt**
-  gehalten — entweder als eigenes Swift Package `SetifyCore` oder als klar abgegrenzte Ordnergruppe im
+  gehalten — entweder als eigenes Swift Package `SetCraftCore` oder als klar abgegrenzte Ordnergruppe im
   bestehenden Projekt. Die SwiftUI-Views enthalten **keine** Audio-/Analyse-/Tag-Logik.
 - Die C/C++-Libraries (**aubio, libKeyFinder, TagLib**) werden über eine **Objective-C++-Brücke (`.mm`)** eingebunden
   und hinter **sauberen Swift-Protokollen** versteckt (`Analyzer`, `TrackStore`, `AudioEngine`).
