@@ -41,22 +41,6 @@ Privates, nicht-kommerzielles Projekt — GPL-Libraries sind daher zulässig.
 
 ---
 
-## Stand
-
-Phasen **0 – 5a** sind durchgespielt, plus zwei zusätzliche Runden:
-UI-Politur und Lokalisierung („Sitzung 2026-06-01") und Distribution-
-Inbetriebnahme + Waveform-Prefetch + Dark als Default
-(„Sitzung 2026-06-02" in `STATUS.md`). Tests: `swift test` im
-`SetifyCore`-Paket — aktuell **36 grün**.
-
-Die Verteilung außerhalb des App Stores ist **einsatzbereit**:
-Developer-ID-Cert, Notarytool-Profil, Sparkle-Keys und GitHub-Pages-
-Hosting sind eingerichtet. Pro Release reicht
-`./scripts/release.sh` — Build, Notarisierung, GitHub-Release-Upload
-und Appcast-Push laufen automatisch. Details in `docs/DISTRIBUTION.md`.
-
----
-
 ## Voraussetzungen
 
 | Werkzeug | Zweck | Installation |
