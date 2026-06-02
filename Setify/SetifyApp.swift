@@ -112,6 +112,11 @@ struct SetifyApp: App {
                 .onChange(of: appearanceRaw) { _, _ in applyAppearance(appearance) }
         }
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About Setify") {
+                    showAboutPanel()
+                }
+            }
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates…") {
                     updater.checkForUpdates()
@@ -154,5 +159,61 @@ struct SetifyApp: App {
         for window in NSApplication.shared.windows {
             window.appearance = target
         }
+    }
+
+    /// Eigenes About-Fenster mit Lizenz- und Quell-Hinweisen für die genutzten
+    /// Open-Source-Bibliotheken. GPLv3 (aubio, libKeyFinder), GPLv2 (FFTW)
+    /// verlangen, dass auf die korrespondierende Quelle hingewiesen wird;
+    /// LGPL/MIT/BSL verlangen Copyright + Lizenz-Nennung. Der GitHub-Link am
+    /// Ende deckt §6 GPLv3 ab.
+    private func showAboutPanel() {
+        let credits = NSMutableAttributedString()
+        let bodyAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 11),
+            .foregroundColor: NSColor.labelColor
+        ]
+        let headAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.boldSystemFont(ofSize: 11),
+            .foregroundColor: NSColor.labelColor
+        ]
+
+        func add(_ s: String, _ attrs: [NSAttributedString.Key: Any] = bodyAttrs) {
+            credits.append(NSAttributedString(string: s, attributes: attrs))
+        }
+
+        add("Setify uses the following open-source libraries:\n\n")
+
+        add("aubio (GPLv3)\n", headAttrs)
+        add("© The aubio Team — https://aubio.org\n\n")
+
+        add("libKeyFinder (GPLv3)\n", headAttrs)
+        add("© Ibrahim Sha’ath — https://github.com/mixxxdj/libKeyFinder\n\n")
+
+        add("FFTW (GPLv2+)\n", headAttrs)
+        add("© Matteo Frigo, Massachusetts Institute of Technology — https://www.fftw.org\n\n")
+
+        add("TagLib (LGPLv2.1 / MPL)\n", headAttrs)
+        add("© Scott Wheeler et al. — https://taglib.org\n\n")
+
+        add("utfcpp (Boost Software License 1.0)\n", headAttrs)
+        add("© Nemanja Trifunovic\n\n")
+
+        add("Sparkle (MIT)\n", headAttrs)
+        add("© Andy Matuschak and the Sparkle project — https://sparkle-project.org\n\n")
+
+        add("GRDB.swift (MIT)\n", headAttrs)
+        add("© Gwendal Roué — https://github.com/groue/GRDB.swift\n\n")
+
+        add(
+            "Per GPL §6 the complete corresponding source — including the " +
+            "build scripts that produced the bundled aubio, libKeyFinder and " +
+            "FFTW binaries — is available at:\nhttps://github.com/synapsetm/Setify\n",
+            bodyAttrs
+        )
+
+        NSApplication.shared.orderFrontStandardAboutPanel(options: [
+            NSApplication.AboutPanelOptionKey.credits: credits
+        ])
+        NSApplication.shared.activate(ignoringOtherApps: true)
     }
 }

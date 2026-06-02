@@ -14,6 +14,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static var unsavedQuery: (() -> Bool)?
     static var saveAllNow: (() -> Void)?
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // System-Tab-Bar deaktivieren — wir nutzen keine Tabs, und der
+        // Menüpunkt „Show Tab Bar" hätte sonst keinen Effekt für den Nutzer.
+        NSWindow.allowsAutomaticWindowTabbing = false
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard Self.unsavedQuery?() == true else { return .terminateNow }
 
