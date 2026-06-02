@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 Beat Bühler. Uses aubio, libKeyFinder, FFTW, TagLib, Sparkle and GRDB — see About for licenses.</string>
+	<string>© 2026 Beat Bühler. SetCraft uses aubio, libKeyFinder, FFTW, TagLib, Sparkle and GRDB — see About for licenses.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

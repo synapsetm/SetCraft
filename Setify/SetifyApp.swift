@@ -113,7 +113,7 @@ struct SetifyApp: App {
         }
         .commands {
             CommandGroup(replacing: .appInfo) {
-                Button("About Setify") {
+                Button("About SetCraft") {
                     showAboutPanel()
                 }
             }
@@ -181,7 +181,7 @@ struct SetifyApp: App {
             credits.append(NSAttributedString(string: s, attributes: attrs))
         }
 
-        add("Setify uses the following open-source libraries:\n\n")
+        add("SetCraft uses the following open-source libraries:\n\n")
 
         add("aubio (GPLv3)\n", headAttrs)
         add("© The aubio Team — https://aubio.org\n\n")
@@ -207,7 +207,7 @@ struct SetifyApp: App {
         add(
             "Per GPL §6 the complete corresponding source — including the " +
             "build scripts that produced the bundled aubio, libKeyFinder and " +
-            "FFTW binaries — is available at:\nhttps://github.com/synapsetm/Setify\n",
+            "FFTW binaries — is available at:\nhttps://github.com/synapsetm/SetCraft\n",
             bodyAttrs
         )
 
