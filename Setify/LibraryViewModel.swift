@@ -64,16 +64,23 @@ final class LibraryViewModel {
     private let repository: LibraryRepository
     private let database: DatabaseService
     private let analyzer = AnalysisCoordinator()
+    private let waveformCache: WaveformCache
     private var scanTask: Task<Void, Never>?
     private var pendingSaves: [Track.ID: Task<Void, Never>] = [:]
+    private var waveformPrefetchInflight: Set<URL> = []
 
     /// Hält den Security-Scoped Resource Access offen, solange die Library
     /// aktiv ist. Wird beim Wechsel/Schliessen freigegeben.
     private var accessingScopedURL: URL?
 
-    init(repository: LibraryRepository, database: DatabaseService) {
+    init(
+        repository: LibraryRepository,
+        database: DatabaseService,
+        waveformCache: WaveformCache
+    ) {
         self.repository = repository
         self.database = database
+        self.waveformCache = waveformCache
     }
 
     deinit {
@@ -342,9 +349,13 @@ final class LibraryViewModel {
 
     // MARK: - Analyse
 
-    /// Startet eine Analyse für `track`, wenn BPM oder Key fehlen. Ein zweiter
-    /// Aufruf während laufender Analyse wird ignoriert.
+    /// Startet eine Analyse für `track`, wenn BPM oder Key fehlen, und wärmt
+    /// in jedem Fall den Waveform-Cache vor (auch wenn BPM+Key komplett sind),
+    /// damit beim späteren Anklicken die Welle sofort da ist. Ein zweiter
+    /// Aufruf während laufender Audio-Analyse wird ignoriert.
     func analyzeIfNeeded(_ track: Track) {
+        prefetchWaveform(track)
+
         let needsBPM = track.bpm == nil
         let needsKey = track.key == nil
         guard needsBPM || needsKey else { return }
@@ -399,10 +410,30 @@ final class LibraryViewModel {
         }
     }
 
-    /// Startet die Analyse für alle Tracks mit fehlendem BPM oder Key.
+    /// Bulk-Trigger: stösst für jeden Track die Waveform-Vorberechnung an und
+    /// — falls BPM oder Key fehlen — zusätzlich die Audio-Analyse. Der
+    /// nil-Guard in `analyzeIfNeeded` sorgt dafür, dass die teure aubio/
+    /// KeyFinder-Pipeline nur dort läuft, wo wirklich etwas fehlt.
     func analyzeAllMissing() {
-        for track in tracks where track.bpm == nil || track.key == nil {
+        for track in tracks {
             analyzeIfNeeded(track)
+        }
+    }
+
+    /// Stellt sicher, dass die Waveform für `track` im Cache (Memory oder DB)
+    /// liegt. Idempotent — pro URL läuft hoechstens ein Detached-Task. Ergebnis
+    /// wird nicht verbraucht; `WaveformViewModel.setActiveURL` greift später
+    /// auf dieselbe Cache-Instanz zu.
+    private func prefetchWaveform(_ track: Track) {
+        let url = track.url
+        guard !waveformPrefetchInflight.contains(url) else { return }
+        waveformPrefetchInflight.insert(url)
+        let cache = waveformCache
+        Task.detached(priority: .utility) { [weak self] in
+            _ = try? await cache.waveform(for: url)
+            await MainActor.run {
+                self?.waveformPrefetchInflight.remove(url)
+            }
         }
     }
 

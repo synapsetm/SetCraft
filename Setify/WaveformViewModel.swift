@@ -16,8 +16,8 @@ final class WaveformViewModel {
     private var currentURL: URL?
     private var loadTask: Task<Void, Never>?
 
-    init(database: DatabaseService? = nil) {
-        self.cache = WaveformCache(database: database)
+    init(cache: WaveformCache) {
+        self.cache = cache
     }
 
     /// Wird aus ContentView.onChange(loadedURL) angestossen.

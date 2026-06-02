@@ -78,15 +78,21 @@ struct SetifyApp: App {
             fatalError("Could not open SQLite database: \(error.localizedDescription)")
         }
 
+        // Ein gemeinsamer Waveform-Cache, geteilt zwischen Library (Prefetch
+        // beim Analyze-Trigger) und WaveformViewModel (Anzeige des aktiven
+        // Tracks). Memory-Cache + DB-Cache landen so an einer Stelle.
+        let waveformCache = WaveformCache(database: database)
+
         let p = PlayerViewModel()
         let lib = LibraryViewModel(
             repository: LibraryRepository(database: database),
-            database: database
+            database: database,
+            waveformCache: waveformCache
         )
         _player = State(initialValue: p)
         _library = State(initialValue: lib)
         _transport = State(initialValue: TransportViewModel(player: p))
-        _waveform = State(initialValue: WaveformViewModel(database: database))
+        _waveform = State(initialValue: WaveformViewModel(cache: waveformCache))
         AppDelegate.unsavedQuery = { [weak lib] in lib?.hasUnsavedChanges ?? false }
         AppDelegate.saveAllNow  = { [weak lib] in lib?.saveAllNow() }
     }
