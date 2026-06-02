@@ -52,14 +52,14 @@ struct SetifyApp: App {
     /// Hintergrund-Checks gemäss `SUScheduledCheckInterval` laufen können.
     @State private var updater = UpdaterController()
 
-    @AppStorage("appearance") private var appearanceRaw: String = AppearancePreference.system.rawValue
+    @AppStorage("appearance") private var appearanceRaw: String = AppearancePreference.dark.rawValue
 
     init() {
         // Appearance VOR der Fenstererzeugung setzen — sonst öffnet das erste
         // Window mit dem System-Schema, bevor unser Override greift.
         let storedAppearance = UserDefaults.standard.string(forKey: "appearance")
-            ?? AppearancePreference.system.rawValue
-        let initialPref = AppearancePreference(rawValue: storedAppearance) ?? .system
+            ?? AppearancePreference.dark.rawValue
+        let initialPref = AppearancePreference(rawValue: storedAppearance) ?? .dark
         NSApplication.shared.appearance = initialPref.nsAppearance
 
         // SQLite-Datei im macOS-Sandbox-Application-Support.
