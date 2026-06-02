@@ -8,7 +8,7 @@ public actor KeyFinderAnalyzer: KeyAnalyzer {
 
     public func analyzeKey(url: URL) async throws -> CamelotKey? {
         let pcm = try PCMLoader.load(url: url)
-        let camelot = SetifyAnalyzerBridge.analyzeKey(
+        let camelot = SetCraftAnalyzerBridge.analyzeKey(
             fromFloat32Samples: pcm.samples,
             sampleRate: pcm.sampleRate
         )

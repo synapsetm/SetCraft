@@ -1,4 +1,4 @@
-#import "SetifyTagBridge.h"
+#import "SetCraftTagBridge.h"
 
 #include <fileref.h>
 #include <tag.h>
@@ -33,14 +33,14 @@ static NSString * _Nullable nonEmptyString(const TagLib::String &s) {
 }
 
 
-@implementation SetifyTagBridge
+@implementation SetCraftTagBridge
 
 + (nullable SetifyRawTags *)readTagsAtPath:(NSString *)path
                                      error:(NSError * _Nullable * _Nullable)error {
     TagLib::FileRef fileRef([path fileSystemRepresentation], true);
     if (fileRef.isNull() || !fileRef.tag()) {
         if (error) {
-            *error = [NSError errorWithDomain:@"SetifyTagBridge"
+            *error = [NSError errorWithDomain:@"SetCraftTagBridge"
                                          code:1
                                      userInfo:@{NSLocalizedDescriptionKey: @"File could not be read"}];
         }
@@ -117,7 +117,7 @@ static void setOrErase(TagLib::PropertyMap &props, const char *key, NSString *va
     TagLib::FileRef fileRef([path fileSystemRepresentation], false);
     if (fileRef.isNull() || !fileRef.tag()) {
         if (error) {
-            *error = [NSError errorWithDomain:@"SetifyTagBridge"
+            *error = [NSError errorWithDomain:@"SetCraftTagBridge"
                                          code:2
                                      userInfo:@{NSLocalizedDescriptionKey: @"File is not writable"}];
         }
@@ -141,7 +141,7 @@ static void setOrErase(TagLib::PropertyMap &props, const char *key, NSString *va
 
     if (!fileRef.save()) {
         if (error) {
-            *error = [NSError errorWithDomain:@"SetifyTagBridge"
+            *error = [NSError errorWithDomain:@"SetCraftTagBridge"
                                          code:3
                                      userInfo:@{NSLocalizedDescriptionKey: @"TagLib could not save the file"}];
         }

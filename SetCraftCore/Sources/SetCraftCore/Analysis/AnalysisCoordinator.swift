@@ -36,7 +36,7 @@ public actor AnalysisCoordinator {
 
         var bpm: Double? = nil
         if needsBPM {
-            let raw = SetifyAnalyzerBridge.analyzeBPM(
+            let raw = SetCraftAnalyzerBridge.analyzeBPM(
                 fromFloat32Samples: pcm.samples,
                 sampleRate: pcm.sampleRate
             )
@@ -48,7 +48,7 @@ public actor AnalysisCoordinator {
 
         var key: CamelotKey? = nil
         if needsKey {
-            let camelot = SetifyAnalyzerBridge.analyzeKey(
+            let camelot = SetCraftAnalyzerBridge.analyzeKey(
                 fromFloat32Samples: pcm.samples,
                 sampleRate: pcm.sampleRate
             )

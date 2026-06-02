@@ -6,7 +6,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Beide Methoden erwarten **mono Float32-PCM-Samples**. Der Aufrufer
 /// dekodiert die Datei (z. B. via `AVAudioFile`) und mischt auf Mono,
 /// damit die Brücke C++-Detail nicht nach Swift leakt.
-@interface SetifyAnalyzerBridge : NSObject
+@interface SetCraftAnalyzerBridge : NSObject
 
 /// Schätzt die BPM aus den übergebenen Samples. Liefert 0, falls keine
 /// belastbare Schätzung möglich war. Oktavkorrektur erfolgt in Swift.

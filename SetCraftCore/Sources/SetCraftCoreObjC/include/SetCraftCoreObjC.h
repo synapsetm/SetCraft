@@ -1,4 +1,4 @@
 #import <Foundation/Foundation.h>
 
-#import "SetifyTagBridge.h"
-#import "SetifyAnalyzerBridge.h"
+#import "SetCraftTagBridge.h"
+#import "SetCraftAnalyzerBridge.h"

@@ -1,4 +1,4 @@
-#import "SetifyAnalyzerBridge.h"
+#import "SetCraftAnalyzerBridge.h"
 
 #include <aubio.h>
 #include <keyfinder.h>
@@ -39,7 +39,7 @@ static NSString *_Nullable camelotForKey(KeyFinder::key_t key) {
     return nil;
 }
 
-@implementation SetifyAnalyzerBridge
+@implementation SetCraftAnalyzerBridge
 
 // MARK: - BPM
 

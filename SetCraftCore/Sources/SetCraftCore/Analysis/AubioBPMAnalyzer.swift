@@ -11,7 +11,7 @@ public actor AubioBPMAnalyzer: BPMAnalyzer {
 
     public func analyzeBPM(url: URL, expectedRange: BPMRangePreset) async throws -> Double {
         let pcm = try PCMLoader.load(url: url)
-        let raw = SetifyAnalyzerBridge.analyzeBPM(
+        let raw = SetCraftAnalyzerBridge.analyzeBPM(
             fromFloat32Samples: pcm.samples,
             sampleRate: pcm.sampleRate
         )

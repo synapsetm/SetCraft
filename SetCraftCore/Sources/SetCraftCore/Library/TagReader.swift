@@ -16,7 +16,7 @@ import SetCraftCoreObjC
 public enum TagReader {
 
     public static func read(url: URL) throws -> Track {
-        let raw = try SetifyTagBridge.readTags(atPath: url.path)
+        let raw = try SetCraftTagBridge.readTags(atPath: url.path)
         let (ratingFromComment, cleanComment) = RatingPrefix.parse(raw.comment)
         let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { Int64($0) }
 

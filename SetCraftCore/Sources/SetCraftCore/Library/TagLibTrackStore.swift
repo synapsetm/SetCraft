@@ -64,7 +64,7 @@ public actor TagLibTrackStore: TrackStore {
         let keyString = track.key?.description ?? ""
 
         do {
-            try SetifyTagBridge.writeTags(
+            try SetCraftTagBridge.writeTags(
                 atPath: tempFile.path,
                 title: track.title,
                 artist: track.artist,

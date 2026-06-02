@@ -39,7 +39,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Liest und schreibt Metadaten auf Dateipfaden. Der Aufrufer (Swift) ist
 /// für Sandbox-Zugriff, atomares Schreiben (Temp + Rename) und das
 /// Serialisieren von Schreibzugriffen verantwortlich.
-@interface SetifyTagBridge : NSObject
+@interface SetCraftTagBridge : NSObject
 
 /// Liest alle für die App relevanten Tag-Felder. Gibt `nil` zurück, wenn die
 /// Datei nicht geöffnet werden kann.
