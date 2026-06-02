@@ -36,9 +36,9 @@
 	                    landet im Keychain, Public-Key kommt hier rein).
 	     Siehe `docs/DISTRIBUTION.md` für die Einrichtung. -->
 	<key>SUFeedURL</key>
-	<string>https://REPLACE_ME.example.com/setify/appcast.xml</string>
+	<string>https://synapsetm.github.io/Setify/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>REPLACE_ME_WITH_SPARKLE_ED_PUBLIC_KEY</string>
+	<string>dSzx1684Glnr7zn9W3Xmbw8W05gdtc0LH6cRFL9JREI=</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUScheduledCheckInterval</key>

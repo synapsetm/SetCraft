@@ -86,36 +86,43 @@ Base64-String auf stdout aus.
 
 ### 3.3) Appcast-URL festlegen
 
-Setze in `Setify/Info.plist` die `SUFeedURL` auf die Adresse, unter der du das
-Appcast-XML hostest, z. B.:
+`Setify/Info.plist` zeigt mit `SUFeedURL` auf den statisch gehosteten Appcast:
 
 ```xml
 <key>SUFeedURL</key>
-<string>https://beat-buehler.github.io/setify/appcast.xml</string>
+<string>https://synapsetm.github.io/Setify/appcast.xml</string>
 ```
 
-Möglichkeiten zum Hosten:
-- **GitHub Pages** vom selben Repo (`docs/`-Branch) — kostenlos, ausreichend.
-- **S3 / R2 / Backblaze B2** — beliebig.
+Diese URL bedient GitHub Pages aus dem `docs/`-Ordner des Hauptrepos. Aktiviere
+Pages einmalig unter *Repo → Settings → Pages → Source: Deploy from a branch →
+Branch `main` / `/docs`*.
 
-Die DMG-Datei kann an dieselbe URL gelegt werden; der Appcast verweist im
-`enclosure`-Tag auf den DMG-Pfad.
+Die DMG selbst landet **nicht** in `docs/`, sondern als Asset eines
+**GitHub-Releases** (`https://github.com/synapsetm/Setify/releases/download/<tag>/<dmg>`).
+Das Release-Skript erzeugt den Tag, lädt die DMG hoch und schreibt im
+`enclosure`-Tag des Appcasts die korrekte Download-URL.
 
-### 3.4) Spätere Updates
+### 3.4) GitHub-CLI authentifizieren
 
-Bei jedem Release:
+Das Release-Skript benutzt `gh` für Release-Upload und das Pushen des
+Appcasts. Einmalig:
 
 ```sh
-# Sparkle-Bin-Verzeichnis lokalisieren (für `generate_appcast`).
-export SPARKLE_BIN_DIR="$(find ~/Library/Developer/Xcode/DerivedData \
-    -type d -name 'Sparkle' -path '*/artifacts/*/bin' 2>/dev/null | head -1)"
+brew install gh        # falls nicht da
+gh auth login          # GitHub-Account, Scope 'repo' aktivieren
+```
 
+### 3.5) Spätere Updates
+
+Pro Release brauchst du nur `MARKETING_VERSION` + `CURRENT_PROJECT_VERSION`
+anheben, committen, pushen — und dann:
+
+```sh
 ./scripts/release.sh
 ```
 
-Das Skript signiert das neue DMG, generiert/aktualisiert
-`build/release/dist/appcast.xml` und legt das DMG daneben. Beides musst du
-auf deinen Host hochladen.
+Das Skript erledigt von da an alles automatisch (Build → Notarize → DMG →
+GitHub-Release-Upload → Appcast-Generierung → Pages-Commit + Push).
 
 ---
 
@@ -140,27 +147,28 @@ Das Skript ruft in dieser Reihenfolge:
 
 1. `xcodebuild archive`
 2. `xcodebuild -exportArchive` (Developer-ID, Hardened Runtime)
-3. `notarytool submit` für die `.app` (warten)
-4. `stapler staple` auf die `.app`
-5. `hdiutil create` für das DMG
-6. `codesign` auf das DMG
-7. `notarytool submit` für das DMG (warten)
-8. `stapler staple` auf das DMG
-9. `generate_appcast` (Sparkle, signiert mit EdDSA aus Keychain)
-10. `spctl --assess` für DMG und App (informativer Selbsttest)
+3. `notarytool submit` für die `.app` (warten) + `stapler staple`
+4. `hdiutil create` für das DMG + `codesign`
+5. `notarytool submit` für das DMG (warten) + `stapler staple`
+6. `gh release create v<version>-<build>` mit der DMG als Asset
+7. `generate_appcast --download-url-prefix …` (Sparkle, EdDSA-Signatur aus Keychain)
+8. `docs/appcast.xml` aktualisieren, committen, `git push origin <branch>`
+9. `spctl --assess` für DMG und App (informativer Selbsttest)
 
-Outputs:
+Lokale Outputs unter `build/release/` (gitignored):
 
 ```
 build/release/
 ├── Setify.xcarchive
 ├── export/Setify.app          ← stapled, kann auch einzeln verschickt werden
 └── dist/
-    ├── Setify-1.0-1.dmg       ← stapled + notarisiert
-    └── appcast.xml            ← falls Sparkles generate_appcast verfügbar war
+    ├── Setify-1.0-1.dmg       ← parallel an GitHub-Release hochgeladen
+    └── appcast.xml            ← Quelle für docs/appcast.xml
 ```
 
-`build/release/` ist via `.gitignore` ausgeschlossen.
+Veröffentlicht wird automatisch:
+- `docs/appcast.xml` → `https://synapsetm.github.io/Setify/appcast.xml`
+- DMG → `https://github.com/synapsetm/Setify/releases/download/v<version>-<build>/Setify-<version>-<build>.dmg`
 
 ---
 
