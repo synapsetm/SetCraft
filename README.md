@@ -23,8 +23,8 @@ iOS/iPad-Port.
 - **Drag & Drop** lädt den Track sofort in den Player und nimmt seinen
   Ordner ggf. als neue Bibliotheks-Quelle auf.
 - **Lokalisiert** (Englisch + Deutsch, automatisch nach Systemsprache).
-- **Manuelles Erscheinungsbild** (System / Light / Dark) über das Menü
-  „View" — gesetzt direkt auf `NSApp.appearance`, damit auch
+- **Erscheinungsbild** (System / Light / Dark) über das Menü „View",
+  Default ist **Dark**. Direkt auf `NSApp.appearance` gesetzt, damit auch
   AppKit-Subviews (List, Table, Canvas) zuverlässig mitwechseln.
 - **Auto-Updates** via Sparkle 2.x, signiert mit EdDSA. Menüpunkt
   „Setify → Check for Updates…", plus täglicher Hintergrund-Check.
@@ -43,9 +43,17 @@ Privates, nicht-kommerzielles Projekt — GPL-Libraries sind daher zulässig.
 
 ## Stand
 
-Phasen **0 – 5a** sind durchgespielt, plus eine zusätzliche UI-Politur-Runde
-(siehe „Sitzung 2026-06-01" in `STATUS.md`). Tests: `swift test` im
+Phasen **0 – 5a** sind durchgespielt, plus zwei zusätzliche Runden:
+UI-Politur und Lokalisierung („Sitzung 2026-06-01") und Distribution-
+Inbetriebnahme + Waveform-Prefetch + Dark als Default
+(„Sitzung 2026-06-02" in `STATUS.md`). Tests: `swift test` im
 `SetifyCore`-Paket — aktuell **36 grün**.
+
+Die Verteilung außerhalb des App Stores ist **einsatzbereit**:
+Developer-ID-Cert, Notarytool-Profil, Sparkle-Keys und GitHub-Pages-
+Hosting sind eingerichtet. Pro Release reicht
+`./scripts/release.sh` — Build, Notarisierung, GitHub-Release-Upload
+und Appcast-Push laufen automatisch. Details in `docs/DISTRIBUTION.md`.
 
 ---
 

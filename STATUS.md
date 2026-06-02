@@ -705,3 +705,89 @@ selbst-aktualisierendes DMG verteilt zu werden.
 - **CI/CD** (GitHub-Actions-Workflow). Der lokale Pfad reicht
   vorerst; einen CI-Wrapper kann man später um `release.sh` legen.
 - **Deployment-Target-Senkung** — bleibt bei macOS 26.5, wie besprochen.
+
+---
+
+## Sitzung 2026-06-02 — Distribution einsatzbereit, Waveform-Prefetch, Dark als Default
+
+Drei voneinander unabhängige Themen, alle gepusht auf `origin/main`.
+Build (`xcodebuild ... -destination 'generic/platform=macOS'`) grün.
+
+### Distribution — von „vorbereitet" auf „einsatzbereit"
+
+Was vorher noch zu tun war (siehe Liste oben unter „Was du vor dem ersten
+Release tun musst") ist abgehakt:
+
+- **Developer-ID-Application**-Zertifikat im Login-Keychain
+  (`Developer ID Application: Beat Buehler (D75S77JA58)`). Apple-Dev-Cert
+  läuft daneben auf Team `RXLQ7SLWKT` — wirkt sich nicht auf den Release-
+  Build aus, der ist hart auf `D75S77JA58` verdrahtet.
+- **Notarytool-Profil** `AC_SETIFY` angelegt
+  (`xcrun notarytool history --keychain-profile AC_SETIFY` antwortet).
+- **Sparkle-EdDSA-Schlüsselpaar** erzeugt; Public-Key
+  `dSzx1684Glnr7zn9W3Xmbw8W05gdtc0LH6cRFL9JREI=` in `Setify/Info.plist` als
+  `SUPublicEDKey`, Private bleibt im Login-Keychain.
+- `SUFeedURL` zeigt auf `https://synapsetm.github.io/Setify/appcast.xml`.
+- **Repo auf public** umgestellt (auch nötig wegen GPL-Pflicht), **GitHub
+  Pages** auf `main` / `/docs` aktiviert. Verifiziert über `curl` auf
+  bestehende Dateien im `docs/`-Ordner.
+
+`scripts/release.sh` wurde **vollautomatisiert** (Commit `4888d78`):
+
+- Neue Pflicht-Preflights: `gh` installiert und eingeloggt, Repo-Zugriff
+  möglich, lokale Commits gepusht, kein detached HEAD, Release-Tag nicht
+  schon vergeben. `generate_appcast` muss zwingend gefunden werden
+  (DerivedData-Fallback im Skript), sonst bricht es ab.
+- Schritt 7 (neu): `gh release create v<MARKETING_VERSION>-<BUILD_NUMBER>`
+  legt das Release am aktuellen Branch-Tip an und lädt die DMG hoch.
+  Idempotenter zweiter Lauf via `gh release upload --clobber`.
+- Schritt 8 (neu): `generate_appcast --download-url-prefix=…` zeigt im
+  `enclosure`-Tag direkt auf die GitHub-Release-Asset-URL; Ergebnis wird
+  nach `docs/appcast.xml` kopiert, committet
+  (`release(v…): appcast aktualisieren`) und auf `origin` gepusht. GitHub
+  Pages publiziert das Appcast damit ohne weiteren Eingriff.
+
+`docs/DISTRIBUTION.md` und der Pipeline-Kopf in `release.sh` sind auf die
+neue Reihenfolge umgeschrieben. Die alte Sektion „Was du vor dem ersten
+Release tun musst" oben gilt nur noch als Historie.
+
+Pro Release reicht: `MARKETING_VERSION` + `CURRENT_PROJECT_VERSION`
+anheben → commit & push → `./scripts/release.sh`.
+
+### Waveform-Prefetch an die Analyze-Trigger gekoppelt (Commit `13e235d`)
+
+Vorher wurde die Waveform nur für den **aktiv geladenen** Player-Track via
+`WaveformViewModel.setActiveURL` berechnet. Der Bulk-„Analyze missing"-
+Button liess die Waveforms unberührt, und auch Tracks mit vollständigen
+Tags hatten beim Klick keinen Cache-Vorlauf.
+
+- `SetifyApp.init()` erzeugt jetzt **einen** `WaveformCache` und reicht
+  ihn an `WaveformViewModel(cache:)` UND
+  `LibraryViewModel(... waveformCache:)`. Memory-Cache wird geteilt,
+  DB-Cache war es eh.
+- `LibraryViewModel.prefetchWaveform(_:)` (privat) startet pro URL einen
+  Detached-Task auf `cache.waveform(for:)`, serialisiert über
+  `waveformPrefetchInflight: Set<URL>`, Ergebnis landet still im Cache.
+- `analyzeIfNeeded(_:)` ruft den Prefetch jetzt **unconditional** vor dem
+  nil-Guard für BPM/Key.
+- `analyzeAllMissing()` läuft jetzt über **alle** Tracks (statt nur über
+  die mit fehlenden Tags); die teure aubio/KeyFinder-Pipeline läuft
+  weiterhin nur dort, wo der nil-Guard in `analyzeIfNeeded` greift.
+
+Effekt: ein Klick auf „Analyze missing" wärmt zusätzlich den
+Waveform-Cache für die ganze Library vor; spätere Track-Loads bekommen
+die Welle aus dem DB-Hit.
+
+### Dark Mode als Default (Commit `9116280`)
+
+`AppearancePreference.dark` ist neuer Initial-Wert an beiden Stellen:
+dem `@AppStorage("appearance")`-Default und dem `init()`-Fallback, der
+`NSApp.appearance` **vor** dem ersten Window setzt (sonst blitzt das
+System-Schema kurz auf). Bestehende Installationen mit vorhandenem
+`UserDefaults`-Key behalten ihre Wahl — der Default greift nur, wenn der
+Key noch nicht existiert.
+
+### Repo-Sichtbarkeit
+
+`synapsetm/Setify` ist jetzt **public** (Voraussetzung für GitHub Pages
+und ohnehin nötig wegen aubio/libKeyFinder = GPL).
