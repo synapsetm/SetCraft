@@ -1,5 +1,5 @@
 import XCTest
-@testable import SetifyCore
+@testable import SetCraftCore
 
 final class RatingPrefixTests: XCTestCase {
 

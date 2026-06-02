@@ -1,5 +1,5 @@
 import SwiftUI
-import SetifyCore
+import SetCraftCore
 
 struct TempoChip: View {
     @Bindable var transport: TransportViewModel

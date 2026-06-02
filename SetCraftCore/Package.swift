@@ -2,13 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "SetifyCore",
+    name: "SetCraftCore",
     platforms: [
         .macOS(.v14),
         .iOS(.v17)
     ],
     products: [
-        .library(name: "SetifyCore", targets: ["SetifyCore"])
+        .library(name: "SetCraftCore", targets: ["SetCraftCore"])
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0")
@@ -27,9 +27,9 @@ let package = Package(
             path: "Vendor/KeyFinder.xcframework"
         ),
         .target(
-            name: "SetifyCoreObjC",
+            name: "SetCraftCoreObjC",
             dependencies: ["TagLib", "Aubio", "KeyFinder"],
-            path: "Sources/SetifyCoreObjC",
+            path: "Sources/SetCraftCoreObjC",
             publicHeadersPath: "include",
             cxxSettings: [
                 .define("TAGLIB_STATIC")
@@ -41,17 +41,17 @@ let package = Package(
             ]
         ),
         .target(
-            name: "SetifyCore",
+            name: "SetCraftCore",
             dependencies: [
-                "SetifyCoreObjC",
+                "SetCraftCoreObjC",
                 .product(name: "GRDB", package: "GRDB.swift")
             ],
-            path: "Sources/SetifyCore"
+            path: "Sources/SetCraftCore"
         ),
         .testTarget(
-            name: "SetifyCoreTests",
-            dependencies: ["SetifyCore"],
-            path: "Tests/SetifyCoreTests"
+            name: "SetCraftCoreTests",
+            dependencies: ["SetCraftCore"],
+            path: "Tests/SetCraftCoreTests"
         )
     ],
     cxxLanguageStandard: .cxx17

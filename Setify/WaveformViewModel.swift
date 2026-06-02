@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import SetifyCore
+import SetCraftCore
 
 /// Verwaltet die Waveform-Daten zum gerade geladenen Player-Track.
 /// Berechnung läuft im Hintergrund, der ViewModel ist die einzige Stelle,

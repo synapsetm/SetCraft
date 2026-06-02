@@ -1,5 +1,5 @@
 import SwiftUI
-import SetifyCore
+import SetCraftCore
 
 /// Farbcode pro Camelot-Position, wie ihn DJ-Apps (Mixxx, Rekordbox, Serato)
 /// üblicherweise verwenden: Position 1–12 läuft einmal um den Farbkreis.

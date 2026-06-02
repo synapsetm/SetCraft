@@ -1,5 +1,5 @@
 import SwiftUI
-import SetifyCore
+import SetCraftCore
 
 /// Reine Anzeige der gerade gespielten Tonart — bewusst ohne Capsule/Border,
 /// damit sie sich visuell vom editierbaren `TempoChip` abgrenzt: ein Label

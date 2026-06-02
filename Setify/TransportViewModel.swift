@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import SetifyCore
+import SetCraftCore
 
 /// Hält die Tempo-/Key-Anzeige über alle Tracks hinweg: Original- und
 /// effektive Werte des gerade geladenen Tracks plus den optionalen

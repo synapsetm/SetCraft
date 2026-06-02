@@ -1,5 +1,5 @@
 import Foundation
-import SetifyCoreObjC
+import SetCraftCoreObjC
 
 /// BPM-Analyse über aubio (Beat-Tracking). Wendet anschliessend die
 /// Oktav-Korrektur des `BPMRangePreset` an, damit DnB-typische

@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import SetifyCore
+import SetCraftCore
 
 /// SwiftUI-Canvas-Renderer für die RGB-Waveform.
 /// - Säulenhöhe = `rms` × Viewhöhe (gespiegelt um die Mitte).

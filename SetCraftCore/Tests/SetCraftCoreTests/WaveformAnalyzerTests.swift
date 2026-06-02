@@ -1,7 +1,7 @@
 import XCTest
 import AVFoundation
 import Foundation
-@testable import SetifyCore
+@testable import SetCraftCore
 
 final class WaveformAnalyzerTests: XCTestCase {
 

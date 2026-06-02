@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A001000000000000000000A3 /* SetifyCore in Frameworks */ = {isa = PBXBuildFile; productRef = A001000000000000000000A2 /* SetifyCore */; };
+		A001000000000000000000A3 /* SetCraftCore in Frameworks */ = {isa = PBXBuildFile; productRef = A001000000000000000000A2 /* SetCraftCore */; };
 		A001000000000000000000D3 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A001000000000000000000D2 /* Sparkle */; };
 /* End PBXBuildFile section */
 
@@ -41,7 +41,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A001000000000000000000A3 /* SetifyCore in Frameworks */,
+				A001000000000000000000A3 /* SetCraftCore in Frameworks */,
 				A001000000000000000000D3 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -93,7 +93,7 @@
 			);
 			name = Setify;
 			packageProductDependencies = (
-				A001000000000000000000A2 /* SetifyCore */,
+				A001000000000000000000A2 /* SetCraftCore */,
 				A001000000000000000000D2 /* Sparkle */,
 			);
 			productName = Setify;
@@ -126,7 +126,7 @@
 			mainGroup = C63B1E1E2FCC6D8800CEB823;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				A001000000000000000000A1 /* XCLocalSwiftPackageReference "SetifyCore" */,
+				A001000000000000000000A1 /* XCLocalSwiftPackageReference "SetCraftCore" */,
 				A001000000000000000000D1 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -140,9 +140,9 @@
 /* End PBXProject section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		A001000000000000000000A1 /* XCLocalSwiftPackageReference "SetifyCore" */ = {
+		A001000000000000000000A1 /* XCLocalSwiftPackageReference "SetCraftCore" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = SetifyCore;
+			relativePath = SetCraftCore;
 		};
 /* End XCLocalSwiftPackageReference section */
 
@@ -158,9 +158,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		A001000000000000000000A2 /* SetifyCore */ = {
+		A001000000000000000000A2 /* SetCraftCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = SetifyCore;
+			productName = SetCraftCore;
 		};
 		A001000000000000000000D2 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;

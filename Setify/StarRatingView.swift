@@ -1,5 +1,5 @@
 import SwiftUI
-import SetifyCore
+import SetCraftCore
 
 struct StarRatingView: View {
     let rating: Rating

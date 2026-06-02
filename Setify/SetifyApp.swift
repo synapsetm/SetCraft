@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import SetifyCore
+import SetCraftCore
 
 enum AppearancePreference: String, CaseIterable, Identifiable {
     case system

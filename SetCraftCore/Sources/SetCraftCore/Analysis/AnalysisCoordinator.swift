@@ -1,6 +1,6 @@
 import Foundation
 import OSLog
-import SetifyCoreObjC
+import SetCraftCoreObjC
 
 /// Bündelt BPM- und Key-Analyse eines Tracks, damit die Datei nur einmal
 /// dekodiert werden muss. Mehrere Anfragen werden vom Actor serialisiert —

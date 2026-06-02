@@ -1,6 +1,6 @@
 import XCTest
 import AVFoundation
-@testable import SetifyCore
+@testable import SetCraftCore
 
 final class PCMLoaderTests: XCTestCase {
 

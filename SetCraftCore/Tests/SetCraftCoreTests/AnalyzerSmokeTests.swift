@@ -1,6 +1,6 @@
 import XCTest
 import AVFoundation
-@testable import SetifyCore
+@testable import SetCraftCore
 
 /// Smoke-Tests, die die ObjC++-Bridge mit synthetischen Signalen anstossen.
 /// Sie verifizieren primär, dass der gesamte Pfad (PCMLoader → Bridge → aubio/

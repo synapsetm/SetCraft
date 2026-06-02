@@ -1,5 +1,5 @@
 import Foundation
-import SetifyCoreObjC
+import SetCraftCoreObjC
 
 /// Key-Erkennung über libKeyFinder. Mappt das Ergebnis auf Camelot.
 public actor KeyFinderAnalyzer: KeyAnalyzer {

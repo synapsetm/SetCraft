@@ -1,5 +1,5 @@
 import Foundation
-import SetifyCoreObjC
+import SetCraftCoreObjC
 
 /// `TrackStore`-Implementierung über die TagLib-Bridge. Schreibt Tag-
 /// Änderungen atomar (Kopie nach Temp → TagLib → atomic replace) und

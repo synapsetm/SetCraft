@@ -1,5 +1,5 @@
 import SwiftUI
-import SetifyCore
+import SetCraftCore
 import UniformTypeIdentifiers
 
 struct ContentView: View {

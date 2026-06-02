@@ -1,5 +1,5 @@
 import SwiftUI
-import SetifyCore
+import SetCraftCore
 
 struct LibraryView: View {
     @Bindable var library: LibraryViewModel

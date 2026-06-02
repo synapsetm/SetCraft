@@ -1,5 +1,5 @@
 import Foundation
-import SetifyCoreObjC
+import SetCraftCoreObjC
 
 /// Liest Datei-Tags via TagLib-Bridge und baut daraus einen `Track`.
 ///
