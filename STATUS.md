@@ -791,3 +791,111 @@ Key noch nicht existiert.
 
 `synapsetm/SetCraft` ist jetzt **public** (Voraussetzung für GitHub Pages
 und ohnehin nötig wegen aubio/libKeyFinder = GPL).
+
+---
+
+## Sitzung 2026-06-02 (Abend) — Player-UX, Lizenz-About und Brand-Rename auf SetCraft
+
+Drei zusammenhängende Themen in einer Sitzung. Build und Release am Ende grün.
+
+### Player-UX (Commit `f261679`)
+
+- **Autoplay beim Laden** — `PlayerViewModel.load(url:)` ruft direkt
+  `player.play()`. Wirkt aus Library-Klick, Drag & Drop und Datei-Picker.
+- **Mausrad-/Trackpad-Scrubbing über der Waveform** — `WaveformView`
+  hat ein NSViewRepresentable-Overlay (`ScrollWheelCatcher`), das in
+  `hitTest` nur Scroll-Events abfängt und Klicks an SwiftUI durchreicht.
+  `ContentView` rechnet das Delta in einen relativen Seek um (0,5 ×
+  Tracklänge pro voller Waveform-Breite).
+- **Re-Analyze als Library-Befehl** — `LibraryViewModel.reanalyze(_:)`
+  umgeht den `needsBPM || needsKey`-Guard und erzwingt eine frische
+  BPM/Key-Analyse. Toolbar-Knopf neben „Analyze" plus Kontextmenü-
+  Eintrag (Mehrfach-Selektion möglich).
+- **Manuelle BPM-Skalierung im Kontextmenü** — `×2`, `÷2`, `×1.5`,
+  `÷1.5` (Triolen-Fix). `LibraryViewModel.scaleBPM(_:factor:)`
+  multipliziert, rundet auf eine Nachkommastelle, schedulet `save`.
+- **Triolen-bewusste Oktavkorrektur in `BPMRangePreset.corrected()`** —
+  prüft jetzt die Faktoren `½, ⅔, 1, 1½, 2` und nimmt den Kandidaten,
+  der dem Bereichs-Mittelpunkt am nächsten liegt. Behebt die typische
+  aubio-Fehldetektion 146 → 97,7 (≈ ⅔). Originalwert hat Vorrang, wenn
+  er im Bereich liegt — keine Fehlkorrekturen für echte 95-BPM-Tracks.
+- **Neuer Psy-Trance-Preset** (135–165) im BPM-Menü.
+- **Combined Time Row** — `MM:SS / -MM:SS` (gespielt / verbleibend)
+  links, Gesamtdauer rechts.
+
+### App-Politur und Lizenzhinweise (Commit `784e374`)
+
+- **Tab-Bar entfernt** — `NSWindow.allowsAutomaticWindowTabbing = false`
+  in `AppDelegate.applicationWillFinishLaunching` lässt den View-Menü-
+  Eintrag „Show Tab Bar" verschwinden.
+- **About-Panel mit voller Lizenzauflistung** — eigener
+  `CommandGroup(replacing: .appInfo)` mit `orderFrontStandardAboutPanel`
+  und attributed-string-Credits für aubio (GPLv3), libKeyFinder (GPLv3),
+  FFTW (GPLv2+), TagLib (LGPLv2.1/MPL), utfcpp (Boost SL 1.0), Sparkle
+  (MIT) und GRDB.swift (MIT). Verweis aufs öffentliche Repo deckt
+  GPL §6 (Source-Bereitstellung) ab.
+- **`NSHumanReadableCopyright`** in `Info.plist` für den About-Header.
+
+### Erstes Release Setify v1.0-1 (Commit `8a60601`)
+
+`scripts/release.sh` mit `DEVELOPER_DIR=/Applications/Xcode.app/...`
+und `SPARKLE_BIN_DIR=...` einmal durchgelaufen — beide Notarisierungen
+(`.app` und `.dmg`) `Accepted`, `spctl --assess` grün, DMG als Asset
+am Tag `v1.0-1` hochgeladen, Appcast nach `docs/appcast.xml` gepusht.
+
+### Brand-Rename Setify → SetCraft (Commits `aca2dad`..`c72c048`)
+
+Trademark-Recherche: Setify vs. Spotify ist ein echtes Konflikt-Risiko
+(„-ify"-Suffix im Audio-Bereich, bekannte Marke). Geprüfte
+Alternativen: SetPrep (existierende Beta-DJ-App, direkt belegt),
+Crately (CrateDigger als 1:1-Konkurrent), Mixory (Möbel-Brand andere
+Klasse, akzeptabel), **SetCraft** (frei, `.ch`/`.app`/`.dev` alle frei,
+kein DJ-Konflikt). Umbenennung in sieben dedizierten Commits:
+
+1. Bundle-ID `ch.beat.buehler.Setify` → `ch.buehler.beat.SetCraft`,
+   In-Code-Strings, About-Button-Label, Credits-Header.
+2. Swift-Modul `SetifyCore` → `SetCraftCore` (612 Datei-Renames per
+   `git mv`, 22 Import-Sites per `sed`, `pbxproj`-XCLocalSwiftPackage-
+   Reference nachgezogen).
+3. ObjC-Bridges `SetifyAnalyzerBridge`/`SetifyTagBridge` →
+   `SetCraftAnalyzerBridge`/`SetCraftTagBridge`, Umbrella-Header
+   `SetCraftCoreObjC.h` mit angepassten `#import`-Pfaden.
+4. Projektdateien: `Setify.xcodeproj` → `SetCraft.xcodeproj`,
+   `Setify/` → `SetCraft/`, `SetifyApp.swift` → `SetCraftApp.swift`,
+   Entitlements. pbxproj-`TARGET_NAME` & `PRODUCT_NAME` mitgezogen.
+5. `scripts/release.sh` Konstanten (PROJECT/SCHEME/APP_NAME/BUNDLE_ID/
+   REPO_SLUG/NOTARY_PROFILE), GitHub-Release-Titel und Doku
+   (README/STATUS/SPEC/CLAUDE/DISTRIBUTION/mockup) wholesale auf
+   SetCraft umgestellt.
+6. GitHub-Repo `synapsetm/Setify` → `synapsetm/SetCraft` via
+   `gh repo rename`. GitHub legt automatisch Redirects an — alte
+   URLs bleiben funktionsfähig. Lokales Remote per
+   `git remote set-url`, `SUFeedURL` in `Info.plist` auf neuen
+   Pages-Pfad.
+7. **SetCraft v1.0-1 freigegeben** — altes Setify-v1.0-1-Release
+   gelöscht (0 Downloads, am gleichen Tag publiziert), neues
+   notarisiertes DMG als `SetCraft-1.0-1.dmg` unter
+   `https://github.com/synapsetm/SetCraft/releases/tag/v1.0-1`,
+   Appcast zeigt jetzt auf die SetCraft-URLs.
+
+### Filesystem nachgezogen
+
+- Repo-Wurzel von `/Users/beatbuehler/Entwicklung/Setify` auf
+  `/Users/beatbuehler/Entwicklung/SetCraft` umbenannt.
+- Alte `DerivedData/Setify-…` (1,2 GB) und der erste
+  `DerivedData/SetCraft-dmyxsmblyhmotcehxtywilcxcktk` (Build vom
+  alten Pfad) entfernt; aktive DerivedData ist jetzt
+  `SetCraft-fehyclbsmkhnjydjnovlebenftxn`.
+
+### Was noch ansteht (manuelle Aktionen)
+
+- **Notarytool-Profil umbenennen** — `xcrun notarytool store-credentials
+  AC_SETCRAFT --apple-id … --team-id D75S77JA58` ausführen (App-
+  spezifisches Passwort interaktiv). Anschließend `AC_SETIFY` in
+  Keychain Access löschen. Release-Skript hat `AC_SETCRAFT` als
+  Default; `AC_SETIFY` läuft als Fallback weiter.
+- **Domain-Reservierungen** — `setcraft.ch`/`setcraft.app`/`setcraft.dev`
+  alle frei (Stand 2026-06-02). Wenn Marketing-Site geplant, jetzt
+  schnappen.
+- **Trademark-Check Klasse 9** — bei EUIPO eSearch plus und Swissreg
+  vor erster ernsthafter Außenkommunikation manuell prüfen.

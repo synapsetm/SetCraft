@@ -16,7 +16,12 @@ iOS/iPad-Port.
   werden vorgemerkt und beim Entladen nachgeholt.
 - **Automatische BPM- und Key-Analyse** (aubio + libKeyFinder) beim Öffnen
   oder per Batch-Button für alle fehlenden Werte. BPM-Oktavkorrektur per
-  Genre-Preset (Universal / DnB / House / HipHop / Disco).
+  Genre-Preset (Universal / DnB / Psy-Trance / House / HipHop / Disco)
+  inklusive ⅔- und 1½-Faktor für Triolen-Fehldetektion. Re-Analyze und
+  manuelle ×2 / ÷2 / ×1.5 / ÷1.5-Korrekturen pro Track im Kontextmenü.
+- **Direktes Abspielen** beim Laden eines Tracks (per Drop, Picker,
+  Library-Klick); Restzeit-Anzeige neben der gespielten Position
+  (`MM:SS / -MM:SS`). **Mausrad/Trackpad-Scrubbing** über der Waveform.
 - **Camelot-Key-Färbung** im Player-Chip und in der Library, in den von
   DJ-Apps gewohnten Farben (Position 1–12 als Hue-Wheel, Moll satter, Dur
   heller).
@@ -31,6 +36,8 @@ iOS/iPad-Port.
 - **Distribution außerhalb des App Stores**: `scripts/release.sh`
   produziert ein Developer-ID-signiertes, notarisiertes, gestapeltes DMG
   inkl. Sparkle-Appcast-Eintrag. Siehe `docs/DISTRIBUTION.md`.
+- **About-Panel** mit voller Lizenz- und Copyright-Auflistung der
+  eingebundenen Open-Source-Libraries und Verweis aufs Repo (GPL §6).
 
 Privates, nicht-kommerzielles Projekt — GPL-Libraries sind daher zulässig.
 
@@ -132,11 +139,15 @@ sind hinter der ObjC++-Bridge gekapselt.
 | Library | Zweck | Lizenz |
 |---|---|---|
 | AVFoundation, Accelerate, Metal | nativ | Apple |
-| aubio | BPM-Analyse | GPL |
-| libKeyFinder | Key-Analyse | GPL |
-| TagLib | Tag-Lesen/-Schreiben | LGPL |
-| fftw3 | FFT für libKeyFinder | BSD |
-| GRDB.swift *(Phase 5)* | SQLite-Cache | MIT |
-| SFBAudioEngine *(optional, Phase 5)* | zusätzliche Decoder | MIT/BSD-Anteile |
+| aubio | BPM-Analyse | GPLv3 |
+| libKeyFinder | Key-Analyse | GPLv3 |
+| FFTW | FFT für libKeyFinder | GPLv2+ |
+| TagLib | Tag-Lesen/-Schreiben | LGPLv2.1 / MPL |
+| utfcpp | UTF-Helfer in TagLib | Boost SL 1.0 |
+| GRDB.swift | SQLite-Cache | MIT |
+| Sparkle | Auto-Update | MIT |
 
 Da privat / nicht-kommerziell ist GPL hier unproblematisch.
+Copyrights und Volltexte sind im About-Panel der App hinterlegt; die
+Vendor-Build-Skripte unter `Vendor/` machen die GPLv3-Quellen
+reproduzierbar verfügbar (GPL §6).
