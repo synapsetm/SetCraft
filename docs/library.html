@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SetCraft iOS — Library</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+  :root{--mono:ui-monospace,SFMono-Regular,Menlo,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  *{box-sizing:border-box}
+  body{margin:0;background:#0c0c0f;font-family:var(--sans);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+  .frame{background:#000;border:1px solid #2c2c2e;border-radius:44px;padding:8px}
+  .screen{background:#15151a;border-radius:36px;overflow:hidden;height:612px;width:306px;position:relative;display:flex;flex-direction:column;color:#ECECF0}
+  .sb{display:flex;align-items:center;justify-content:space-between;padding:9px 22px 4px;font-size:12px;font-weight:500}
+  .sb .ri{display:flex;gap:5px;align-items:center;font-size:13px}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:#6C6C78}
+  .tab.on{color:#FF7A2F}
+  .homebar{height:5px;width:120px;background:#3a3a40;border-radius:3px;margin:6px auto 9px}
+  .kbadge{font:500 12px var(--mono);padding:2px 6px;border-radius:5px}
+  .mitem{display:flex;align-items:center;gap:11px;padding:11px 14px;font-size:14px;color:#ECECF0;cursor:pointer}
+  .mitem:hover{background:rgba(255,255,255,0.06)}
+  .mitem i{font-size:18px;color:#9A9AA6}
+  .menu{position:absolute;top:52px;z-index:30;width:210px;background:#232329;border:1px solid rgba(255,255,255,0.16);border-radius:12px;overflow:hidden;padding:4px 0}
+  .rowwrap{position:relative;overflow:hidden;border-bottom:1px solid rgba(255,255,255,0.045)}
+  .rowact{position:absolute;top:0;right:0;bottom:0;width:84px;background:#3A6FF0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#fff;font-size:11px;cursor:pointer}
+  .rowfg{position:relative;transform:translateX(0);transition:transform .18s;touch-action:none;cursor:grab;display:flex;align-items:center;gap:10px;padding:8px 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spin{display:inline-block;animation:spin 1s linear infinite}
+  .mlabel{font-size:11px;color:#6C6C78;text-transform:uppercase;letter-spacing:.05em;padding:8px 14px 4px}
+  .caption{color:#8a8a92;font-size:13px;margin-top:14px}
+</style>
+</head>
+<body>
+  <div class="frame"><div class="screen">
+    <div class="sb"><span>9:41</span><span class="ri"><i class="ti ti-antenna-bars-5"></i><i class="ti ti-wifi"></i><i class="ti ti-battery-3"></i></span></div>
+
+    <div style="padding:6px 16px 10px;border-bottom:1px solid rgba(255,255,255,0.06);position:relative">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div id="srcBtn" style="display:flex;align-items:center;gap:6px;min-width:0;cursor:pointer">
+          <i class="ti ti-folder" style="color:#FF7A2F;font-size:18px"></i>
+          <div style="min-width:0">
+            <div style="font-size:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">MP3Mix_44</div>
+            <div style="font-size:11px;color:#6C6C78">125 tracks</div>
+          </div>
+          <i class="ti ti-chevron-down" style="color:#6C6C78;font-size:15px"></i>
+        </div>
+        <i id="dots" class="ti ti-dots" style="color:#9A9AA6;font-size:20px;cursor:pointer;padding:4px"></i>
+      </div>
+
+      <div id="srcMenu" class="menu" style="left:14px">
+        <div class="mlabel">Sources</div>
+        <div class="mitem" style="justify-content:space-between;background:rgba(255,122,47,0.12)">
+          <span style="display:flex;align-items:center;gap:11px"><i class="ti ti-folder" style="color:#FF7A2F"></i>MP3Mix_44</span>
+          <i class="ti ti-trash" style="font-size:16px;color:#6C6C78"></i>
+        </div>
+        <div class="mitem" style="justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:11px"><i class="ti ti-folder"></i>Studio Promos</span>
+          <i class="ti ti-trash" style="font-size:16px;color:#6C6C78"></i>
+        </div>
+        <div class="mitem" style="justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:11px"><i class="ti ti-folder"></i>Downloads</span>
+          <i class="ti ti-trash" style="font-size:16px;color:#6C6C78"></i>
+        </div>
+        <div style="height:1px;background:rgba(255,255,255,0.1);margin:4px 0"></div>
+        <div class="mitem"><i class="ti ti-folder-plus" style="color:#FF7A2F"></i>Open folder…</div>
+      </div>
+
+      <div id="menu" class="menu" style="right:14px;display:none">
+        <div class="mitem"><i class="ti ti-file-music"></i>Open file…</div>
+        <div style="height:1px;background:rgba(255,255,255,0.1);margin:4px 0"></div>
+        <div class="mitem"><i class="ti ti-wand"></i>Analyze</div>
+        <div class="mitem"><i class="ti ti-refresh"></i>Re-analyze</div>
+        <div class="mitem"><i class="ti ti-device-floppy"></i>Save</div>
+      </div>
+    </div>
+
+    <div id="lib" style="flex:1;overflow:hidden"></div>
+
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#202026;border-top:1px solid rgba(255,255,255,0.08)">
+      <div style="width:34px;height:34px;border-radius:6px;background:#3a2050;display:flex;align-items:center;justify-content:center;color:#c79bf0;font-size:15px;flex:none"><i class="ti ti-vinyl"></i></div>
+      <div style="min-width:0;flex:1">
+        <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Daily Life (Original Mix)</div>
+        <div style="font-size:10px;color:#9A9AA6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Indra &amp; Electro Sun · 142.4 · 8A</div>
+      </div>
+      <i class="ti ti-player-pause" style="color:#FF7A2F;font-size:22px"></i>
+    </div>
+
+    <div style="display:flex;padding:7px 6px 3px;border-top:1px solid rgba(255,255,255,0.07)">
+      <div class="tab on"><i class="ti ti-list-details" style="font-size:20px"></i>Library</div>
+      <div class="tab"><i class="ti ti-wave-sine" style="font-size:20px"></i>Player</div>
+    </div>
+    <div class="homebar"></div>
+  </div></div>
+  <div class="caption">SetCraft iOS — Library (tap the folder name and ••• ; swipe a track left)</div>
+<script>
+(function(){
+  var KC={"1A":"#3FB950","2A":"#4CC38A","3A":"#2BC4C4","4A":"#4A8DF0","6A":"#A371F7","7B":"#DB61D6","8A":"#FF5D9E","9A":"#FF6B5B","10A":"#FF9F45","11A":"#C9D24A"};
+  var rows=[
+    {t:"Behind The Silence",a:"Eliyahu",b:"135.7",k:"1A",r:0},
+    {t:"Breath In, Breath Out (Original Mix)",a:"Sacred Secret & SecondLife",b:"143.9",k:"8A",r:4},
+    {t:"Calipso (Original Mix)",a:"Shadow Moon",b:"137.1",k:"1A",r:0},
+    {t:"Capricorno (Original Mix)",a:"Doppler (MX), Botond",b:"146.2",k:"10A",r:3},
+    {t:"Cell (Xoxo Fr & T.I.T Remix)",a:"Tropical Bleyage",b:"151.3",k:"9A",r:0},
+    {t:"Certain Mushrooms",a:"Second Side",b:"143.9",k:"8A",r:5},
+    {t:"Collective Hallucinations",a:"Massive Dynamic",b:"150.0",k:"6A",r:0},
+    {t:"Cosmic Vibes (Original Mix)",a:"Shadow Moon",b:"146.9",k:"11A",r:0},
+    {t:"Daily Life (Original Mix)",a:"Indra & Electro Sun",b:"142.4",k:"8A",r:4,playing:true},
+    {t:"Dark Ages (Original Mix)",a:"Ctrl4 & Serenity Flux",b:"145.4",k:"3A",r:0}
+  ];
+  var h='';
+  rows.forEach(function(row){
+    var col=KC[row.k]||"#9A9AA6";
+    var fgbg=row.playing?'rgba(40,30,20,1)':'#15151a';
+    var st='';for(var i=1;i<=5;i++)st+='<i class="ti ti-star" style="font-size:10px;color:'+(i<=row.r?'#F5B544':'#3c3c44')+'"></i>';
+    var pi=row.playing?'<i class="ti ti-player-play" style="color:#FF7A2F;font-size:12px"></i>':'';
+    h+='<div class="rowwrap">'
+      +'<div class="rowact"><i class="ti ti-wand" style="font-size:19px"></i>Analyze</div>'
+      +'<div class="rowfg" style="background:'+fgbg+';'+(row.playing?'box-shadow:inset 3px 0 0 #FF7A2F;':'')+'">'
+      +'<div style="width:18px;text-align:center">'+pi+'</div>'
+      +'<div style="min-width:0;flex:1">'
+      +'<div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+row.t+'</div>'
+      +'<div style="font-size:11px;color:#9A9AA6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">'+row.a+'</div>'
+      +'<div style="margin-top:3px">'+st+'</div></div>'
+      +'<div style="text-align:right;flex:none">'
+      +'<div class="bpmv" style="font:500 13px var(--mono);color:#ECECF0">'+row.b+'</div>'
+      +'<div class="kbadge" style="margin-top:3px;background:rgba(255,255,255,0.06);color:'+col+'">'+row.k+'</div>'
+      +'</div></div></div>';
+  });
+  var lib=document.getElementById('lib');lib.innerHTML=h;
+
+  var wraps=[].slice.call(lib.querySelectorAll('.rowwrap'));
+  function closeAllRows(except){wraps.forEach(function(w){var fg=w.querySelector('.rowfg');if(fg!==except){fg._off=0;fg.style.transition='transform .18s';fg.style.transform='translateX(0)';}});}
+  wraps.forEach(function(w){
+    var fg=w.querySelector('.rowfg'),act=w.querySelector('.rowact'),bpm=w.querySelector('.bpmv');
+    fg._off=0;var drag=false,sx=0,so=0,moved=false;
+    fg.addEventListener('pointerdown',function(e){drag=true;moved=false;sx=e.clientX;so=fg._off;fg.style.transition='none';fg.setPointerCapture(e.pointerId);});
+    fg.addEventListener('pointermove',function(e){if(!drag)return;var dx=e.clientX-sx;if(Math.abs(dx)>4)moved=true;fg._off=Math.max(-84,Math.min(0,so+dx));fg.style.transform='translateX('+fg._off+'px)';});
+    fg.addEventListener('pointerup',function(){drag=false;fg.style.transition='transform .18s';if(moved){if(fg._off<-42){closeAllRows(fg);fg._off=-84;}else fg._off=0;fg.style.transform='translateX('+fg._off+'px)';}});
+    fg.addEventListener('pointercancel',function(){drag=false;fg.style.transition='transform .18s';fg._off=0;fg.style.transform='translateX(0)';});
+    act.addEventListener('click',function(e){e.stopPropagation();fg.style.transition='transform .18s';fg._off=0;fg.style.transform='translateX(0)';var o=bpm.innerHTML;bpm.innerHTML='<i class="ti ti-loader-2 spin" style="font-size:12px;color:#9A9AA6"></i>';setTimeout(function(){bpm.innerHTML=o;},1600);});
+  });
+  var pre=wraps[7].querySelector('.rowfg');pre._off=-84;pre.style.transform='translateX(-84px)';
+
+  var srcMenu=document.getElementById('srcMenu'),menu=document.getElementById('menu'),dots=document.getElementById('dots'),srcBtn=document.getElementById('srcBtn');
+  srcBtn.addEventListener('click',function(e){e.stopPropagation();menu.style.display='none';srcMenu.style.display=(srcMenu.style.display==='none')?'block':'none';});
+  dots.addEventListener('click',function(e){e.stopPropagation();srcMenu.style.display='none';menu.style.display=(menu.style.display==='none')?'block':'none';});
+  document.addEventListener('click',function(){srcMenu.style.display='none';menu.style.display='none';});
+  srcMenu.addEventListener('click',function(e){e.stopPropagation();});
+  menu.addEventListener('click',function(e){e.stopPropagation();});
+})();
+</script>
+</body>
+</html>

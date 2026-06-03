@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SetCraft iOS — Player</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+  :root{--mono:ui-monospace,SFMono-Regular,Menlo,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  *{box-sizing:border-box}
+  body{margin:0;background:#0c0c0f;font-family:var(--sans);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+  .frame{background:#000;border:1px solid #2c2c2e;border-radius:44px;padding:8px}
+  .screen{background:#15151a;border-radius:36px;overflow:hidden;height:612px;width:306px;position:relative;display:flex;flex-direction:column;color:#ECECF0}
+  .sb{display:flex;align-items:center;justify-content:space-between;padding:9px 22px 4px;font-size:12px;font-weight:500}
+  .sb .ri{display:flex;gap:5px;align-items:center;font-size:13px}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:#6C6C78}
+  .tab.on{color:#FF7A2F}
+  .homebar{height:5px;width:120px;background:#3a3a40;border-radius:3px;margin:6px auto 9px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:#202026;border:1px solid rgba(255,255,255,0.1);border-radius:9px;padding:9px 13px}
+  .tlabel{position:absolute;top:8px;font:500 11px var(--mono);color:#cfcfd6;background:rgba(0,0,0,0.35);padding:1px 5px;border-radius:4px}
+  .bigstar{cursor:pointer;font-size:32px;padding:3px}
+  .caption{color:#8a8a92;font-size:13px;margin-top:14px}
+</style>
+</head>
+<body>
+  <div class="frame"><div class="screen">
+    <div class="sb"><span>9:41</span><span class="ri"><i class="ti ti-antenna-bars-5"></i><i class="ti ti-wifi"></i><i class="ti ti-battery-3"></i></span></div>
+
+    <div id="wfwrap" style="height:208px;position:relative;background:#0e0e12;overflow:hidden;cursor:grab;touch-action:none">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#26262e;z-index:2"><div id="prog" style="height:100%;width:1%;background:#FF7A2F"></div></div>
+      <canvas id="wf" style="width:100%;height:100%;display:block"></canvas>
+      <span id="tElapsed" class="tlabel" style="left:8px">0:03</span>
+      <span id="tRemain" class="tlabel" style="right:8px">-7:25</span>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:space-evenly;background:#1a1a20;border-top:1px solid rgba(255,255,255,0.08)">
+      <div style="display:flex;align-items:center;gap:12px;padding:0 18px">
+        <div style="width:46px;height:46px;border-radius:9px;background:#3a2050;display:flex;align-items:center;justify-content:center;color:#c79bf0;font-size:20px;flex:none"><i class="ti ti-vinyl"></i></div>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Daily Life (Original Mix)</div>
+          <div style="font-size:13px;color:#9A9AA6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Indra &amp; Electro Sun</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:center;gap:38px">
+        <i class="ti ti-player-skip-back" style="font-size:28px"></i>
+        <div style="width:62px;height:62px;border-radius:50%;background:#FF7A2F;display:flex;align-items:center;justify-content:center;color:#15151a;font-size:30px"><i class="ti ti-player-pause"></i></div>
+        <i class="ti ti-player-skip-forward" style="font-size:28px"></i>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px">
+        <div class="chip"><i class="ti ti-metronome" style="color:#FF7A2F;font-size:16px"></i><span style="font:500 16px var(--mono)">142.4</span><span style="font-size:10px;color:#6C6C78">BPM</span><i class="ti ti-chevron-down" style="color:#9A9AA6;font-size:13px"></i></div>
+        <div class="chip"><i class="ti ti-music" style="color:#9A9AA6;font-size:15px"></i><span style="font:500 16px var(--mono);color:#FF5D9E">8A</span></div>
+      </div>
+
+      <div id="stars" style="display:flex;align-items:center;justify-content:center;gap:12px"></div>
+    </div>
+
+    <div style="display:flex;padding:7px 6px 3px;border-top:1px solid rgba(255,255,255,0.07);background:#1a1a20">
+      <div class="tab"><i class="ti ti-list-details" style="font-size:19px"></i>Library</div>
+      <div class="tab on"><i class="ti ti-wave-sine" style="font-size:19px"></i>Player</div>
+    </div>
+    <div class="homebar"></div>
+  </div></div>
+  <div class="caption">SetCraft iOS — Player (drag the waveform to scrub; tap the stars)</div>
+<script>
+(function(){
+  var sc=document.getElementById('stars');
+  var sh='';for(var i=1;i<=5;i++)sh+='<i class="ti ti-star bigstar" data-v="'+i+'" style="color:'+(i<=4?'#F5B544':'#3c3c44')+'"></i>';
+  sc.innerHTML=sh;
+  sc.addEventListener('click',function(e){var s=e.target.closest('[data-v]');if(!s)return;var v=+s.getAttribute('data-v');[].forEach.call(sc.children,function(c){c.style.color=(+c.getAttribute('data-v')<=v)?'#F5B544':'#3c3c44';});});
+
+  var cv=document.getElementById('wf'),wrap=document.getElementById('wfwrap');
+  var prog=document.getElementById('prog'),tE=document.getElementById('tElapsed'),tR=document.getElementById('tRemain');
+  var trackLen=447,pxPerSec=52,playTime=3,beat=60/142.4;
+  function hsh(i){var s=Math.sin(i*127.1)*43758.5453;return s-Math.floor(s);}
+  function noise(x){var i=Math.floor(x),f=x-i,a=hsh(i),b=hsh(i+1);return a+(b-a)*(f*f*(3-2*f));}
+  function waveAt(t){
+    var env=0.72+0.28*Math.sin(t*0.16+1);
+    var amp=(0.5+0.42*noise(t*5.5)+0.05*Math.sin(t*4))*env;
+    var ph=(t%beat)/beat; amp+=Math.exp(-ph*7)*0.45;
+    if(Math.sin(t*0.09)>0.93)amp*=0.3;
+    amp=Math.max(0.05,Math.min(1,amp));
+    var n2=noise(t*2.1+10),r,g,b;
+    if(n2>0.88){r=70;g=200;b=95;}else if(amp>0.9){r=255;g=95;b=40;}else{r=255;g=120+40*noise(t*9);b=42;}
+    return {amp:amp,c:[r|0,g|0,b|0]};
+  }
+  function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2);}
+  function draw(){
+    var dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+    cv.width=W*dpr;cv.height=H*dpr;var ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,W,H);var mid=H/2,half=H*0.44,cx=W/2,left=playTime-cx/pxPerSec;
+    var tb=Math.ceil(left/(beat*4))*(beat*4);
+    for(;;){var bx=cx+(tb-playTime)*pxPerSec;if(bx>W)break;if(bx>=0){ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.beginPath();ctx.moveTo(bx,0);ctx.lineTo(bx,H);ctx.stroke();}tb+=beat*4;}
+    for(var x=0;x<W;x++){var t=left+x/pxPerSec;if(t<0||t>trackLen)continue;var w=waveAt(t),hh=w.amp*half;
+      ctx.strokeStyle='rgba('+w.c[0]+','+w.c[1]+','+w.c[2]+',0.95)';ctx.beginPath();ctx.moveTo(x+0.5,mid-hh);ctx.lineTo(x+0.5,mid+hh);ctx.stroke();}
+    ctx.fillStyle='rgba(8,8,12,0.42)';ctx.fillRect(0,0,cx,H);
+    ctx.fillStyle='#ffffff';ctx.fillRect(cx-1,0,2,H);
+    ctx.beginPath();ctx.moveTo(cx-6,0);ctx.lineTo(cx+6,0);ctx.lineTo(cx,8);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(cx-6,H);ctx.lineTo(cx+6,H);ctx.lineTo(cx,H-8);ctx.closePath();ctx.fill();
+    prog.style.width=(playTime/trackLen*100)+'%';
+    tE.textContent=fmt(playTime);tR.textContent='-'+fmt(trackLen-playTime);
+  }
+  var dragging=false,sx=0,stt=0;
+  wrap.addEventListener('pointerdown',function(e){dragging=true;sx=e.clientX;stt=playTime;wrap.setPointerCapture(e.pointerId);wrap.style.cursor='grabbing';});
+  wrap.addEventListener('pointermove',function(e){if(!dragging)return;e.preventDefault();var dx=e.clientX-sx;playTime=Math.max(0,Math.min(trackLen,stt-dx/pxPerSec));draw();});
+  function end(){dragging=false;wrap.style.cursor='grab';}
+  wrap.addEventListener('pointerup',end);wrap.addEventListener('pointercancel',end);
+  draw();window.addEventListener('resize',draw);
+})();
+</script>
+</body>
+</html>

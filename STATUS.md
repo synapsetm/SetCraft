@@ -5,6 +5,115 @@ und `SPEC.md` (vollständige Spezifikation und Phasenplan).
 
 ---
 
+## Sitzung 2026-06-03 (Abend) — Phase 5b Schritt 2 angefangen: iOS-Target
+
+Mockups für die iOS-App zuerst entstanden (`docs/library.html`,
+`docs/player.html`) als visuelle Vorlage für Library- und Player-
+Screen. Daraus abgeleitet das Konzept und die ersten drei Commits
+der iOS-Umsetzung.
+
+### Architekturentscheidungen für Phase 5b.2
+
+- **iOS- und macOS-App parallel**, kein Sequenzieren.
+- **`SetCraftCore`-Logik wird nicht verdoppelt.** Core (bereits seit
+  Phase 0) bleibt die einzige Quelle für Audio/Analyse/Tags/
+  Persistence. iOS bekommt eigene, schlankere ViewModels (Variante
+  c im Diskussionsdurchlauf): keine Master-BPM/Key-Logik, kein
+  Inline-Edit, kein NSOpenPanel. Mac-`LibraryViewModel`/`PlayerViewModel`/
+  `TransportViewModel`/`WaveformViewModel` bleiben unangetastet.
+- **Externe Quellen über die Files-App**, inkl. NAS/SMB. Kein
+  eigener SMB-Code — iOS-System übernimmt das via FileProvider,
+  App sieht den Share transparent als Ordner. Bookmark-Persistenz
+  läuft durch das bestehende `FolderRecord`/`DatabaseService`.
+- **Waveform-Renderer auf iOS = SwiftUI Canvas** (gleicher Code-Pfad
+  wie Mac, Phase 4). Metal/`MTKView` nur, falls Performance auf
+  älterer iPhone-Hardware ruckelt.
+- **Tag-Writes auch auf iOS ab v1.** Gleicher
+  `TagLibTrackStore`-Pfad wie Mac. SMB-Atomic-Rename-Risiko bleibt
+  als Edge-Case (Toast/Error-State, kein silent fail).
+- **Min-iOS = 26.5** (`IPHONEOS_DEPLOYMENT_TARGET`),
+  `TARGETED_DEVICE_FAMILY = 1,2` → iPhone + iPad.
+- **Bundle-ID `ch.buehler.beat.SetCraft.iOS`** (Variante B/Suffix mit
+  Punkt). Operationale Trennung von der Sparkle-Welt des Mac, keine
+  Provisioning-Konflikte, kein iCloud-Sync aktuell geplant — falls
+  später nötig, via App Group `group.ch.buehler.beat.SetCraft`.
+
+### Drei Commits
+
+1. **`f31c23a` feat(ios): leeres app-target mit tab-bar**
+   - Neues App-Target `SetCraft iOS` zum bestehenden
+     `SetCraft.xcodeproj` hinzugefügt (manuell via Xcode-UI, damit
+     die v1.0-3-stabile Mac-App nicht durch direkten pbxproj-Patch
+     gefährdet wird).
+   - SwiftUI-Skelett: `SetCraft_iOSApp` + `ContentView` mit
+     `TabView(Library, Player)`. Beide Tabs sind
+     `ContentUnavailableView`-Platzhalter.
+   - SetCraftCore-Package per General → Frameworks ans neue Target
+     verlinkt. Die in Phase 5b Schritt 1 vorbereiteten iOS-Slices
+     der xcframeworks (TagLib, Aubio, KeyFinder) ziehen automatisch.
+
+2. **`8d50d16` feat(ios): source-picker mit security-scoped bookmarks**
+   - Neue Klassen im iOS-Target:
+     - `AppBootstrap` (`@MainActor`): hält `DatabaseService` +
+       `LibraryRepository` + `LibraryStore` über die App-Lebenszeit.
+       Pendant zum `init()` der Mac-`SetCraftApp`.
+     - `LibraryStore` (`@Observable @MainActor`): schlankes iOS-VM
+       mit API `restoreSavedFolders`, `addFolder(url:)`,
+       `selectFolder(id:)`, `removeFolder(id:)`. Wiederverwendet
+       Core-`FolderRecord`/`DatabaseService` 1:1.
+   - `LibraryScreen` mit `NavigationStack` + Toolbar-Menü
+     (Sources-Sektion mit ✓ auf der aktiven Quelle, Remove-Sektion,
+     „Open folder…").
+   - Picker per `.fileImporter(allowedContentTypes: [.folder])`;
+     Bookmark-Erzeugung mit `options: []` (kein `.withSecurityScope`
+     — das ist macOS-only).
+   - `selectFolder` öffnet/balanciert den Security-Scope, refresht
+     stale Bookmarks, löscht unresolvable Einträge still.
+
+3. **`dce251d` chore(ios): bundle-id mit punkt statt bindestrich**
+   - Xcode hatte aus dem Produktnamen mit Leerzeichen automatisch
+     `ch.buehler.beat.SetCraft-iOS` abgeleitet. Auf reverse-DNS-
+     konsistenten Punkt umgestellt:
+     `ch.buehler.beat.SetCraft.iOS`.
+
+### Manuell verifiziert im Simulator
+
+- App startet mit „Keine Quelle aktiv"-Leerstand.
+- Picker öffnet Files-App, Ordnerauswahl funktioniert (lokal +
+  iCloud Drive).
+- Header zeigt Ordnername + Track-Count.
+- App-Restart restored den letzten Ordner ohne neuen Picker
+  → Security-Scoped Bookmarks persistieren über App-Sessions.
+- Quellen-Wechsel + Quellen-Entfernen über das `•••`-Menü.
+- NAS/SMB nicht im Simulator getestet (kein realer Mount-Point),
+  läuft aber durch denselben `.fileImporter`-Pfad — auf echtem
+  iPhone/iPad sollte es funktionieren.
+
+### Bewusst nicht in diesem Schritt
+
+- **AppKit-Conditionals** (waren in der Phasenplanung): unnötig —
+  Core ist 100% AppKit-frei. `import AppKit` lebt nur im Mac-App-
+  Target, das vom iOS-Build nicht angefasst wird.
+- **`AVAudioSession`-Setup + Background-Audio-Plist-Key**: wandert
+  nach 5b.2.e — ohne aktiven Player wäre die Konfiguration jetzt
+  funktionslos.
+- **Mac-Migration**: keine. Mac-Code unangetastet, v1.0-3 läuft
+  weiter wie ist.
+
+### Offen für Phase 5b Schritt 2
+
+- **5b.2.d** — Library-Tab bekommt die Track-Liste aus dem Mockup
+  (Titel/Artist, ★★★, BPM, Camelot-Badge, Swipe-Left-Analyze,
+  Highlight des laufenden Tracks, Mini-Player über der Tab-Bar
+  sobald der Player existiert).
+- **5b.2.e** — Player-Tab aus dem Mockup: Center-Playhead-RGB-
+  Waveform (Canvas, Drag-Scrub), Track-Header mit Cover, Transport,
+  BPM-Chip + Edit-Sheet, Key-Chip + Camelot-Wheel-Picker, große
+  Sterne. `AVAudioSession`-Konfiguration +
+  `UIBackgroundModes = audio` dort.
+
+---
+
 ## Sitzung 2026-06-03 (Nachzug) — Sparkle-Sandbox-Fix, Release v1.0-3
 
 **Ausgangslage:** Auto-Update via Sparkle bricht in v1.0-1/2 mit
