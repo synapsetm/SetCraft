@@ -8,9 +8,18 @@
 	<true/>
 	<key>com.apple.security.files.bookmarks.app-scope</key>
 	<true/>
-	<!-- Sparkle braucht Outbound-HTTPS, um den Appcast und Update-Dateien
-	     vom Distributionsserver zu laden. -->
-	<key>com.apple.security.network.client</key>
-	<true/>
+	<!-- Sparkle 2 im Sandbox-Modus: die App selbst macht keinen Outbound-
+	     HTTPS mehr (kein `network.client`); stattdessen lädt der Sparkle-
+	     Downloader-XPC die Update-Dateien und der Installer-XPC führt die
+	     Installation aus. Die Mach-Lookup-Exceptions geben der App die
+	     Erlaubnis, sich mit den beiden XPC-Services zu verbinden, die
+	     Sparkle unter `<bundle-id>-spks` (Installer) und `<bundle-id>-spki`
+	     (Downloader) registriert. Siehe
+	     https://sparkle-project.org/documentation/sandboxing/. -->
+	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spks</string>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spki</string>
+	</array>
 </dict>
 </plist>

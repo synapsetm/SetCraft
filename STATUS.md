@@ -5,6 +5,58 @@ und `SPEC.md` (vollständige Spezifikation und Phasenplan).
 
 ---
 
+## Sitzung 2026-06-03 (Nachzug) — Sparkle-Sandbox-Fix, Release v1.0-3
+
+**Ausgangslage:** Auto-Update via Sparkle bricht in v1.0-1/2 mit
+„An error occurred while launching the installer" ab. Konsole zeigt
+`authd: Sandbox denied authorizing right 'config.add.<bundle-id>.sparkle2-auth'`
+und `sandboxd: deny mach-lookup ch.buehler.beat.SetCraft-spks`. Klassisches
+Sparkle-2-Sandbox-Setup-Loch — Bundle, Notarisierung, Appcast-Signatur sind
+alle in Ordnung, aber der Sandbox-Trust für Sparkles XPC-Services fehlt.
+
+**Fix gemäß** [sparkle-project.org/documentation/sandboxing](https://sparkle-project.org/documentation/sandboxing/) **(Path A):**
+
+1. `SetCraft.entitlements`:
+   - `com.apple.security.network.client` **entfernt** — die App selbst macht
+     keinen Outbound-HTTPS mehr; das übernimmt Sparkles Downloader-XPC.
+   - **Neu**: `com.apple.security.temporary-exception.mach-lookup.global-name`
+     mit `$(PRODUCT_BUNDLE_IDENTIFIER)-spks` und `-spki`. Xcode substituiert
+     den Platzhalter beim Signieren — verifiziert per
+     `codesign -d --entitlements - SetCraft.app`: liefert
+     `ch.buehler.beat.SetCraft-spks` und `-spki`.
+2. `Info.plist`:
+   - `SUEnableInstallerLauncherService` = YES (aktiviert Installer-XPC,
+     registriert `<bundle-id>-spks`).
+   - `SUEnableDownloaderService` = YES (aktiviert Downloader-XPC,
+     registriert `<bundle-id>-spki`).
+
+**Bewusst NICHT gemacht** (auch wenn das Web es manchmal empfiehlt):
+- Kein Kopieren der XPC-Services nach `SetCraft.app/Contents/XPCServices/`.
+  Sparkles eigene Doku sagt explizit: in der Sandbox **nicht** zusätzlich
+  bundlen; die Framework-XPCs reichen, sobald die Info.plist-Schalter und
+  Mach-Lookup-Entitlements stehen.
+- Kein Rename der XPC-Bundle-IDs. Die behalten ihre Sparkle-Namen
+  (`org.sparkle-project.InstallerService` /
+  `org.sparkle-project.DownloaderService`). Nur der Mach-Service-Name am
+  Runtime erbt den App-Bundle-ID-Prefix.
+- Kein `--deep` beim Re-Signieren im Release-Skript — laut Sparkle-Doku
+  „a common source of Sandboxing errors". `release.sh` macht das bewusst
+  nicht.
+- Keine zusätzliche `com.apple.security.temporary-exception.authorization-right`
+  für `sparkle2-auth`. Der `authd`-Sandbox-Deny ist nur Folgefehler des
+  Mach-Lookup-Deny — mit korrekt aufgesetzten XPCs verschwindet er
+  automatisch.
+
+**Release v1.0-3:** `CURRENT_PROJECT_VERSION` 2→3.
+
+**Migration für bestehende v1.0-1- und v1.0-2-User:** Auto-Update bleibt in
+diesen Versionen kaputt — das Loch ist die installierte App, nicht der
+Appcast. Einmaliger manueller Wechsel nötig: DMG laden, App nach
+`/Applications` ziehen, ersetzen. Ab v1.0-3 läuft `Check for Updates…`
+dann sauber durch die XPC-Bridge.
+
+---
+
 ## Sitzung 2026-06-03 — Player-UX-Sprint, Decoder-Fallback, Release v1.0-2
 
 **Build:** `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild

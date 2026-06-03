@@ -45,5 +45,15 @@
 	<true/>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
+	<!-- Sandbox-Modus: Sparkles Installer- und Downloader-XPC-Services
+	     aktivieren. Damit lädt und installiert Sparkle aus den XPCs heraus
+	     (siehe Mach-Lookup-Entitlements in SetCraft.entitlements und
+	     https://sparkle-project.org/documentation/sandboxing/). Ohne diese
+	     Schalter scheitert „Check for Updates…" in der Sandbox mit
+	     "Failed to submit installer job" / Mach-Lookup-Deny auf -spks. -->
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUEnableDownloaderService</key>
+	<true/>
 </dict>
 </plist>
