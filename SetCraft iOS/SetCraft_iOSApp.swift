@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct SetCraft_iOSApp: App {
+    @State private var bootstrap = AppBootstrap()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(libraryStore: bootstrap.libraryStore)
         }
     }
 }
