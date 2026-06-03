@@ -9,10 +9,12 @@
 /* Begin PBXBuildFile section */
 		A001000000000000000000A3 /* SetCraftCore in Frameworks */ = {isa = PBXBuildFile; productRef = A001000000000000000000A2 /* SetCraftCore */; };
 		A001000000000000000000D3 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A001000000000000000000D2 /* Sparkle */; };
+		C6EC61722FD0BD7900BE2CE0 /* SetCraftCore in Frameworks */ = {isa = PBXBuildFile; productRef = C6EC61712FD0BD7900BE2CE0 /* SetCraftCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		C63B1E272FCC6D8800CEB823 /* SetCraft.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SetCraft.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C6EC61652FD0BD2C00BE2CE0 /* SetCraft iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SetCraft iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -34,6 +36,11 @@
 			path = SetCraft;
 			sourceTree = "<group>";
 		};
+		C6EC61662FD0BD2C00BE2CE0 /* SetCraft iOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "SetCraft iOS";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,18 +53,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C6EC61622FD0BD2C00BE2CE0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C6EC61722FD0BD7900BE2CE0 /* SetCraftCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		C63B1E1E2FCC6D8800CEB823 = {
-			isa = PBXGroup;
-			children = (
-				C63B1E292FCC6D8800CEB823 /* SetCraft */,
-				C63B1E282FCC6D8800CEB823 /* Products */,
-				A001000000000000000000B1 /* Packages */,
-			);
-			sourceTree = "<group>";
-		};
 		A001000000000000000000B1 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
@@ -65,12 +71,31 @@
 			name = Packages;
 			sourceTree = "<group>";
 		};
+		C63B1E1E2FCC6D8800CEB823 = {
+			isa = PBXGroup;
+			children = (
+				C63B1E292FCC6D8800CEB823 /* SetCraft */,
+				C6EC61662FD0BD2C00BE2CE0 /* SetCraft iOS */,
+				C63B1E282FCC6D8800CEB823 /* Products */,
+				A001000000000000000000B1 /* Packages */,
+				C6EC61702FD0BD7900BE2CE0 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
 		C63B1E282FCC6D8800CEB823 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				C63B1E272FCC6D8800CEB823 /* SetCraft.app */,
+				C6EC61652FD0BD2C00BE2CE0 /* SetCraft iOS.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		C6EC61702FD0BD7900BE2CE0 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -100,6 +125,29 @@
 			productReference = C63B1E272FCC6D8800CEB823 /* SetCraft.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C6EC61642FD0BD2C00BE2CE0 /* SetCraft iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C6EC616F2FD0BD2D00BE2CE0 /* Build configuration list for PBXNativeTarget "SetCraft iOS" */;
+			buildPhases = (
+				C6EC61612FD0BD2C00BE2CE0 /* Sources */,
+				C6EC61622FD0BD2C00BE2CE0 /* Frameworks */,
+				C6EC61632FD0BD2C00BE2CE0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C6EC61662FD0BD2C00BE2CE0 /* SetCraft iOS */,
+			);
+			name = "SetCraft iOS";
+			packageProductDependencies = (
+				C6EC61712FD0BD7900BE2CE0 /* SetCraftCore */,
+			);
+			productName = "SetCraft iOS";
+			productReference = C6EC61652FD0BD2C00BE2CE0 /* SetCraft iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -111,6 +159,9 @@
 				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					C63B1E262FCC6D8800CEB823 = {
+						CreatedOnToolsVersion = 26.5;
+					};
+					C6EC61642FD0BD2C00BE2CE0 = {
 						CreatedOnToolsVersion = 26.5;
 					};
 				};
@@ -135,42 +186,20 @@
 			projectRoot = "";
 			targets = (
 				C63B1E262FCC6D8800CEB823 /* SetCraft */,
+				C6EC61642FD0BD2C00BE2CE0 /* SetCraft iOS */,
 			);
 		};
 /* End PBXProject section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		A001000000000000000000A1 /* XCLocalSwiftPackageReference "SetCraftCore" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = SetCraftCore;
-		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		A001000000000000000000D1 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sparkle-project/Sparkle";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.6.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		A001000000000000000000A2 /* SetCraftCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = SetCraftCore;
-		};
-		A001000000000000000000D2 /* Sparkle */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A001000000000000000000D1 /* XCRemoteSwiftPackageReference "Sparkle" */;
-			productName = Sparkle;
-		};
-/* End XCSwiftPackageProductDependency section */
-
 /* Begin PBXResourcesBuildPhase section */
 		C63B1E252FCC6D8800CEB823 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6EC61632FD0BD2C00BE2CE0 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -181,6 +210,13 @@
 
 /* Begin PBXSourcesBuildPhase section */
 		C63B1E232FCC6D8800CEB823 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6EC61612FD0BD2C00BE2CE0 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -396,6 +432,75 @@
 			};
 			name = Release;
 		};
+		C6EC616D2FD0BD2D00BE2CE0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D75S77JA58;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ch.buehler.beat.SetCraft-iOS";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C6EC616E2FD0BD2D00BE2CE0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D75S77JA58;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ch.buehler.beat.SetCraft-iOS";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -417,7 +522,51 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		C6EC616F2FD0BD2D00BE2CE0 /* Build configuration list for PBXNativeTarget "SetCraft iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C6EC616D2FD0BD2D00BE2CE0 /* Debug */,
+				C6EC616E2FD0BD2D00BE2CE0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A001000000000000000000A1 /* XCLocalSwiftPackageReference "SetCraftCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = SetCraftCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A001000000000000000000D1 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A001000000000000000000A2 /* SetCraftCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SetCraftCore;
+		};
+		A001000000000000000000D2 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A001000000000000000000D1 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+		C6EC61712FD0BD7900BE2CE0 /* SetCraftCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A001000000000000000000A1 /* XCLocalSwiftPackageReference "SetCraftCore" */;
+			productName = SetCraftCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C63B1E1F2FCC6D8800CEB823 /* Project object */;
 }

@@ -7,6 +7,16 @@
     "—" : {
 
     },
+    "%@ / -%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ / -%2$@"
+          }
+        }
+      }
+    },
     "%lld found" : {
       "comment" : "Library toolbar: number of tracks found while scanning",
       "localizations" : {
@@ -33,6 +43,9 @@
       }
     },
     "●" : {
+
+    },
+    "About SetCraft" : {
 
     },
     "Add as source" : {
@@ -165,6 +178,12 @@
         }
       }
     },
+    "BPM ÷1.5 (triplet fix)" : {
+
+    },
+    "BPM ×1.5 (triplet fix)" : {
+
+    },
     "BPM: %@" : {
 
     },
@@ -238,6 +257,9 @@
         }
       }
     },
+    "Double BPM (×2)" : {
+
+    },
     "Expected BPM range for the octave correction" : {
       "localizations" : {
         "de" : {
@@ -248,6 +270,9 @@
         }
       }
     },
+    "Filename" : {
+
+    },
     "Fine adjust" : {
       "localizations" : {
         "de" : {
@@ -257,6 +282,9 @@
           }
         }
       }
+    },
+    "Force a fresh BPM/key analysis for the selected track" : {
+
     },
     "Genre" : {
       "localizations" : {
@@ -287,6 +315,9 @@
           }
         }
       }
+    },
+    "Halve BPM (÷2)" : {
+
     },
     "Key" : {
       "localizations" : {
@@ -357,6 +388,12 @@
           }
         }
       }
+    },
+    "Next" : {
+
+    },
+    "Next track in the library (→)" : {
+
     },
     "No BPM and no key detected: %@" : {
       "localizations" : {
@@ -470,6 +507,12 @@
         }
       }
     },
+    "Previous" : {
+
+    },
+    "Previous track in the library (←)" : {
+
+    },
     "Rating" : {
       "localizations" : {
         "de" : {
@@ -479,6 +522,9 @@
           }
         }
       }
+    },
+    "Re-analyze" : {
+
     },
     "Remove source" : {
       "localizations" : {
@@ -599,6 +645,9 @@
           }
         }
       }
+    },
+    "Track is not in the library — rating can't be saved" : {
+
     },
     "Type" : {
       "localizations" : {
