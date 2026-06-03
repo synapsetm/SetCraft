@@ -5,6 +5,112 @@ und `SPEC.md` (vollständige Spezifikation und Phasenplan).
 
 ---
 
+## Sitzung 2026-06-03 — Player-UX-Sprint, Decoder-Fallback, Release v1.0-2
+
+**Build:** `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild
+-project SetCraft.xcodeproj -scheme SetCraft -destination 'platform=macOS'
+-configuration Debug build` läuft sauber durch (`xcode-select` zeigt auf
+CommandLineTools — `DEVELOPER_DIR`-Override umgeht das ohne `sudo`). Sieben
+fachliche Bündel, alle in `main` gemerged und als `v1.0-2` releast.
+
+### Was neu im Player ist
+
+1. **Album-Cover links neben Titel/Artist** im Player-Header. 48×48 mit
+   abgerundetem `RoundedRectangle`-Rahmen; lädt asynchron via
+   `ArtworkReader.loadArtwork(url:)` über `AVAsset.commonMetadata` →
+   `commonIdentifierArtwork` → `.dataValue`. Funktioniert formatübergreifend
+   (MP3 APIC / M4A covr / FLAC PICTURE / Ogg) ohne TagLib-Erweiterung. Wenn
+   kein Cover hinterlegt ist, bleibt der leere Rahmen sichtbar — Header-Höhe
+   konstant. Tracks ohne Library-Eintrag bekommen denselben Render-Pfad,
+   weil nur die URL nötig ist.
+2. **Prev/Next-Buttons** ⏮ ⏯ ⏭ in der Transport-Bar, beide mit `←`/`→` als
+   direkten Tastatur-Shortcut (ohne Modifier). Konflikt mit Inline-Edits ist
+   keiner: SwiftUI reicht die Pfeiltasten ans fokussierte TextField durch,
+   gleiche Mechanik wie das bestehende `Space` für Play/Pause.
+3. **Sterne-Rating** als editierbarer Chip neben dem KeyChip, mit demselben
+   `.thinMaterial`-Capsule-Outline wie der TempoChip → klares „antippbar"-
+   Signal. Tap geht durch `library.setRating(forURL:_:)` und damit durch den
+   gewohnten 600-ms-Debounce-Save (POPM + Sterne-Präfix im Comment via
+   TagLib-Bridge). Tracks ohne Library-Eintrag dimmen den Chip auf 45 %.
+
+### Decoder-Fallback in `PCMLoader`
+
+Konkreter Fehler beim Öffnen mancher MP3s (z. B. „Kalki, Sonic Species - You
+Are the Light"):
+`AVAudioFile(forReading:)` wirft `Foundation._GenericObjCError error 0`,
+obwohl `AVAudioPlayerNode` dieselbe Datei sauber abspielt — typisch für
+MP3-Header, mit denen der ExtAudioFile-Decoder ein Problem hat. Fix in zwei
+Stufen:
+
+1. Versuch 1: weiterhin `AVAudioFile`-Pfad (schnell, deckt 99 % ab).
+2. Bei Fehler: **`AVAssetReader`-Fallback** über `AVURLAsset` →
+   `AVAssetReaderTrackOutput` mit Float32-mono-PCM in der nativen Sample-Rate
+   des Audio-Tracks. CoreMedia-Decoder statt ExtAudioFile — kommt mit den
+   problematischen Headern durch. Native Sample-Rate via
+   `CMAudioFormatDescriptionGetStreamBasicDescription`, also kein Resampling.
+
+`waveform.lastError` (orange) verschwand auf den Testfiles sofort. Die
+ursprüngliche Retry-Krücke ist raus — sie hätte das echte Format-Problem
+nicht gelöst und nur Latenz erzeugt.
+
+### Library-Verhalten
+
+- **Waveform-Prefetch beim Scan**: `LibraryViewModel.scan(folder:)` ruft
+  `prefetchWaveform(track)` direkt im `for await`-Loop auf, sobald ein Track
+  vom Scanner reinkommt. `WaveformCache` dedupliziert per URL, hält Ergebnis
+  in Memory und in SQLite — kalter Scan rechnet alles im Hintergrund, warmer
+  Scan kommt aus dem DB-Cache. Klick auf einen Track holt die Welle aus dem
+  Cache statt synchron zu analysieren.
+- **„Remove source" leert die Tabelle zuverlässig**: bisher konnten zwei
+  Pfade dafür sorgen, dass Tracks nach dem Entfernen des letzten Folders
+  sichtbar blieben:
+  - laufender `scanTask` pumpte nach dem `tracks = []` weiter Tracks
+    nach → Fix: `scanTask?.cancel()` + `isScanning = false` im
+    `selectFolder(id: nil)`-Clear-Zweig.
+  - `removeFolder` triggerte den Clear nur bei `selectedFolderID == id` →
+    Fix: prüft stattdessen, ob die aktuelle Selektion noch auf einen
+    existierenden Ordner zeigt; wenn nicht, läuft die Selektions-/Clear-
+    Logik.
+- **Neue Spalte „Filename"** in der Library-Tabelle (sortierbar via
+  `\.fileName` auf `Track`), einsortiert in `fileInfoColumns` vor „Type".
+- **Prev/Next ziehen die Library-Selektion mit** (`library.selectedTrackID
+  = track.id`), damit Tabelle und Player synchron stehen.
+
+### Quellgesteuerte Fundamente
+
+- Neuer Reader: `SetCraftCore/Sources/SetCraftCore/Library/ArtworkReader.swift`
+  — minimaler async-Wrapper um `AVAsset.commonMetadata`. Bewusst keine
+  Cache-Schicht; das Bild ist klein, der Render-Pfad selten genug, und ein
+  späterer Cache wäre genauso trivial nachzulegen.
+- Neuer View: `SetCraft/ArtworkView.swift` mit `task(id: url)` für sauberes
+  Cancel-on-URL-Change-Verhalten.
+- `Track` hat jetzt `fileName: String` (analog zu bestehendem
+  `fileType: String`).
+- `PBXFileSystemSynchronizedRootGroup` ist aktiv, Xcode pickt neue Dateien im
+  `SetCraft/`-Ordner automatisch auf — keine `pbxproj`-Patches nötig.
+
+### Release v1.0-2
+
+- Build-Nummer von 1 auf 2 in `pbxproj` angehoben (`MARKETING_VERSION = 1.0`,
+  `CURRENT_PROJECT_VERSION = 2`). Tag `v1.0-2`, DMG `SetCraft-1.0-2.dmg`.
+- `scripts/release.sh` produziert wie gewohnt notarisiertes DMG, lädt es als
+  GitHub-Release-Asset hoch und schreibt den signierten Appcast auf
+  `docs/appcast.xml` (GitHub Pages liefert ihn unter der `SUFeedURL` aus, die
+  in `Info.plist` steht).
+
+### Was bewusst nicht in dieser Sitzung war
+
+- Throttling der parallelen Waveform-Prefetches. Bei riesigen Libraries
+  (Tausende Tracks) würden alle Detached Tasks gleichzeitig CPU/Disk
+  beanspruchen — bei `.utility`-Priorität verträglich, aber irgendwann
+  spürbar. Wenn nötig: TaskGroup mit Concurrency-Limit ~3–4.
+- Bordsteinaktion auf dem Player-Bild bei Track-Wechsel (Fade/Crossfade).
+- Mini-Cover als Spalte in der Library-Tabelle.
+- ⌘← / ⌘→ als Alternative zu blanken Pfeiltasten — bewusst weggelassen,
+  weil die blanken Pfeiltasten reichen.
+
+---
+
 ## Phase 0 — abgeschlossen (Commit `4595666`)
 
 **Build:** `xcodebuild -scheme SetCraft -destination 'platform=macOS' build` läuft
