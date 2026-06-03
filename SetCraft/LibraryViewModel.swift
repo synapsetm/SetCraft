@@ -166,6 +166,12 @@ final class LibraryViewModel {
     @MainActor
     func selectFolder(id: String?) async {
         guard let id, let record = folders.first(where: { $0.id == id }) else {
+            // Laufenden Scan stoppen, sonst pumpt der `for await`-Loop weiter
+            // Tracks in die jetzt geleerte Liste — Tabelle würde nach dem
+            // Clear sofort wieder voll laufen.
+            scanTask?.cancel()
+            scanTask = nil
+            isScanning = false
             accessingScopedURL?.stopAccessingSecurityScopedResource()
             accessingScopedURL = nil
             selectedFolderID = nil
@@ -216,7 +222,13 @@ final class LibraryViewModel {
             await MainActor.run {
                 guard let self else { return }
                 self.folders.removeAll { $0.id == id }
-                if self.selectedFolderID == id {
+                // Selektion neu setzen, wenn der aktive Ordner weg ist ODER
+                // wenn selectedFolderID gar nicht (mehr) auf einen existierenden
+                // Ordner zeigt. Letzteres deckt Desync-Fälle ab und sorgt vor
+                // allem dafür, dass `tracks` zuverlässig geleert wird, wenn
+                // der letzte Ordner verschwindet.
+                let stillValid = self.folders.contains { $0.id == self.selectedFolderID }
+                if !stillValid {
                     Task { await self.selectFolder(id: self.folders.last?.id) }
                 }
             }
@@ -258,6 +270,12 @@ final class LibraryViewModel {
             for await track in repository.scan(folder: folder) {
                 if Task.isCancelled { break }
                 tracks.append(track)
+                // Welle direkt im Hintergrund rechnen lassen, sobald der Track
+                // beim Scan auftaucht. WaveformCache dedupliziert per URL und
+                // hält das Ergebnis sowohl im Speicher als auch in der DB —
+                // ein späterer Klick auf den Track holt die Welle dann sofort
+                // aus dem Cache statt synchron zu analysieren.
+                prefetchWaveform(track)
             }
             isScanning = false
         }
@@ -266,6 +284,45 @@ final class LibraryViewModel {
     var selectedTrack: Track? {
         guard let id = selectedTrackID else { return nil }
         return tracks.first(where: { $0.id == id })
+    }
+
+    // MARK: - Navigation
+
+    /// Nächster Track in der aktuell angezeigten Sortierung. Wenn der gerade
+    /// geladene Track nicht in der Library ist (z. B. via „Open file…"), wird
+    /// auf den ersten Library-Track gesprungen, damit der Knopf trotzdem
+    /// etwas Sinnvolles tut.
+    func nextTrack(after url: URL?) -> Track? {
+        let sorted = sortedTracks
+        guard !sorted.isEmpty else { return nil }
+        guard let url, let idx = sorted.firstIndex(where: { $0.url == url }) else {
+            return sorted.first
+        }
+        let next = idx + 1
+        return next < sorted.count ? sorted[next] : nil
+    }
+
+    /// Vorheriger Track in der aktuell angezeigten Sortierung. Bei nicht-in-
+    /// der-Library-geladenen Tracks Fallback auf den ersten Track.
+    func previousTrack(before url: URL?) -> Track? {
+        let sorted = sortedTracks
+        guard !sorted.isEmpty else { return nil }
+        guard let url, let idx = sorted.firstIndex(where: { $0.url == url }) else {
+            return sorted.first
+        }
+        let prev = idx - 1
+        return prev >= 0 ? sorted[prev] : nil
+    }
+
+    /// Setzt das Rating eines Tracks anhand seiner URL und plant den
+    /// gewohnten Debounce-Save ein. Wird vom Player-Rating-Chip aufgerufen,
+    /// damit dieselbe Persistenz-Pipeline läuft wie bei einer Inline-Edit
+    /// in der Library-Tabelle.
+    func setRating(forURL url: URL, _ rating: Rating) {
+        guard let idx = tracks.firstIndex(where: { $0.url == url }) else { return }
+        guard tracks[idx].rating != rating else { return }
+        tracks[idx].rating = rating
+        scheduleSave(tracks[idx])
     }
 
     // MARK: - Persistence

@@ -116,12 +116,34 @@ struct ContentView: View {
         HStack(spacing: 12) {
             TempoChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
             KeyChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
+            ratingChip
             Spacer()
         }
     }
 
+    /// Sterne-Rating für den aktuell geladenen Track. Capsule-Rahmen wie der
+    /// TempoChip signalisiert „antippbar"; gedimmt + Tap deaktiviert, sobald
+    /// der Track nicht in der Library steht (ohne `Track`-Eintrag fehlt das
+    /// Persistenz-Ziel).
+    @ViewBuilder
+    private var ratingChip: some View {
+        let editable = loadedTrack != nil
+        StarRatingView(rating: loadedTrack?.rating ?? .none) { newRating in
+            guard let url = player.player.loadedURL else { return }
+            library.setRating(forURL: url, newRating)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(.thinMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(.separator, lineWidth: 0.5))
+        .disabled(!editable)
+        .opacity(editable ? 1.0 : 0.45)
+        .help(editable ? "Rating" : "Track is not in the library — rating can't be saved")
+    }
+
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .center, spacing: 12) {
+            ArtworkView(url: player.player.loadedURL, size: 48)
             VStack(alignment: .leading, spacing: 4) {
                 Text(titleLine)
                     .font(.headline)
@@ -183,12 +205,30 @@ struct ContentView: View {
             .help("Load the selected track from the library")
 
             Button {
+                loadPreviousFromLibrary()
+            } label: {
+                Label("Previous", systemImage: "backward.fill")
+            }
+            .disabled(library.previousTrack(before: player.player.loadedURL) == nil)
+            .keyboardShortcut(.leftArrow, modifiers: [])
+            .help("Previous track in the library (←)")
+
+            Button {
                 player.togglePlay()
             } label: {
                 Label("Play/Pause", systemImage: "playpause.fill")
             }
             .disabled(player.player.loadedURL == nil)
             .keyboardShortcut(.space, modifiers: [])
+
+            Button {
+                loadNextFromLibrary()
+            } label: {
+                Label("Next", systemImage: "forward.fill")
+            }
+            .disabled(library.nextTrack(after: player.player.loadedURL) == nil)
+            .keyboardShortcut(.rightArrow, modifiers: [])
+            .help("Next track in the library (→)")
 
             Button {
                 player.unload()
@@ -202,8 +242,26 @@ struct ContentView: View {
 
     private func loadSelectedFromLibrary() {
         guard let track = library.selectedTrack else { return }
+        loadIntoPlayer(track)
+    }
+
+    private func loadNextFromLibrary() {
+        guard let track = library.nextTrack(after: player.player.loadedURL) else { return }
+        loadIntoPlayer(track)
+    }
+
+    private func loadPreviousFromLibrary() {
+        guard let track = library.previousTrack(before: player.player.loadedURL) else { return }
+        loadIntoPlayer(track)
+    }
+
+    /// Einheitlicher Lade-Pfad für alle Library-getriebenen Trigger
+    /// (Selected/Prev/Next): Player füllen, Analyse anstossen, Selektion
+    /// in der Library mitziehen, damit die Tabelle auf dem neuen Track steht.
+    private func loadIntoPlayer(_ track: Track) {
         player.loadTrack(track)
         library.analyzeIfNeeded(track)
+        library.selectedTrackID = track.id
     }
 
     /// Nur noch die Zeitanzeige — gesucht wird ab Phase 4 ausschliesslich

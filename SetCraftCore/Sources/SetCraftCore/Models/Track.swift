@@ -65,4 +65,9 @@ public struct Track: Identifiable, Hashable, Sendable {
     public var fileType: String {
         url.pathExtension.uppercased()
     }
+
+    /// Dateiname inkl. Endung (z. B. "Artist - Title.mp3").
+    public var fileName: String {
+        url.lastPathComponent
+    }
 }

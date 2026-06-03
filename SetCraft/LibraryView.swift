@@ -318,6 +318,16 @@ struct LibraryView: View {
 
     @TableColumnBuilder<Track, KeyPathComparator<Track>>
     private var fileInfoColumns: some TableColumnContent<Track, KeyPathComparator<Track>> {
+        TableColumn("Filename", value: \.fileName) { track in
+            Text(track.fileName)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .help(track.fileName)
+        }
+        .width(min: 120, ideal: 200)
+        .customizationID("filename")
+
         TableColumn("Type", value: \.fileType) { track in
             Text(track.fileType.isEmpty ? "—" : track.fileType)
                 .foregroundStyle(.secondary)
