@@ -5,6 +5,88 @@ und `SPEC.md` (vollständige Spezifikation und Phasenplan).
 
 ---
 
+## Sitzung 2026-06-04 (Nachtrag) — System-Integration & Robustheit
+
+Die vier offenen Punkte aus dem vorigen Eintrag sind durch — die iOS-App
+verhält sich jetzt wie eine native Audio-App im iOS-System.
+
+### Lock-Screen + Control-Center + AirPods (`daf8dfb`)
+
+`NowPlayingManager` verdrahtet den `MPRemoteCommandCenter`
+(play/pause/togglePlayPause/next/previous/changePlaybackPosition)
+auf die `PlayerStore`-Methoden und speist
+`MPNowPlayingInfoCenter.default().nowPlayingInfo` aus
+`PlayerStore.update()` (aufgerufen bei load/play/pause/seek/applyEdit).
+Position + `playbackRate` werden gesetzt, System extrapoliert den
+Scrubber dazwischen — keine 30-Hz-Updates. Artwork wird via
+Core-`ArtworkReader` async nur bei Track-Wechsel geladen
+(`lastArtworkURL`-Vergleich).
+
+`PlayerStore.play()` und `.pause()` sind jetzt die zentralen Wege
+(kapseln Engine + `nowPlaying?.update()`); `togglePlayPause` delegiert.
+`weak var nowPlaying` wird vom `AppBootstrap` nach beiden Inits
+gesetzt (kreuzweise Initialisierung).
+
+### AVAudioSession-Interruption + Route-Change (`daf8dfb`)
+
+`AudioSessionManager` beobachtet jetzt die System-Notifications:
+- `interruptionNotification.began` → `onInterruptionBegan` → `pause()`.
+- `interruptionNotification.ended` mit `.shouldResume` →
+  `onInterruptionEndedShouldResume` → `play()`.
+- `routeChangeNotification` mit `.oldDeviceUnavailable`
+  (Headphones rausgezogen) → `onShouldPause` → `pause()`.
+
+Callbacks werden im `PlayerStore`-init() verdrahtet, alle laufen
+über die zentralen `play()`/`pause()`-Wege — damit gehen sie auch
+sauber über `NowPlayingManager` und der Lock-Screen-Zustand bleibt
+synchron.
+
+### Re-Analyze als zweiter trailing-Swipe-Button (`25a15a3`)
+
+`LibraryStore.analyze(trackID:force:)` bekommt einen Force-Parameter.
+Der Trailing-Swipe zeigt jetzt zwei Buttons:
+- **Analyze** (blau) — ergänzt nur fehlende Werte (unverändert).
+- **Re-analyze** (orange, `arrow.clockwise`) — rechnet BPM und Key
+  neu, übersteuert vorhandene. Pendant zum Mac-Library-Kontextmenü-
+  Eintrag.
+
+### TagLibTrackStore-Active-Guard für iOS (`c0b45eb`)
+
+`PlayerStore.load(_:)` registriert den geladenen Track jetzt über
+`LibraryStore.setActiveTrack` → `repository.setActiveTrack` im
+`TagLibTrackStore`. Damit lehnt der Store Schreibvorgänge auf die
+gerade im `AVAudioEngine` offene Datei mit
+`StoreError.fileInUse` ab — gleiche Sicherheit wie auf dem Mac.
+
+`LibraryStore.updateTrack` fängt `fileInUse` ab und queued den Save
+in `pendingSaves: [UUID: Track]`. Beim nächsten Track-Wechsel werden
+alle pendingSaves nachgeholt, deren Track jetzt nicht mehr aktiv ist —
+Pendant zum Mac-`blockedByActivePlayer`-Pattern.
+
+### Manuell verifiziert im Simulator
+
+- Track im Player läuft, App in den Hintergrund (Home-Geste) →
+  Audio läuft weiter (Background-Audio).
+- Lock-Screen (`⌘⇧L`) zeigt Title/Artist/Album/Artwork +
+  Play-Pause-Scrubber.
+- Play/Pause vom Lock-Screen toggelt im App-Player.
+- Skip-Buttons gehen durch die aktuelle Library-Sortierung.
+- Scrubber-Drag im Lock-Screen löst `seek()` aus, Position synct.
+
+### Offen
+
+- **iCloud-Sync der Library** zwischen Mac und iPhone — würde
+  `App Group` + `CloudKit`-Container brauchen (siehe
+  [[project-ios-parallel]] zur Bundle-ID-Strategie).
+- **Live-Activities** für die aktuelle Wiedergabe — iOS 16.1+
+  Feature, nice-to-have für Lock-Screen-Anzeige ohne Now-Playing-
+  Widget.
+- **Force-Refresh** der Library-Liste (Pull-to-Refresh) wenn extern
+  am Datei-Bestand was geändert wurde — aktuell rescannt der
+  `selectFolder`-Pfad nur beim Wechsel.
+
+---
+
 ## Sitzung 2026-06-04 — Phase 5b Schritt 2 abgeschlossen + UX-Politur, iPad-Ziel verworfen
 
 Phase 5b Schritt 2 ist inhaltlich fertig: iOS-Library und iOS-Player
