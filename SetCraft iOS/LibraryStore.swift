@@ -85,6 +85,11 @@ final class LibraryStore {
     private var scanTask: Task<Void, Never>?
     private var accessingScopedURL: URL?
 
+    /// Saves, die TagLibTrackStore mit `.fileInUse` abgelehnt hat — die Datei
+    /// ist gerade im Player aktiv. Werden in `setActiveTrack` automatisch
+    /// nachgeholt, sobald der Player auf einen anderen Track wechselt.
+    private var pendingSaves: [UUID: Track] = [:]
+
     init(database: DatabaseService, repository: LibraryRepository) {
         self.database = database
         self.repository = repository
@@ -193,15 +198,41 @@ final class LibraryStore {
 
     /// Persistiert einen geänderten Track (Rating / BPM / Key Edits aus dem
     /// Player) in der Liste und schreibt ihn über das Repository zurück in
-    /// Datei + DB-Cache. Fehler beim Save landen in `lastError`.
+    /// Datei + DB-Cache. Schreibvorgänge auf den gerade abspielenden Track
+    /// werden mit `.fileInUse` abgelehnt — die landen in `pendingSaves` und
+    /// werden beim nächsten `setActiveTrack`-Wechsel automatisch nachgeholt.
     func updateTrack(_ track: Track) async {
         if let idx = tracks.firstIndex(where: { $0.id == track.id }) {
             tracks[idx] = track
         }
         do {
             try await repository.save(track)
+            pendingSaves.removeValue(forKey: track.id)
+        } catch let storeError as TagLibTrackStore.StoreError {
+            if case .fileInUse = storeError {
+                pendingSaves[track.id] = track
+            } else {
+                lastError = "Speichern fehlgeschlagen: \(storeError.localizedDescription)"
+            }
         } catch {
             lastError = "Speichern fehlgeschlagen: \(error.localizedDescription)"
+        }
+    }
+
+    /// Vom PlayerStore aufgerufen, wenn ein neuer Track in den Player
+    /// geladen wird. Der TagLibTrackStore-Active-Guard schützt damit
+    /// gleichzeitig vor parallelen Schreibvorgängen auf die noch im Player
+    /// gehaltene Datei. Bei jedem Wechsel werden zuvor blockierte Saves
+    /// (von Tracks, die jetzt nicht mehr aktiv sind) nachgeholt.
+    func setActiveTrack(_ url: URL?) async {
+        await repository.setActiveTrack(url)
+
+        let drainable = pendingSaves.values.filter { $0.url != url }
+        for track in drainable {
+            pendingSaves.removeValue(forKey: track.id)
+        }
+        for track in drainable {
+            try? await repository.save(track)
         }
     }
 

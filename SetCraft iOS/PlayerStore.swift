@@ -62,6 +62,10 @@ final class PlayerStore {
             engine.play()
             loadWaveform(for: track.url)
             nowPlaying?.update()
+            // Markiert die Datei im TagLibTrackStore als aktiv → parallele
+            // Tag-Writes auf diesen Track werden serialisiert (gequeued bis
+            // zum nächsten Track-Wechsel).
+            Task { await library.setActiveTrack(track.url) }
         } catch {
             lastError = "Konnte Track nicht laden: \(error.localizedDescription)"
         }
