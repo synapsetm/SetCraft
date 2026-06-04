@@ -8,12 +8,10 @@
 import SwiftUI
 import SetCraftCore
 
-/// BPM-Chip im Mockup-Stil (`docs/player.html`): Metronom-Icon orange,
-/// Wert in Mono-Font, kleines "BPM"-Label, Chevron rechts → tappbar fürs
-/// Edit-Sheet. Wenn kein BPM gesetzt ist, zeigt der Chip "—".
+/// BPM-Chip read-only ohne Hintergrund/Border — Player-Edit läuft jetzt
+/// über den separaten `PlayerEditButton` rechts neben dem Key-Chip.
 struct BPMChipView: View {
     let bpm: Double?
-    let onTap: () -> Void
 
     var body: some View {
         HStack(spacing: 6) {
@@ -25,27 +23,43 @@ struct BPMChipView: View {
             Text("BPM")
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
-            Image(systemName: "chevron.down")
-                .foregroundStyle(.secondary)
-                .font(.system(size: 13))
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 9)
-        .background(
-            RoundedRectangle(cornerRadius: 9)
-                .fill(Color(red: 0.13, green: 0.13, blue: 0.15))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 9)
-                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
-                )
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 9))
-        .onTapGesture(perform: onTap)
     }
 
     private var formattedBPM: String {
         guard let bpm else { return "—" }
         return String(format: "%.1f", bpm)
+    }
+}
+
+/// Edit-Button im Chip-Look — eigene Tap-Affordance neben den read-only
+/// BPM- und Key-Chips. Öffnet das `TagEditSheet`.
+struct PlayerEditButton: View {
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 6) {
+                Image(systemName: "pencil")
+                    .foregroundStyle(.orange)
+                    .font(.system(size: 14))
+                Text("Edit")
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 9)
+                    .fill(Color(red: 0.13, green: 0.13, blue: 0.15))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 9)
+                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 

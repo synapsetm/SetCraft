@@ -38,8 +38,24 @@ struct TrackInfoSheet: View {
                     LabeledContent("Genre", value: track.genre.isEmpty ? "—" : track.genre)
                     LabeledContent("Year", value: track.year.map { String($0) } ?? "—")
                     LabeledContent("BPM", value: track.bpm.map { String(format: "%.1f", $0) } ?? "—")
-                    LabeledContent("Key", value: track.key?.description ?? "—")
-                    LabeledContent("Rating", value: ratingDescription)
+                    LabeledContent("Key") {
+                        Text(track.key?.description ?? "—")
+                            .font(.system(.body, design: .monospaced).weight(.medium))
+                            .foregroundStyle(track.key?.color ?? .secondary)
+                    }
+                    LabeledContent("Rating") {
+                        if track.rating.stars == 0 {
+                            Text("—").foregroundStyle(.secondary)
+                        } else {
+                            HStack(spacing: 1) {
+                                ForEach(1...track.rating.stars, id: \.self) { _ in
+                                    Image(systemName: "star.fill")
+                                        .foregroundStyle(.yellow)
+                                }
+                            }
+                            .font(.caption)
+                        }
+                    }
                 }
 
                 Section("Path") {
@@ -78,8 +94,4 @@ struct TrackInfoSheet: View {
         return "\(kbps) kbps"
     }
 
-    private var ratingDescription: String {
-        let stars = track.rating.stars
-        return stars == 0 ? "—" : String(repeating: "★", count: stars)
-    }
 }

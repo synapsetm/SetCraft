@@ -85,14 +85,9 @@ struct PlayerScreen: View {
     @ViewBuilder private var chipsRow: some View {
         if hasTrack {
             HStack(spacing: 12) {
-                BPMChipView(bpm: store.currentTrack?.bpm) {
-                    showTagEditSheet = true
-                }
+                BPMChipView(bpm: store.currentTrack?.bpm)
                 KeyChipView(key: store.currentTrack?.key)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        showTagEditSheet = true
-                    }
+                PlayerEditButton { showTagEditSheet = true }
             }
         }
     }

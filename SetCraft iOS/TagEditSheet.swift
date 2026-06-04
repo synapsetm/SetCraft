@@ -58,20 +58,22 @@ struct TagEditSheet: View {
                 }
 
                 Section("Music") {
-                    HStack {
-                        Text("BPM")
-                        Spacer()
-                        TextField("—", text: $bpmText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(maxWidth: 120)
-                            .font(.system(.body, design: .monospaced))
-                    }
-                    HStack(spacing: 8) {
-                        scaleButton(label: "÷2",   factor: 0.5)
-                        scaleButton(label: "÷1.5", factor: 1.0 / 1.5)
-                        scaleButton(label: "×1.5", factor: 1.5)
-                        scaleButton(label: "×2",   factor: 2.0)
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("BPM")
+                            Spacer()
+                            TextField("—", text: $bpmText)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(maxWidth: 120)
+                                .font(.system(.body, design: .monospaced))
+                        }
+                        HStack(spacing: 8) {
+                            scaleButton(label: "÷2",   factor: 0.5)
+                            scaleButton(label: "÷1.5", factor: 1.0 / 1.5)
+                            scaleButton(label: "×1.5", factor: 1.5)
+                            scaleButton(label: "×2",   factor: 2.0)
+                        }
                     }
                     Picker("Key", selection: $key) {
                         Text("—").tag(CamelotKey?.none)

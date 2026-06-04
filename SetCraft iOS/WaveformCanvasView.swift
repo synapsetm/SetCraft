@@ -33,6 +33,7 @@ struct WaveformCanvasView: View {
 
     private let minPxPerSec: Double = 15
     private let maxPxPerSec: Double = 200
+    private let defaultPxPerSec: Double = 52
 
     var body: some View {
         GeometryReader { proxy in
@@ -72,12 +73,20 @@ struct WaveformCanvasView: View {
                             }
                         }
                 )
+                .simultaneousGesture(
+                    TapGesture(count: 2).onEnded {
+                        pxPerSec = defaultPxPerSec
+                        showZoomHUDBriefly()
+                    }
+                )
 
                 progressBar(width: proxy.size.width)
 
                 timeLabels(width: proxy.size.width)
 
                 zoomHUD(width: proxy.size.width)
+
+                zoomButtonsOverlay
 
                 if isLoading {
                     ProgressView()
@@ -130,6 +139,46 @@ struct WaveformCanvasView: View {
         .frame(maxWidth: .infinity)
         .opacity(zoomHUDOpacity)
         .allowsHitTesting(false)
+    }
+
+    /// Sichtbare +/–-Buttons als Alternative zur Pinch-Geste. Doppeltap auf
+    /// die Wave setzt den Zoom auf den Default zurück.
+    @ViewBuilder
+    private var zoomButtonsOverlay: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                HStack(spacing: 6) {
+                    zoomButton(symbol: "minus", factor: 1.0 / 1.25)
+                    zoomButton(symbol: "plus",  factor: 1.25)
+                }
+            }
+        }
+        .padding(8)
+    }
+
+    @ViewBuilder
+    private func zoomButton(symbol: String, factor: Double) -> some View {
+        Button {
+            let scaled = pxPerSec * factor
+            pxPerSec = max(minPxPerSec, min(maxPxPerSec, scaled))
+            showZoomHUDBriefly()
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .bold))
+                .frame(width: 26, height: 26)
+                .background(Color.black.opacity(0.45), in: Circle())
+                .foregroundStyle(.white.opacity(0.9))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func showZoomHUDBriefly() {
+        zoomHUDOpacity = 1
+        withAnimation(.easeOut(duration: 0.4).delay(0.6)) {
+            zoomHUDOpacity = 0
+        }
     }
 
     private func draw(in ctx: GraphicsContext, size: CGSize) {
