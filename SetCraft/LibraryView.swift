@@ -158,19 +158,6 @@ struct LibraryView: View {
             }
             .disabled(library.selectedTrack == nil)
             .help("Force a fresh BPM/key analysis for the selected track")
-
-            Button {
-                library.saveAllNow()
-            } label: {
-                Label(
-                    library.hasUnsavedChanges
-                        ? "Save (\(library.unsavedTrackIDs.count))"
-                        : "Save",
-                    systemImage: "square.and.arrow.down"
-                )
-            }
-            .disabled(!library.hasUnsavedChanges)
-            .keyboardShortcut("s", modifiers: .command)
         }
     }
 
@@ -254,7 +241,10 @@ struct LibraryView: View {
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
-                if library.analysisState[track.id] == .scheduled && track.bpm == nil {
+                // Spinner solange die Analyse läuft — auch bei Re-Analyze,
+                // wenn schon ein alter Wert in der Zelle steht. Der bleibt
+                // sichtbar, bis die neue Berechnung fertig ist.
+                if library.analysisState[track.id] == .scheduled {
                     ProgressView().controlSize(.mini)
                 }
             }
@@ -267,7 +257,7 @@ struct LibraryView: View {
                 Text(track.key?.description ?? "—")
                     .foregroundStyle(track.key?.color ?? Color.secondary)
                     .monospacedDigit()
-                if library.analysisState[track.id] == .scheduled && track.key == nil {
+                if library.analysisState[track.id] == .scheduled {
                     ProgressView().controlSize(.mini)
                 }
             }
