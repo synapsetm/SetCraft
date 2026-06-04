@@ -42,13 +42,16 @@ public final class AVAudioEnginePlayer: AudioEngine {
             elapsedSeconds = 0
         }
 
-        // Plus Output-Device-Latenz: die Engine hat zwar Samples gerendert,
-        // bis zum Schall im Speaker vergeht aber zusätzlich diese Zeit.
-        // Damit die Anzeige zu dem passt, was gerade aus den Lautsprechern
-        // kommt, müssen wir um diesen Versatz weiter nach vorne projizieren.
-        let outputLatency = engine.outputNode.outputPresentationLatency
+        // Plus PlayerNode-Output-Presentation-Latency: das ist die Zeit vom
+        // gerade gerenderten Sample des PlayerNode bis zur hörbaren Ausgabe
+        // an der Hardware. Sie summiert TimePitch-Verarbeitung (~93 ms),
+        // Mixer und Hardware-Buffer (~203 ms). `engine.outputNode.outputPresentationLatency`
+        // würde nur den Hardware-Anteil zählen und die TimePitch-Latenz
+        // unter den Tisch fallen lassen — die Anzeige hinkte dann um genau
+        // diese Differenz hinter dem hörbaren Audio her.
+        let presentationLatency = playerNode.outputPresentationLatency
 
-        let projected = renderedSeconds + (elapsedSeconds + outputLatency) * rate
+        let projected = renderedSeconds + (elapsedSeconds + presentationLatency) * rate
         return min(max(0, projected), duration)
     }
 
