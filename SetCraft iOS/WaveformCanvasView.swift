@@ -21,9 +21,18 @@ struct WaveformCanvasView: View {
     let isLoading: Bool
     let onScrub: (TimeInterval) -> Void
 
-    private let pxPerSec: Double = 52
+    /// Zoom-Level: Pixel pro Sekunde der Wellenform. Persistent über
+    /// App-Sessions via `@AppStorage`. Pinch-Geste (Magnify) skaliert
+    /// im Bereich 15…200 px/s — von "Track in einem Blick" bis hin zu
+    /// einzelnen Beats.
+    @AppStorage("waveformPxPerSec") private var pxPerSec: Double = 52
 
     @State private var dragStartTime: TimeInterval?
+    @State private var pinchStartZoom: Double?
+    @State private var zoomHUDOpacity: Double = 0
+
+    private let minPxPerSec: Double = 15
+    private let maxPxPerSec: Double = 200
 
     var body: some View {
         GeometryReader { proxy in
@@ -46,10 +55,29 @@ struct WaveformCanvasView: View {
                             dragStartTime = nil
                         }
                 )
+                .simultaneousGesture(
+                    MagnifyGesture()
+                        .onChanged { value in
+                            if pinchStartZoom == nil {
+                                pinchStartZoom = pxPerSec
+                                zoomHUDOpacity = 1
+                            }
+                            let scaled = (pinchStartZoom ?? pxPerSec) * value.magnification
+                            pxPerSec = max(minPxPerSec, min(maxPxPerSec, scaled))
+                        }
+                        .onEnded { _ in
+                            pinchStartZoom = nil
+                            withAnimation(.easeOut(duration: 0.4).delay(0.6)) {
+                                zoomHUDOpacity = 0
+                            }
+                        }
+                )
 
                 progressBar(width: proxy.size.width)
 
                 timeLabels(width: proxy.size.width)
+
+                zoomHUD(width: proxy.size.width)
 
                 if isLoading {
                     ProgressView()
@@ -87,6 +115,20 @@ struct WaveformCanvasView: View {
                 .padding(.trailing, 8)
         }
         .padding(.top, 8)
+        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private func zoomHUD(width: CGFloat) -> some View {
+        let visibleSeconds = Double(width) / pxPerSec
+        VStack {
+            Spacer()
+            Text(String(format: "%.1fs sichtbar", visibleSeconds))
+                .modifier(WaveformTimeLabel())
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .opacity(zoomHUDOpacity)
         .allowsHitTesting(false)
     }
 
