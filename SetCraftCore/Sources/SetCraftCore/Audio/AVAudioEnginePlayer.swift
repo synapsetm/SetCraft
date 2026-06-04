@@ -13,13 +13,33 @@ public final class AVAudioEnginePlayer: AudioEngine {
     public private(set) var duration: TimeInterval = 0
     public private(set) var loadedURL: URL?
 
-    /// Frischer Position-Read — ohne Timer-Latenz. Wird vom Waveform-
-    /// Renderer in einer TimelineView verwendet, damit der Playhead 60-Hz-
-    /// synchron zum hörbaren Audio läuft. Bei Pause / vor erstem Play
-    /// gibt's denselben Wert wie `position` zurück.
+    /// Frischer Position-Read mit Render-Drift-Korrektur. `currentFrame()`
+    /// liefert die Sample-Position **bei `playerNode.lastRenderTime`** — also
+    /// die Vergangenheit (bis zu eine Render-Buffer-Länge ~10 ms her). Bei
+    /// aktiver Wiedergabe ist seit lastRenderTime real-time-Zeit verstrichen,
+    /// in der weitere Samples wiedergegeben wurden. Ohne diese Korrektur
+    /// hinkt der Playhead konsistent hinter dem hörbaren Audio her.
+    ///
+    /// Korrektur: (host-now − lastRenderTime) × engine.rate Sekunden auf
+    /// die Rendered-Position addieren. Wird vom Waveform-Renderer in einer
+    /// `TimelineView(.periodic)` 60 × pro Sekunde aufgerufen.
     public var livePosition: TimeInterval {
-        guard isPlaying, let frame = currentFrame() else { return position }
-        return min(max(0, TimeInterval(frame) / sampleRate), duration)
+        guard isPlaying,
+              let lastRender = playerNode.lastRenderTime,
+              let playerTimeAtRender = playerNode.playerTime(forNodeTime: lastRender)
+        else { return position }
+
+        let renderedSamples = seekFrame + playerTimeAtRender.sampleTime
+        let renderedSeconds = TimeInterval(renderedSamples) / sampleRate
+
+        let nowHostTime = mach_absolute_time()
+        guard nowHostTime >= lastRender.hostTime else {
+            return min(max(0, renderedSeconds), duration)
+        }
+        let hostDelta = nowHostTime - lastRender.hostTime
+        let elapsedSeconds = AVAudioTime.seconds(forHostTime: hostDelta)
+
+        return min(max(0, renderedSeconds + elapsedSeconds * rate), duration)
     }
 
     // Stored properties, damit @Observable die Änderungen mitbekommt und
