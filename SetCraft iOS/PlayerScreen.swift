@@ -15,6 +15,7 @@ struct PlayerScreen: View {
     let store: PlayerStore
 
     @State private var showTagEditSheet = false
+    @State private var showTempoSheet = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,7 +23,7 @@ struct PlayerScreen: View {
                 data: store.currentWaveform,
                 position: store.position,
                 duration: store.duration,
-                bpm: store.currentTrack?.bpm,
+                bpm: store.effectiveBPM,
                 isLoading: store.isLoadingWaveform,
                 onScrub: { store.seek(to: $0) }
             )
@@ -35,6 +36,14 @@ struct PlayerScreen: View {
                     store.applyEdit(updated)
                 }
             }
+        }
+        .sheet(isPresented: $showTempoSheet) {
+            TempoSheet(
+                originalBPM: store.currentTrack?.bpm,
+                initialRate: store.currentRate,
+                onRateChange: { store.setRate($0) },
+                onReset: { store.resetTempo() }
+            )
         }
     }
 
@@ -87,7 +96,9 @@ struct PlayerScreen: View {
     @ViewBuilder private var chipsRow: some View {
         if hasTrack {
             HStack(spacing: 12) {
-                BPMChipView(bpm: store.currentTrack?.bpm)
+                BPMChipView(bpm: store.effectiveBPM) {
+                    showTempoSheet = true
+                }
                 KeyChipView(key: store.currentTrack?.key)
                 PlayerEditButton { showTagEditSheet = true }
             }

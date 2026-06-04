@@ -51,12 +51,29 @@ final class PlayerStore {
     var position: TimeInterval { engine.position }
     var duration: TimeInterval { engine.duration }
 
+    /// Aktuelle Wiedergabe-Rate (1.0 = original). ±8 % typischer DJ-Bereich;
+    /// AVAudioUnitTimePitch klemmt hart auf 0.5…2.0.
+    var currentRate: Double { engine.rate }
+
+    /// Tempo-Hub für die BPM-Anzeige im Chip: Original × Rate. Wenn der
+    /// Track keinen Tag-BPM hat, kann auch kein effektiver Wert berechnet
+    /// werden — Chip zeigt dann "—".
+    var effectiveBPM: Double? {
+        guard let bpm = currentTrack?.bpm else { return nil }
+        return bpm * engine.rate
+    }
+
+    /// CDJ-Span: ±8 % rund um 1.0 — sowohl Slider als auch BPM-Manual-Eingabe
+    /// werden auf dieses Fenster geklemmt.
+    static let tempoSpan: Double = 0.08
+
     /// Lädt einen Track, aktiviert die AVAudioSession (falls noch nicht),
     /// und startet die Wiedergabe direkt — analog zum Autoplay des Macs.
     func load(_ track: Track) {
         do {
             try session.activate()
             try engine.load(url: track.url)
+            engine.rate = 1.0   // frisches Tempo pro Track — Vorgänger-Rate verwerfen
             currentTrack = track
             lastError = nil
             engine.play()
@@ -135,6 +152,27 @@ final class PlayerStore {
     func seek(to seconds: TimeInterval) {
         engine.seek(to: seconds)
         nowPlaying?.update()
+    }
+
+    /// Setzt die Wiedergabe-Rate direkt (für den Slider im Tempo-Sheet).
+    /// Klemmt auf 0.5…2.0; das Now-Playing-Center bekommt den neuen
+    /// `playbackRate`, damit der Lock-Screen-Scrubber synchron läuft.
+    func setRate(_ rate: Double) {
+        engine.rate = max(0.5, min(2.0, rate))
+        nowPlaying?.update()
+    }
+
+    /// Setzt das Tempo so, dass der Track auf das angegebene Ziel-BPM
+    /// gestreckt wird (Rate = target / original). Erfordert dass der Track
+    /// einen Original-BPM-Tag hat, sonst ein No-op.
+    func setTargetBPM(_ bpm: Double) {
+        guard let original = currentTrack?.bpm, original > 0 else { return }
+        setRate(bpm / original)
+    }
+
+    /// Tempo zurück auf 1.0 (Reset-Button im Sheet).
+    func resetTempo() {
+        setRate(1.0)
     }
 
     /// Setzt das Sterne-Rating auf den aktiven Track und persistiert sofort.

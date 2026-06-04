@@ -37,7 +37,7 @@ final class NowPlayingManager {
             if !track.album.isEmpty { info[MPMediaItemPropertyAlbumTitle] = track.album }
             info[MPMediaItemPropertyPlaybackDuration] = player.duration
             info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player.position
-            info[MPNowPlayingInfoPropertyPlaybackRate] = player.isPlaying ? 1.0 : 0.0
+            info[MPNowPlayingInfoPropertyPlaybackRate] = player.isPlaying ? player.currentRate : 0.0
         }
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info

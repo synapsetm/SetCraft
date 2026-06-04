@@ -115,7 +115,7 @@ struct WaveformCanvasView: View {
     @ViewBuilder
     private func timeLabels(width _: CGFloat) -> some View {
         HStack {
-            Text("-\(formatTime(max(0, duration - position))) / \(formatTime(position))")
+            Text("\(formatTime(position)) / -\(formatTime(max(0, duration - position)))")
                 .modifier(WaveformTimeLabel())
                 .padding(.leading, 8)
             Spacer()

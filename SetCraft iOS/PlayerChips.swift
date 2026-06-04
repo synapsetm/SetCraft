@@ -8,10 +8,13 @@
 import SwiftUI
 import SetCraftCore
 
-/// BPM-Chip read-only ohne Hintergrund/Border — Player-Edit läuft jetzt
-/// über den separaten `PlayerEditButton` rechts neben dem Key-Chip.
+/// BPM-Chip ohne Border — zeigt das **effektive** BPM (Original × Rate).
+/// Tap öffnet das Tempo-Sheet zur Geschwindigkeits-Anpassung. Kleines
+/// Chevron als Hinweis aufs Interaktive, sonst optisch genauso plain wie
+/// der read-only Key-Chip.
 struct BPMChipView: View {
     let bpm: Double?
+    let onTap: () -> Void
 
     var body: some View {
         HStack(spacing: 6) {
@@ -23,9 +26,14 @@ struct BPMChipView: View {
             Text("BPM")
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 9)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
     }
 
     private var formattedBPM: String {
