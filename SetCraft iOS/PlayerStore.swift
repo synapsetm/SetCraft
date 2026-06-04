@@ -18,15 +18,23 @@ final class PlayerStore {
     var currentTrack: Track?
     var lastError: String?
 
+    /// Waveform-Daten des aktiven Tracks. `nil` bis der `WaveformCache`
+    /// geantwortet hat oder die Berechnung fehlschlug.
+    var currentWaveform: WaveformData?
+    var isLoadingWaveform: Bool = false
+
     let engine: AVAudioEnginePlayer
 
     private let library: LibraryStore
     private let session: AudioSessionManager
+    private let waveformCache: WaveformCache
+    private var waveformTask: Task<Void, Never>?
 
-    init(library: LibraryStore, session: AudioSessionManager) {
+    init(library: LibraryStore, session: AudioSessionManager, waveformCache: WaveformCache) {
         self.engine = AVAudioEnginePlayer()
         self.library = library
         self.session = session
+        self.waveformCache = waveformCache
     }
 
     var isPlaying: Bool { engine.isPlaying }
@@ -42,8 +50,33 @@ final class PlayerStore {
             currentTrack = track
             lastError = nil
             engine.play()
+            loadWaveform(for: track.url)
         } catch {
             lastError = "Konnte Track nicht laden: \(error.localizedDescription)"
+        }
+    }
+
+    /// Holt Waveform-Daten aus dem Cache (Memory → SQLite → vDSP-FFT).
+    /// Cancelt einen laufenden Task, falls der Nutzer schnell den Track
+    /// wechselt — sonst landet die alte Berechnung noch in `currentWaveform`.
+    private func loadWaveform(for url: URL) {
+        waveformTask?.cancel()
+        currentWaveform = nil
+        isLoadingWaveform = true
+
+        waveformTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let data = try await self.waveformCache.waveform(for: url)
+                if Task.isCancelled { return }
+                guard self.currentTrack?.url == url else { return }
+                self.currentWaveform = data
+                self.isLoadingWaveform = false
+            } catch {
+                if self.currentTrack?.url == url {
+                    self.isLoadingWaveform = false
+                }
+            }
         }
     }
 

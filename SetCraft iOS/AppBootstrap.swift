@@ -17,6 +17,7 @@ final class AppBootstrap {
     let repository: LibraryRepository
     let libraryStore: LibraryStore
     let audioSession: AudioSessionManager
+    let waveformCache: WaveformCache
     let playerStore: PlayerStore
 
     init() {
@@ -37,6 +38,11 @@ final class AppBootstrap {
         self.repository = LibraryRepository(database: database)
         self.libraryStore = LibraryStore(database: database, repository: repository)
         self.audioSession = AudioSessionManager()
-        self.playerStore = PlayerStore(library: libraryStore, session: audioSession)
+        self.waveformCache = WaveformCache(database: database)
+        self.playerStore = PlayerStore(
+            library: libraryStore,
+            session: audioSession,
+            waveformCache: waveformCache
+        )
     }
 }

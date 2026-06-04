@@ -16,21 +16,17 @@ struct PlayerScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            waveformPlaceholder
+            WaveformCanvasView(
+                data: store.currentWaveform,
+                position: store.position,
+                duration: store.duration,
+                bpm: store.currentTrack?.bpm,
+                isLoading: store.isLoadingWaveform,
+                onScrub: { store.seek(to: $0) }
+            )
             controlPanel
         }
         .background(Color(red: 0.08, green: 0.08, blue: 0.09))
-    }
-
-    @ViewBuilder private var waveformPlaceholder: some View {
-        ZStack(alignment: .topLeading) {
-            Color(red: 0.05, green: 0.05, blue: 0.07)
-            Text("Waveform folgt (5b.2.e2)")
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
-                .padding(8)
-        }
-        .frame(height: 208)
     }
 
     @ViewBuilder private var controlPanel: some View {
@@ -109,14 +105,9 @@ struct PlayerScreen: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 18)
         } else if hasTrack {
-            VStack(spacing: 4) {
-                Text(timeLine)
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                Text("BPM/Key/Sterne folgen (5b.2.e3)")
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
-            }
+            Text("BPM/Key/Sterne folgen (5b.2.e3)")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
         }
     }
 

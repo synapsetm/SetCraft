@@ -1,0 +1,182 @@
+//
+//  WaveformCanvasView.swift
+//  SetCraft iOS
+//
+//  Created by BeatBuehler on 04.06.2026.
+//
+
+import SwiftUI
+import SetCraftCore
+
+/// Center-Playhead-Waveform aus `docs/player.html`. Anders als auf dem Mac
+/// (festes Wave-Bild, beweglicher Playhead) bleibt der Playhead hier in der
+/// Mitte und die Wellenform scrollt unter ihm hindurch — CDJ-Look.
+///
+/// Drag-Scrub: Finger nach links → Wave nach links → Zeit läuft vorwärts.
+struct WaveformCanvasView: View {
+    let data: WaveformData?
+    let position: TimeInterval
+    let duration: TimeInterval
+    let bpm: Double?
+    let isLoading: Bool
+    let onScrub: (TimeInterval) -> Void
+
+    private let pxPerSec: Double = 52
+
+    @State private var dragStartTime: TimeInterval?
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .topLeading) {
+                Color(red: 0.055, green: 0.055, blue: 0.07)
+
+                Canvas { ctx, size in
+                    draw(in: ctx, size: size)
+                }
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 1)
+                        .onChanged { value in
+                            if dragStartTime == nil { dragStartTime = position }
+                            let dt = -Double(value.translation.width) / pxPerSec
+                            let new = max(0, min(duration, (dragStartTime ?? 0) + dt))
+                            onScrub(new)
+                        }
+                        .onEnded { _ in
+                            dragStartTime = nil
+                        }
+                )
+
+                progressBar(width: proxy.size.width)
+
+                timeLabels(width: proxy.size.width)
+
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        }
+        .frame(height: 208)
+    }
+
+    @ViewBuilder
+    private func progressBar(width: CGFloat) -> some View {
+        let frac = duration > 0 ? CGFloat(position / duration) : 0
+        ZStack(alignment: .leading) {
+            Rectangle()
+                .fill(Color(red: 0.15, green: 0.15, blue: 0.18))
+                .frame(height: 2)
+            Rectangle()
+                .fill(Color.orange)
+                .frame(width: width * frac, height: 2)
+        }
+        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private func timeLabels(width _: CGFloat) -> some View {
+        HStack {
+            Text(formatTime(position))
+                .modifier(WaveformTimeLabel())
+                .padding(.leading, 8)
+            Spacer()
+            Text("-\(formatTime(max(0, duration - position)))")
+                .modifier(WaveformTimeLabel())
+                .padding(.trailing, 8)
+        }
+        .padding(.top, 8)
+        .allowsHitTesting(false)
+    }
+
+    private func draw(in ctx: GraphicsContext, size: CGSize) {
+        let width = size.width
+        let height = size.height
+        guard width > 0, height > 0 else { return }
+        let midY = height * 0.5
+        let centerX = width * 0.5
+        let leftTime = position - Double(centerX) / pxPerSec
+
+        // Beat-Grid alle 4 Beats — nur wenn BPM bekannt.
+        if let bpm, bpm > 0 {
+            let bar = (60.0 / bpm) * 4
+            var t = (leftTime / bar).rounded(.up) * bar
+            while true {
+                let x = centerX + CGFloat((t - position) * pxPerSec)
+                if x > width { break }
+                if x >= 0 {
+                    var p = Path()
+                    p.move(to: CGPoint(x: x, y: 0))
+                    p.addLine(to: CGPoint(x: x, y: height))
+                    ctx.stroke(p, with: .color(.white.opacity(0.05)), lineWidth: 1)
+                }
+                t += bar
+            }
+        }
+
+        // Waveform-Säulen — pro Pixelspalte ein Bin nachschlagen.
+        if let data, !data.bins.isEmpty {
+            let totalSeconds = data.secondsPerBin * Double(data.bins.count)
+            for x in 0..<Int(width.rounded()) {
+                let t = leftTime + Double(x) / pxPerSec
+                if t < 0 || t > totalSeconds { continue }
+                let binIdx = Int(t / data.secondsPerBin)
+                if binIdx >= data.bins.count { continue }
+                let bin = data.bins[binIdx]
+                let amp = CGFloat(pow(Double(bin.rms), 0.6)) * height * 0.44
+                let gamma = 0.4
+                let color = Color(
+                    red:   pow(Double(bin.bass), gamma),
+                    green: pow(Double(bin.mid),  gamma),
+                    blue:  pow(Double(bin.high), gamma)
+                )
+                var p = Path()
+                p.move(to: CGPoint(x: CGFloat(x) + 0.5, y: midY - amp))
+                p.addLine(to: CGPoint(x: CGFloat(x) + 0.5, y: midY + amp))
+                ctx.stroke(p, with: .color(color), lineWidth: 1)
+            }
+        }
+
+        // Played-Side-Overlay (links der Mitte abdunkeln).
+        let overlay = Path(CGRect(x: 0, y: 0, width: centerX, height: height))
+        ctx.fill(overlay, with: .color(.black.opacity(0.42)))
+
+        // Center-Playhead vertikal.
+        var line = Path()
+        line.move(to: CGPoint(x: centerX, y: 0))
+        line.addLine(to: CGPoint(x: centerX, y: height))
+        ctx.stroke(line, with: .color(.white), lineWidth: 2)
+
+        // Dreieck-Marker oben und unten.
+        var triTop = Path()
+        triTop.move(to: CGPoint(x: centerX - 6, y: 0))
+        triTop.addLine(to: CGPoint(x: centerX + 6, y: 0))
+        triTop.addLine(to: CGPoint(x: centerX, y: 8))
+        triTop.closeSubpath()
+        ctx.fill(triTop, with: .color(.white))
+
+        var triBot = Path()
+        triBot.move(to: CGPoint(x: centerX - 6, y: height))
+        triBot.addLine(to: CGPoint(x: centerX + 6, y: height))
+        triBot.addLine(to: CGPoint(x: centerX, y: height - 8))
+        triBot.closeSubpath()
+        ctx.fill(triBot, with: .color(.white))
+    }
+
+    private func formatTime(_ s: TimeInterval) -> String {
+        let total = max(0, Int(s.rounded()))
+        return "\(total / 60):\(String(format: "%02d", total % 60))"
+    }
+}
+
+private struct WaveformTimeLabel: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: 11, weight: .medium, design: .monospaced))
+            .foregroundStyle(Color(red: 0.81, green: 0.81, blue: 0.84))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(Color.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 4))
+    }
+}
