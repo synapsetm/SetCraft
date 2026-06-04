@@ -69,25 +69,31 @@ struct ContentView: View {
 
     private var waveformRow: some View {
         ZStack(alignment: .topLeading) {
-            WaveformView(
-                data: waveform.data,
-                progress: waveformProgress,
-                onSeek: { fraction in
-                    let duration = max(player.player.duration, 0.01)
-                    player.seek(to: fraction * duration)
-                },
-                onScrub: { fractionDelta in
-                    // Mausrad-Tick: Sprungweite ~ Track-Position +
-                    // (Delta × Track-Länge × Sensitivity-Faktor).
-                    // Faktor 0.5 macht eine volle Drehung über die ganze
-                    // Waveform-Breite ≈ 50 % des Tracks lang.
-                    let duration = player.player.duration
-                    guard duration > 0 else { return }
-                    let current = player.player.position
-                    let target = current + fractionDelta * duration * 0.5
-                    player.seek(to: max(0, min(duration, target)))
-                }
-            )
+            // TimelineView re-evaluiert pro Display-Frame (60 Hz). In jedem
+            // Tick wird `livePosition` frisch aus `lastRenderTime` gelesen —
+            // damit läuft der Playhead synchron zum hörbaren Audio statt
+            // 33 ms hinterher (die alte 30-Hz-Timer-Latenz).
+            TimelineView(.animation) { _ in
+                WaveformView(
+                    data: waveform.data,
+                    progress: liveWaveformProgress,
+                    onSeek: { fraction in
+                        let duration = max(player.player.duration, 0.01)
+                        player.seek(to: fraction * duration)
+                    },
+                    onScrub: { fractionDelta in
+                        // Mausrad-Tick: Sprungweite ~ Track-Position +
+                        // (Delta × Track-Länge × Sensitivity-Faktor).
+                        // Faktor 0.5 macht eine volle Drehung über die ganze
+                        // Waveform-Breite ≈ 50 % des Tracks lang.
+                        let duration = player.player.duration
+                        guard duration > 0 else { return }
+                        let current = player.player.position
+                        let target = current + fractionDelta * duration * 0.5
+                        player.seek(to: max(0, min(duration, target)))
+                    }
+                )
+            }
             if waveform.isLoading {
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.small)
@@ -106,10 +112,10 @@ struct ContentView: View {
         }
     }
 
-    private var waveformProgress: Double {
+    private var liveWaveformProgress: Double {
         let duration = player.player.duration
         guard duration > 0 else { return 0 }
-        return max(0, min(1, player.player.position / duration))
+        return max(0, min(1, player.player.livePosition / duration))
     }
 
     private var chipsBar: some View {

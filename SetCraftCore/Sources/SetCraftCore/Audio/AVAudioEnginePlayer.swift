@@ -13,6 +13,15 @@ public final class AVAudioEnginePlayer: AudioEngine {
     public private(set) var duration: TimeInterval = 0
     public private(set) var loadedURL: URL?
 
+    /// Frischer Position-Read — ohne Timer-Latenz. Wird vom Waveform-
+    /// Renderer in einer TimelineView verwendet, damit der Playhead 60-Hz-
+    /// synchron zum hörbaren Audio läuft. Bei Pause / vor erstem Play
+    /// gibt's denselben Wert wie `position` zurück.
+    public var livePosition: TimeInterval {
+        guard isPlaying, let frame = currentFrame() else { return position }
+        return min(max(0, TimeInterval(frame) / sampleRate), duration)
+    }
+
     // Stored properties, damit @Observable die Änderungen mitbekommt und
     // SwiftUI-Views (Chips, Slider, Anzeige) sich erneuern. didSet syncht
     // den geklemmten Wert auf den nicht-observable AVAudioUnitTimePitch-Knoten.
