@@ -69,11 +69,12 @@ struct ContentView: View {
 
     private var waveformRow: some View {
         ZStack(alignment: .topLeading) {
-            // TimelineView re-evaluiert pro Display-Frame (60 Hz). In jedem
-            // Tick wird `livePosition` frisch aus `lastRenderTime` gelesen —
-            // damit läuft der Playhead synchron zum hörbaren Audio statt
-            // 33 ms hinterher (die alte 30-Hz-Timer-Latenz).
-            TimelineView(.animation) { _ in
+            // Expliziter 60-Hz-Periodic-Schedule statt `.animation` — letztere
+            // ist auf macOS unzuverlässig: ohne aktive SwiftUI-Animation tickt
+            // sie nicht, der Playhead bliebe stehen. Periodic erzwingt den
+            // re-eval, damit `livePosition` frisch aus `lastRenderTime`
+            // gezogen wird und der Cursor synchron zum hörbaren Audio läuft.
+            TimelineView(.periodic(from: .now, by: 1.0 / 60.0)) { _ in
                 WaveformView(
                     data: waveform.data,
                     progress: liveWaveformProgress,
@@ -272,18 +273,24 @@ struct ContentView: View {
 
     /// Nur noch die Zeitanzeige — gesucht wird ab Phase 4 ausschliesslich
     /// über die Waveform. Format: gespielte Zeit / -verbleibend.
+    ///
+    /// Per `TimelineView(.periodic)` 1 × pro Sekunde aktualisiert; gelesen
+    /// wird `livePosition` (frisch aus `lastRenderTime`) statt der
+    /// @Observable-`position`, sodass die Zeile auch dann tickt, wenn das
+    /// Observation-Update zwischen TimelineView-Ticks aus irgendeinem
+    /// Grund (z. B. Tab-Wechsel) ausbleibt.
     private var timeRow: some View {
-        HStack {
-            Text("\(formatTime(player.player.position)) / -\(formatTime(remainingTime))")
-            Spacer()
-            Text(formatTime(player.player.duration))
+        TimelineView(.periodic(from: .now, by: 1.0)) { _ in
+            let pos = player.player.livePosition
+            let dur = player.player.duration
+            HStack {
+                Text("\(formatTime(pos)) / -\(formatTime(max(0, dur - pos)))")
+                Spacer()
+                Text(formatTime(dur))
+            }
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
         }
-        .font(.caption.monospacedDigit())
-        .foregroundStyle(.secondary)
-    }
-
-    private var remainingTime: TimeInterval {
-        max(0, player.player.duration - player.player.position)
     }
 
     private func formatTime(_ secs: TimeInterval) -> String {
