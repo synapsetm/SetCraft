@@ -34,8 +34,22 @@ private struct LibraryScreen: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle("Library")
-                .toolbar { sourceMenu }
+                .navigationTitle(store.selectedFolder?.name ?? "Library")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    sourceMenu
+                    ToolbarItem(placement: .principal) {
+                        if let folder = store.selectedFolder {
+                            VStack(spacing: 0) {
+                                Text(folder.name)
+                                    .font(.system(size: 14, weight: .medium))
+                                Text(statusLine(for: folder))
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
         }
         .fileImporter(
             isPresented: $showFolderImporter,
@@ -53,26 +67,7 @@ private struct LibraryScreen: View {
     @ViewBuilder
     private var content: some View {
         if let folder = store.selectedFolder {
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(folder.name)
-                        .font(.title3.weight(.semibold))
-                    Text(statusLine(for: folder))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                if let error = store.lastError {
-                    Text(error)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                }
-                Text("Track-Liste kommt in Phase 5b.2.d.")
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal)
+            trackList(for: folder)
         } else {
             ContentUnavailableView {
                 Label("Keine Quelle aktiv", systemImage: "folder.badge.plus")
@@ -81,6 +76,42 @@ private struct LibraryScreen: View {
             } actions: {
                 Button("Open folder…") { showFolderImporter = true }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func trackList(for folder: FolderRecord) -> some View {
+        if store.tracks.isEmpty && !store.isScanning {
+            ContentUnavailableView(
+                "Keine Tracks",
+                systemImage: "music.note",
+                description: Text("Der Ordner „\(folder.name)\" enthält keine erkannten Audio-Dateien.")
+            )
+        } else {
+            List {
+                if let error = store.lastError {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .listRowBackground(Color.clear)
+                }
+                ForEach(store.tracks) { track in
+                    TrackRowView(
+                        track: track,
+                        isPlaying: false,
+                        isAnalyzing: store.isAnalyzing(trackID: track.id)
+                    )
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button {
+                            Task { await store.analyze(trackID: track.id) }
+                        } label: {
+                            Label("Analyze", systemImage: "wand.and.stars")
+                        }
+                        .tint(.blue)
+                    }
+                }
+            }
+            .listStyle(.plain)
         }
     }
 

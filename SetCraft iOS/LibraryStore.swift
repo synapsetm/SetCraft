@@ -21,14 +21,28 @@ final class LibraryStore {
     var isScanning = false
     var lastError: String?
 
+    /// Tracks, deren aubio/KeyFinder-Analyse gerade läuft. Wird von der
+    /// `TrackRowView` gelesen, um statt der BPM einen Spinner zu zeigen.
+    var analyzing: Set<UUID> = []
+
+    /// BPM-Bereichs-Heuristik (Verdoppeln/Halbieren). Default „universal".
+    /// Auf iOS aktuell nicht in der UI änderbar — Mac-Toolbar-Preset wäre
+    /// das Pendant, kommt ggf. später.
+    var bpmPreset: BPMRangePreset = .universal
+
     private let database: DatabaseService
     private let repository: LibraryRepository
+    private let analyzer = AnalysisCoordinator()
     private var scanTask: Task<Void, Never>?
     private var accessingScopedURL: URL?
 
     init(database: DatabaseService, repository: LibraryRepository) {
         self.database = database
         self.repository = repository
+    }
+
+    func isAnalyzing(trackID: UUID) -> Bool {
+        analyzing.contains(trackID)
     }
 
     var selectedFolder: FolderRecord? {
@@ -134,6 +148,42 @@ final class LibraryStore {
         folders.removeAll { $0.id == id }
         if selectedFolderID == id {
             await selectFolder(id: folders.last?.id)
+        }
+    }
+
+    /// Startet aubio + libKeyFinder für einen Track (nur die noch fehlenden
+    /// Werte). Resultate werden in `tracks` und über `LibraryRepository.save`
+    /// auch in der Datei + DB-Cache aktualisiert. Wird vom Swipe-Left-Analyze
+    /// in der Track-Liste aufgerufen.
+    func analyze(trackID: UUID) async {
+        guard !analyzing.contains(trackID),
+              let track = tracks.first(where: { $0.id == trackID })
+        else { return }
+
+        analyzing.insert(trackID)
+        defer { analyzing.remove(trackID) }
+
+        do {
+            let result = try await analyzer.analyze(
+                url: track.url,
+                needsBPM: track.bpm == nil,
+                needsKey: track.key == nil,
+                bpmRange: bpmPreset
+            )
+            guard result.bpm != nil || result.key != nil else { return }
+
+            var updated = track
+            if let bpm = result.bpm { updated.bpm = bpm }
+            if let key = result.key { updated.key = key }
+
+            // Re-find: tracks-Array könnte sich zwischendurch verändert haben
+            // (laufender Scan, andere Selektion).
+            if let idx = tracks.firstIndex(where: { $0.id == trackID }) {
+                tracks[idx] = updated
+            }
+            try await repository.save(updated)
+        } catch {
+            lastError = "Analyse fehlgeschlagen: \(error.localizedDescription)"
         }
     }
 
