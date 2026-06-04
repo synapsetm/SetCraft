@@ -1,0 +1,37 @@
+{
+  "title": "SetCraft — Maus-Side-Buttons auf Pfeiltasten",
+  "rules": [
+    {
+      "description": "Maus-Back (button4) → Linker Pfeil — Previous Track in SetCraft",
+      "manipulators": [
+        {
+          "type": "basic",
+          "from": {
+            "pointing_button": "button4"
+          },
+          "to": [
+            {
+              "key_code": "left_arrow"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "description": "Maus-Forward (button5) → Rechter Pfeil — Next Track in SetCraft",
+      "manipulators": [
+        {
+          "type": "basic",
+          "from": {
+            "pointing_button": "button5"
+          },
+          "to": [
+            {
+              "key_code": "right_arrow"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
