@@ -114,9 +114,23 @@ struct ContentView: View {
     }
 
     private var liveWaveformProgress: Double {
-        let duration = player.player.duration
-        guard duration > 0 else { return 0 }
-        return max(0, min(1, player.player.livePosition / duration))
+        // KRITISCH: Progress muss auf die ZEITACHSE DER WAVEFORM bezogen werden,
+        // nicht auf player.duration. Die WaveformView verteilt ihre Bins linear
+        // über die volle View-Breite — `x = width` entspricht damit
+        // `bins.count × secondsPerBin` Sekunden. Wenn diese Dauer von
+        // `player.duration` (aus AVAudioFile.length) abweicht — z. B. weil
+        // VBR-MP3-Header eine Schätzung statt exakter Frame-Zahl liefern —
+        // läuft der Playhead sonst linear schneller oder langsamer durch
+        // die Wave als das hörbare Audio. Drift wird minutenlang sichtbar.
+        let waveDuration = waveformDuration
+        let effectiveDuration = waveDuration > 0 ? waveDuration : player.player.duration
+        guard effectiveDuration > 0 else { return 0 }
+        return max(0, min(1, player.player.livePosition / effectiveDuration))
+    }
+
+    private var waveformDuration: Double {
+        guard let w = waveform.data else { return 0 }
+        return Double(w.bins.count) * w.secondsPerBin
     }
 
     private var chipsBar: some View {
