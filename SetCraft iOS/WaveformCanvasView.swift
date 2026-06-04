@@ -95,7 +95,6 @@ struct WaveformCanvasView: View {
                 }
             }
         }
-        .frame(height: 208)
     }
 
     @ViewBuilder

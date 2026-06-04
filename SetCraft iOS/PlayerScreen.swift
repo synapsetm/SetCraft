@@ -8,26 +8,26 @@
 import SwiftUI
 import SetCraftCore
 
-/// Player-Tab gemäß `docs/player.html`. In dieser e1-Phase: Track-Header
-/// mit Cover-Platzhalter, Transport (Prev/Play-Pause/Next), Zeit-Anzeige.
-/// Waveform-Canvas folgt in e2, BPM/Key/Sterne-Chips in e3.
+/// Player-Tab — Card-based Layout im Portrait, kompakter Strip im
+/// Landscape. Waveform passt sich der verfügbaren Höhe an (208 pt fix
+/// im Portrait, flexibel im Landscape).
 struct PlayerScreen: View {
     let store: PlayerStore
+
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
 
     @State private var showTagEditSheet = false
     @State private var showTempoSheet = false
 
+    private var isLandscape: Bool { verticalSizeClass == .compact }
+
     var body: some View {
-        VStack(spacing: 0) {
-            WaveformCanvasView(
-                data: store.currentWaveform,
-                position: store.position,
-                duration: store.duration,
-                bpm: store.effectiveBPM,
-                isLoading: store.isLoadingWaveform,
-                onScrub: { store.seek(to: $0) }
-            )
-            controlPanel
+        Group {
+            if isLandscape {
+                landscapeLayout
+            } else {
+                portraitLayout
+            }
         }
         .background(Color(red: 0.08, green: 0.08, blue: 0.09))
         .sheet(isPresented: $showTagEditSheet) {
@@ -47,79 +47,159 @@ struct PlayerScreen: View {
         }
     }
 
-    @ViewBuilder private var controlPanel: some View {
-        VStack {
-            Spacer(minLength: 0)
-            trackHeader
-            Spacer(minLength: 0)
-            transport
-            Spacer(minLength: 0)
-            chipsRow
-            Spacer(minLength: 0)
-            starsRow
-            Spacer(minLength: 0)
-            if let error = store.lastError {
-                Text(error)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 18)
-                    .padding(.bottom, 8)
+    // MARK: - Portrait (Card-based)
+
+    @ViewBuilder
+    private var portraitLayout: some View {
+        VStack(spacing: 0) {
+            waveform
+                .frame(height: 208)
+
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                headerCard
+                Spacer(minLength: 0)
+                transport
+                Spacer(minLength: 0)
+                controlsCard
+                Spacer(minLength: 0)
+                if let error = store.lastError {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 8)
+                }
             }
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(red: 0.10, green: 0.10, blue: 0.13))
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 0.10, green: 0.10, blue: 0.13))
     }
 
-    @ViewBuilder private var trackHeader: some View {
-        VStack(spacing: 12) {
-            ArtworkView(url: store.currentTrack?.url, size: 140, cornerRadius: 14)
-
-            VStack(spacing: 2) {
+    @ViewBuilder
+    private var headerCard: some View {
+        HStack(spacing: 14) {
+            ArtworkView(url: store.currentTrack?.url, size: 80, cornerRadius: 10)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(displayTitle)
                     .font(.system(size: 17, weight: .medium))
-                    .multilineTextAlignment(.center)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Text(displayArtist)
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
                     .lineLimit(1)
                     .truncationMode(.tail)
+                if let line = metaLine {
+                    Text(line)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary.opacity(0.7))
+                        .lineLimit(1)
+                        .padding(.top, 1)
+                }
             }
-            .padding(.horizontal, 18)
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
+        .playerCardStyle()
     }
 
-    @ViewBuilder private var chipsRow: some View {
+    @ViewBuilder
+    private var controlsCard: some View {
         if hasTrack {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 BPMChipView(bpm: store.effectiveBPM) {
                     showTempoSheet = true
                 }
                 KeyChipView(key: store.currentTrack?.key)
                 PlayerEditButton { showTagEditSheet = true }
+                Spacer(minLength: 4)
+                CompactStarsView(value: store.currentTrack?.rating.stars ?? 0) { newValue in
+                    store.setRating(newValue)
+                }
             }
+            .playerCardStyle()
         }
     }
 
-    @ViewBuilder private var starsRow: some View {
-        if hasTrack {
-            BigStarsView(value: store.currentTrack?.rating.stars ?? 0) { newValue in
-                store.setRating(newValue)
-            }
+    // MARK: - Landscape (Top Wave, Bottom Strip)
+
+    @ViewBuilder
+    private var landscapeLayout: some View {
+        VStack(spacing: 0) {
+            waveform
+                .frame(maxHeight: .infinity)
+
+            landscapeStrip
         }
     }
 
-    @ViewBuilder private var transport: some View {
-        HStack(spacing: 38) {
+    @ViewBuilder
+    private var landscapeStrip: some View {
+        HStack(alignment: .center, spacing: 14) {
+            // Links: Cover + Title/Artist
+            HStack(spacing: 10) {
+                ArtworkView(url: store.currentTrack?.url, size: 50, cornerRadius: 7)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(displayTitle)
+                        .font(.system(size: 14, weight: .medium))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Text(displayArtist)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Mitte: Transport
+            transport
+
+            // Rechts: Chips + Edit + Stars
+            VStack(alignment: .trailing, spacing: 5) {
+                HStack(spacing: 8) {
+                    BPMChipView(bpm: store.effectiveBPM) {
+                        showTempoSheet = true
+                    }
+                    KeyChipView(key: store.currentTrack?.key)
+                    PlayerEditButton { showTagEditSheet = true }
+                }
+                CompactStarsView(value: store.currentTrack?.rating.stars ?? 0) { newValue in
+                    store.setRating(newValue)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color(red: 0.10, green: 0.10, blue: 0.13))
+    }
+
+    // MARK: - Shared pieces
+
+    @ViewBuilder
+    private var waveform: some View {
+        WaveformCanvasView(
+            data: store.currentWaveform,
+            position: store.position,
+            duration: store.duration,
+            bpm: store.effectiveBPM,
+            isLoading: store.isLoadingWaveform,
+            onScrub: { store.seek(to: $0) }
+        )
+    }
+
+    @ViewBuilder
+    private var transport: some View {
+        HStack(spacing: 28) {
             Button {
                 store.previous()
             } label: {
                 Image(systemName: "backward.fill")
-                    .font(.system(size: 26))
+                    .font(.system(size: 24))
                     .foregroundStyle(transportTint)
             }
             .disabled(!hasTrack)
@@ -128,9 +208,9 @@ struct PlayerScreen: View {
                 store.togglePlayPause()
             } label: {
                 Image(systemName: store.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 28))
+                    .font(.system(size: 26))
                     .foregroundStyle(Color(red: 0.08, green: 0.08, blue: 0.10))
-                    .frame(width: 62, height: 62)
+                    .frame(width: 56, height: 56)
                     .background(Circle().fill(.orange))
             }
             .disabled(!hasTrack)
@@ -139,7 +219,7 @@ struct PlayerScreen: View {
                 store.next()
             } label: {
                 Image(systemName: "forward.fill")
-                    .font(.system(size: 26))
+                    .font(.system(size: 24))
                     .foregroundStyle(transportTint)
             }
             .disabled(!hasTrack)
@@ -162,20 +242,18 @@ struct PlayerScreen: View {
         return track.artist.isEmpty ? "—" : track.artist
     }
 
-    private var timeLine: String {
-        let elapsed = formatTime(store.position)
-        let remaining = formatTime(max(0, store.duration - store.position))
-        return "\(elapsed) / -\(remaining)"
-    }
-
-    private func formatTime(_ s: TimeInterval) -> String {
-        let total = max(0, Int(s.rounded()))
-        return "\(total / 60):\(String(format: "%02d", total % 60))"
+    private var metaLine: String? {
+        guard hasTrack else { return nil }
+        let bpmStr = store.effectiveBPM.map { String(format: "%.1f BPM", $0) }
+        let keyStr = store.currentTrack?.key?.description
+        let parts = [bpmStr, keyStr].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }
 
 /// Vinyl-/Cover-Platzhalter im Mockup-Stil (lila Gradient).
-/// Wird in e3 durch echtes Artwork ersetzt.
+/// Wird gezeigt, solange echte Artwork noch nicht geladen wurde oder der
+/// Track keine hat.
 struct CoverPlaceholderView: View {
     let size: CGFloat
     let cornerRadius: CGFloat
@@ -196,6 +274,24 @@ struct CoverPlaceholderView: View {
                 Image(systemName: "music.note")
                     .foregroundStyle(.white.opacity(0.72))
                     .font(.system(size: iconSize))
+            )
+    }
+}
+
+private extension View {
+    /// Karten-Hintergrund für die Portrait-Sektionen — dunkler Block mit
+    /// dünnem hellem Border, abgerundete Ecken.
+    func playerCardStyle() -> some View {
+        self
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(red: 0.13, green: 0.13, blue: 0.16))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
+                    )
             )
     }
 }

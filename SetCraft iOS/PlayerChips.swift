@@ -115,3 +115,25 @@ struct BigStarsView: View {
     }
 }
 
+/// Kompakte Sterne-Reihe für die Controls-Karte und den Landscape-Strip,
+/// gleiche Toggle-Off-Semantik wie `BigStarsView`.
+struct CompactStarsView: View {
+    let value: Int
+    let onChange: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(1...5, id: \.self) { i in
+                Button {
+                    onChange(i == value ? 0 : i)
+                } label: {
+                    Image(systemName: i <= value ? "star.fill" : "star")
+                        .font(.system(size: 14))
+                        .foregroundStyle(i <= value ? Color.yellow : Color.secondary.opacity(0.35))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
