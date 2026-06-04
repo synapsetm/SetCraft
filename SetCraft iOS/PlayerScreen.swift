@@ -63,23 +63,25 @@ struct PlayerScreen: View {
     }
 
     @ViewBuilder private var trackHeader: some View {
-        HStack(spacing: 12) {
-            ArtworkView(url: store.currentTrack?.url, size: 46, cornerRadius: 9)
+        VStack(spacing: 12) {
+            ArtworkView(url: store.currentTrack?.url, size: 140, cornerRadius: 14)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(spacing: 2) {
                 Text(displayTitle)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: 17, weight: .medium))
+                    .multilineTextAlignment(.center)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Text(displayArtist)
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
-            Spacer(minLength: 0)
+            .padding(.horizontal, 18)
         }
-        .padding(.horizontal, 18)
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder private var chipsRow: some View {

@@ -31,7 +31,7 @@ struct WaveformCanvasView: View {
     @State private var pinchStartZoom: Double?
     @State private var zoomHUDOpacity: Double = 0
 
-    private let minPxPerSec: Double = 15
+    private let minPxPerSec: Double = 2
     private let maxPxPerSec: Double = 200
     private let defaultPxPerSec: Double = 52
 
@@ -115,11 +115,11 @@ struct WaveformCanvasView: View {
     @ViewBuilder
     private func timeLabels(width _: CGFloat) -> some View {
         HStack {
-            Text(formatTime(position))
+            Text("-\(formatTime(max(0, duration - position))) / \(formatTime(position))")
                 .modifier(WaveformTimeLabel())
                 .padding(.leading, 8)
             Spacer()
-            Text("-\(formatTime(max(0, duration - position)))")
+            Text(formatTime(duration))
                 .modifier(WaveformTimeLabel())
                 .padding(.trailing, 8)
         }
@@ -206,21 +206,46 @@ struct WaveformCanvasView: View {
             }
         }
 
-        // Waveform-Säulen — pro Pixelspalte ein Bin nachschlagen.
+        // Waveform-Säulen — pro Pixelspalte den richtigen Bin-Bereich
+        // aggregieren. Bei niedrigem Zoom (z. B. 2 px/s, ganzer Track im
+        // Viewport) deckt ein Pixel viele Bins ab; sonst gehen Peaks
+        // verloren. Max für die Höhe (rms), Mittel für die RGB-Färbung.
         if let data, !data.bins.isEmpty {
             let totalSeconds = data.secondsPerBin * Double(data.bins.count)
+            let secondsPerPixel = 1.0 / pxPerSec
+            let binsPerPixel = max(1, Int((secondsPerPixel / data.secondsPerBin).rounded()))
+            let halfWindow = binsPerPixel / 2
+
             for x in 0..<Int(width.rounded()) {
                 let t = leftTime + Double(x) / pxPerSec
                 if t < 0 || t > totalSeconds { continue }
-                let binIdx = Int(t / data.secondsPerBin)
-                if binIdx >= data.bins.count { continue }
-                let bin = data.bins[binIdx]
-                let amp = CGFloat(pow(Double(bin.rms), 0.6)) * height * 0.44
+                let centerBin = Int(t / data.secondsPerBin)
+                let startBin = max(0, centerBin - halfWindow)
+                let endBin = min(data.bins.count, centerBin + halfWindow + 1)
+                guard startBin < endBin else { continue }
+
+                var maxRms: Float = 0
+                var sumBass: Float = 0
+                var sumMid: Float = 0
+                var sumHigh: Float = 0
+                for i in startBin..<endBin {
+                    let bin = data.bins[i]
+                    if bin.rms > maxRms { maxRms = bin.rms }
+                    sumBass += bin.bass
+                    sumMid  += bin.mid
+                    sumHigh += bin.high
+                }
+                let n = Float(endBin - startBin)
+                let bass = sumBass / n
+                let mid  = sumMid  / n
+                let high = sumHigh / n
+
+                let amp = CGFloat(pow(Double(maxRms), 0.6)) * height * 0.44
                 let gamma = 0.4
                 let color = Color(
-                    red:   pow(Double(bin.bass), gamma),
-                    green: pow(Double(bin.mid),  gamma),
-                    blue:  pow(Double(bin.high), gamma)
+                    red:   pow(Double(bass), gamma),
+                    green: pow(Double(mid),  gamma),
+                    blue:  pow(Double(high), gamma)
                 )
                 var p = Path()
                 p.move(to: CGPoint(x: CGFloat(x) + 0.5, y: midY - amp))
