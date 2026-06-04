@@ -5,6 +5,79 @@ und `SPEC.md` (vollständige Spezifikation und Phasenplan).
 
 ---
 
+## Sitzung 2026-06-05 — Playhead-Sync, UI-Cleanup, Maus-Side-Buttons
+
+### Audio↔Playhead jetzt vollständig synchron (Mac)
+
+Der Cursor in der Waveform war minutenlang sichtbar versetzt zum hörbaren
+Audio — drei unabhängige Ursachen, alle behoben:
+
+- **`fix(core): playerNode.outputPresentationLatency statt outputNode-only`
+  (`6cfd4ad`)**: `engine.outputNode.outputPresentationLatency` misst nur die
+  Hardware-Buffer-Latenz (~203 ms) und lässt die TimePitch-Unit-Latenz
+  (~93 ms) unter den Tisch fallen. `playerNode.outputPresentationLatency`
+  summiert TimePitch + Mixer + HW korrekt — diagnostiziert mit
+  `[livePos]`-Log, der die drei Latenz-Komponenten gegenübergestellt hat.
+
+- **`fix(mac): waveform-progress auf wave-zeitachse statt player.duration`
+  (`b35fbc1`)**: `liveWaveformProgress` nutzt jetzt
+  `livePosition / (bins.count × secondsPerBin)`. Bei WAV ist die Differenz
+  zu `player.duration` minimal (~12 ms / 460 s = 0.003 %), bei MP3/M4A mit
+  ungenauer `AVAudioFile.length`-Schätzung kann sie groß werden — und dort
+  driftete der Cursor exakt proportional zur Track-Position.
+
+- **`fix(mac): waveform-spalten per float-division — playhead-drift weg`
+  (`4feec34`)**: `WaveformView` aggregierte Bins per
+  `bins.count / columnCount` (Integer-Division). Bei 39 620 Bins / 800 Pixel
+  → 49 Bins/Spalte (real wären 49.525). Die letzten ~5 s eines 460-s-Tracks
+  wurden nicht gezeichnet, der Cursor lief aber über die volle Breite —
+  linearer visueller Drift, ~2 s nach 3 min. Fix: `binsPerColumnExact` als
+  Double, jede Pixel-Spalte aggregiert
+  `[col × binsPerColumnExact, (col+1) × binsPerColumnExact)`.
+
+Diagnose-Methodik: drei aufeinanderfolgende Logs (`[livePos]`, `[wave]`,
+`[drift]` mit Wall-Clock-Vergleich) verifizierten der Reihe nach,
+dass (1) die Latenz-Korrektur 93 ms zu klein war, (2) Wave-Längen
+korrekt zu Player-Duration passen und (3) `player.position` perfekt
+mit Wall-Clock läuft — sprich der Drift entstand erst in der
+Spalten-Verteilung. Nach den Fixes konstanter 30-ms-Offset (Render-Buffer),
+kein wachsender Drift mehr.
+
+### UI-Cleanup (Mac)
+
+- **`feat(library): save-button raus, re-analyze zeigt spinner auch bei
+  alten werten` (`1d5b16f`)**: Save-Button war redundant — `scheduleSave`
+  läuft automatisch debounced, `AppDelegate` fragt beim Quit nach offenen
+  Saves. Re-Analyze-Spinner: Bedingung von
+  `analysisState == .scheduled && value == nil` auf `.scheduled` reduziert,
+  alte Werte bleiben während der Neuberechnung sichtbar.
+
+### Maus-Side-Buttons → Karabiner statt App-Code (`0f3e259`)
+
+Erst versucht: `NSEvent.addLocalMonitorForEvents(matching: .systemDefined)`
+mit Subtype 7 (`auxMouseButtons`), `data1` als Button-Index (1=back,
+2=forward), `data2 > 0` als Down-Event. Das funktionierte technisch, kam
+aber in Konflikt mit normalen UI-Klicks (Previous-Button feuerte doppelt,
+Track sprang 2 zurück) — vermutlich Trackpad/Force-Touch oder Maustreiber,
+der bei UI-Klicks zusätzlich systemDefined-`data1=1`-Events erzeugte.
+
+Pragmatischer Weg: Monitor raus, statt dessen
+`docs/karabiner-mouse-side-buttons.json` — Karabiner-Elements mappt
+`button4` → ←, `button5` → →. Damit greifen die existierenden
+`.keyboardShortcut(.leftArrow)` / `.rightArrow` ohne Event-Konflikt.
+
+### Offen
+
+- **iCloud-Sync der Library** zwischen Mac und iPhone — weiterhin offen
+  (siehe vorigen Eintrag).
+- **`PCMLoader.swift:109`** `if framesRead < Int(frameCapacity) { break }`
+  ist ein latenter Bug — `AVAudioFile.read(into:)` darf laut Apple auch
+  mitten im Stream weniger liefern. In der Praxis (alle bisher getesteten
+  Tracks) trat es nicht auf, aber sauber wäre nur auf `framesRead == 0`
+  zu prüfen.
+
+---
+
 ## Sitzung 2026-06-04 (Nachtrag) — System-Integration & Robustheit
 
 Die vier offenen Punkte aus dem vorigen Eintrag sind durch — die iOS-App
