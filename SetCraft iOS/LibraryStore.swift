@@ -30,6 +30,55 @@ final class LibraryStore {
     /// das Pendant, kommt ggf. später.
     var bpmPreset: BPMRangePreset = .universal
 
+    enum SortField: String, CaseIterable, Identifiable {
+        case title  = "Title"
+        case artist = "Artist"
+        case bpm    = "BPM"
+        case key    = "Key"
+        var id: String { rawValue }
+    }
+
+    /// Sort-Kriterium für die Anzeige. Persistiert über App-Sessions via
+    /// UserDefaults; die View liest `sortedTracks` statt direkt `tracks`.
+    var sortField: SortField = SortField(
+        rawValue: UserDefaults.standard.string(forKey: "librarySortField") ?? ""
+    ) ?? .title {
+        didSet {
+            UserDefaults.standard.set(sortField.rawValue, forKey: "librarySortField")
+        }
+    }
+
+    /// Sortierte Trackliste fürs UI. Bei Gleichstand wird sekundär nach Titel
+    /// sortiert, damit die Reihenfolge stabil bleibt.
+    var sortedTracks: [Track] {
+        tracks.sorted { a, b in
+            switch sortField {
+            case .title:
+                return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
+            case .artist:
+                let cmp = a.artist.localizedCaseInsensitiveCompare(b.artist)
+                if cmp != .orderedSame { return cmp == .orderedAscending }
+                return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
+            case .bpm:
+                let av = a.bpm ?? .greatestFiniteMagnitude
+                let bv = b.bpm ?? .greatestFiniteMagnitude
+                if av != bv { return av < bv }
+                return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
+            case .key:
+                let av = Self.keyOrder(a.key)
+                let bv = Self.keyOrder(b.key)
+                if av != bv { return av < bv }
+                return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
+            }
+        }
+    }
+
+    private static func keyOrder(_ key: CamelotKey?) -> Int {
+        guard let key else { return .max }
+        // 1A < 1B < 2A < 2B < ... < 12B
+        return (key.number - 1) * 2 + (key.mode == .minor ? 0 : 1)
+    }
+
     private let database: DatabaseService
     private let repository: LibraryRepository
     private let analyzer = AnalysisCoordinator()

@@ -49,9 +49,10 @@ struct BPMChipView: View {
     }
 }
 
-/// Key-Chip read-only — Mac hat hier die Camelot-Wheel-Editierung,
-/// auf iOS aktuell bewusst weggelassen (Mockup zeigt den Chip auch ohne
-/// Edit-Hinweis). Farbe kommt aus `CamelotKey.color` (Core-Extension).
+/// Key-Chip — auf iOS bewusst OHNE Umrandung, weil im Player-Window selbst
+/// nicht editierbar (das Edit fließt über den BPM-Chip → `TagEditSheet`,
+/// dort wird der Key trotzdem gesetzt). Damit hat der Chip rein
+/// informationellen Charakter.
 struct KeyChipView: View {
     let key: CamelotKey?
 
@@ -66,14 +67,6 @@ struct KeyChipView: View {
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 9)
-        .background(
-            RoundedRectangle(cornerRadius: 9)
-                .fill(Color(red: 0.13, green: 0.13, blue: 0.15))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 9)
-                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
-                )
-        )
     }
 }
 
@@ -100,78 +93,3 @@ struct BigStarsView: View {
     }
 }
 
-/// BPM-Edit-Sheet. Direkte Eingabe via Decimal-Keyboard plus vier Schnell-
-/// Skalierungs-Buttons (×2, ÷2, ×1.5, ÷1.5 — der Triolen-Fix aus den
-/// Mac-Library-Kontextmenüs). Done committed, Cancel verwirft.
-struct BPMEditSheet: View {
-    let initialValue: Double?
-    let onCommit: (Double) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var textValue: String = ""
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 28) {
-                VStack(spacing: 8) {
-                    Text("BPM")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                    TextField("BPM", text: $textValue)
-                        .keyboardType(.decimalPad)
-                        .font(.system(size: 36, weight: .semibold, design: .monospaced))
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 220)
-                }
-
-                HStack(spacing: 10) {
-                    scaleButton(label: "÷2",   factor: 0.5)
-                    scaleButton(label: "÷1.5", factor: 1.0 / 1.5)
-                    scaleButton(label: "×1.5", factor: 1.5)
-                    scaleButton(label: "×2",   factor: 2.0)
-                }
-
-                Spacer()
-            }
-            .padding(.top, 32)
-            .navigationTitle("BPM")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { commit() }
-                        .disabled(parsedValue == nil)
-                }
-            }
-            .onAppear {
-                if let v = initialValue {
-                    textValue = String(format: "%.1f", v)
-                }
-            }
-        }
-        .presentationDetents([.medium])
-    }
-
-    @ViewBuilder
-    private func scaleButton(label: String, factor: Double) -> some View {
-        Button(label) {
-            guard let current = parsedValue else { return }
-            let scaled = (current * factor * 10).rounded() / 10
-            textValue = String(format: "%.1f", scaled)
-        }
-        .buttonStyle(.bordered)
-        .font(.system(size: 14, weight: .medium, design: .monospaced))
-    }
-
-    private var parsedValue: Double? {
-        Double(textValue.replacingOccurrences(of: ",", with: "."))
-    }
-
-    private func commit() {
-        guard let v = parsedValue else { return }
-        onCommit(v)
-        dismiss()
-    }
-}

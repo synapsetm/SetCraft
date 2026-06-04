@@ -38,12 +38,28 @@ struct ContentView: View {
     }
 }
 
+/// Sheet-Auswahl für die Library: Info (read-only Datei-Eigenschaften) oder
+/// Edit (TagEditSheet). Identifiable über `<typ>-<trackId>` damit SwiftUI
+/// beim Wechsel sauber neu mounted.
+private enum LibrarySheet: Identifiable {
+    case info(Track)
+    case edit(Track)
+
+    var id: String {
+        switch self {
+        case .info(let t): return "info-\(t.id)"
+        case .edit(let t): return "edit-\(t.id)"
+        }
+    }
+}
+
 private struct LibraryScreen: View {
     let libraryStore: LibraryStore
     let playerStore: PlayerStore
     @Binding var selectedTab: ContentView.AppTab
 
     @State private var showFolderImporter = false
+    @State private var activeSheet: LibrarySheet?
 
     var body: some View {
         NavigationStack {
@@ -79,6 +95,16 @@ private struct LibraryScreen: View {
         ) { result in
             guard case .success(let urls) = result, let url = urls.first else { return }
             Task { await libraryStore.addFolder(url: url) }
+        }
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .info(let track):
+                TrackInfoSheet(track: track)
+            case .edit(let track):
+                TagEditSheet(track: track) { updated in
+                    Task { await libraryStore.updateTrack(updated) }
+                }
+            }
         }
         .task {
             await libraryStore.restoreSavedFolders()
@@ -116,7 +142,7 @@ private struct LibraryScreen: View {
                         .foregroundStyle(.red)
                         .listRowBackground(Color.clear)
                 }
-                ForEach(libraryStore.tracks) { track in
+                ForEach(libraryStore.sortedTracks) { track in
                     TrackRowView(
                         track: track,
                         isPlaying: playerStore.currentTrack?.id == track.id && playerStore.isPlaying,
@@ -125,6 +151,21 @@ private struct LibraryScreen: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         playerStore.load(track)
+                    }
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        Button {
+                            activeSheet = .info(track)
+                        } label: {
+                            Label("Info", systemImage: "info.circle")
+                        }
+                        .tint(.gray)
+
+                        Button {
+                            activeSheet = .edit(track)
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        .tint(.indigo)
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button {
@@ -149,6 +190,20 @@ private struct LibraryScreen: View {
     private var sourceMenu: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
+                Section("Sort by") {
+                    ForEach(LibraryStore.SortField.allCases) { field in
+                        Button {
+                            libraryStore.sortField = field
+                        } label: {
+                            if libraryStore.sortField == field {
+                                Label(field.rawValue, systemImage: "checkmark")
+                            } else {
+                                Text(field.rawValue)
+                            }
+                        }
+                    }
+                }
+
                 if !libraryStore.folders.isEmpty {
                     Section("Sources") {
                         ForEach(libraryStore.folders) { folder in
@@ -174,6 +229,7 @@ private struct LibraryScreen: View {
                     }
                     Divider()
                 }
+
                 Button {
                     showFolderImporter = true
                 } label: {

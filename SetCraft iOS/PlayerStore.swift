@@ -118,11 +118,12 @@ final class PlayerStore {
         Task { await library.updateTrack(track) }
     }
 
-    /// Setzt BPM aus dem Edit-Sheet auf den aktiven Track und persistiert.
-    func setBPM(_ bpm: Double) {
-        guard var track = currentTrack else { return }
-        track.bpm = bpm
-        currentTrack = track
-        Task { await library.updateTrack(track) }
+    /// Übernimmt einen komplett bearbeiteten Track aus dem `TagEditSheet`,
+    /// aktualisiert die Anzeige im Player und schiebt das Update via
+    /// `LibraryStore.updateTrack` in Datei + DB-Cache.
+    func applyEdit(_ updated: Track) {
+        guard currentTrack?.id == updated.id else { return }
+        currentTrack = updated
+        Task { await library.updateTrack(updated) }
     }
 }

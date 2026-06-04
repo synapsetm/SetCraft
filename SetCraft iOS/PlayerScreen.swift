@@ -14,7 +14,7 @@ import SetCraftCore
 struct PlayerScreen: View {
     let store: PlayerStore
 
-    @State private var showBPMSheet = false
+    @State private var showTagEditSheet = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,9 +29,11 @@ struct PlayerScreen: View {
             controlPanel
         }
         .background(Color(red: 0.08, green: 0.08, blue: 0.09))
-        .sheet(isPresented: $showBPMSheet) {
-            BPMEditSheet(initialValue: store.currentTrack?.bpm) { newValue in
-                store.setBPM(newValue)
+        .sheet(isPresented: $showTagEditSheet) {
+            if let track = store.currentTrack {
+                TagEditSheet(track: track) { updated in
+                    store.applyEdit(updated)
+                }
             }
         }
     }
@@ -84,9 +86,13 @@ struct PlayerScreen: View {
         if hasTrack {
             HStack(spacing: 12) {
                 BPMChipView(bpm: store.currentTrack?.bpm) {
-                    showBPMSheet = true
+                    showTagEditSheet = true
                 }
                 KeyChipView(key: store.currentTrack?.key)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        showTagEditSheet = true
+                    }
             }
         }
     }
