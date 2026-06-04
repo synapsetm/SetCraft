@@ -32,14 +32,24 @@ public final class AVAudioEnginePlayer: AudioEngine {
         let renderedSamples = seekFrame + playerTimeAtRender.sampleTime
         let renderedSeconds = TimeInterval(renderedSamples) / sampleRate
 
+        // Drift seit dem letzten Render-Callback aufholen.
         let nowHostTime = mach_absolute_time()
-        guard nowHostTime >= lastRender.hostTime else {
-            return min(max(0, renderedSeconds), duration)
+        let elapsedSeconds: TimeInterval
+        if nowHostTime >= lastRender.hostTime {
+            let hostDelta = nowHostTime - lastRender.hostTime
+            elapsedSeconds = AVAudioTime.seconds(forHostTime: hostDelta)
+        } else {
+            elapsedSeconds = 0
         }
-        let hostDelta = nowHostTime - lastRender.hostTime
-        let elapsedSeconds = AVAudioTime.seconds(forHostTime: hostDelta)
 
-        return min(max(0, renderedSeconds + elapsedSeconds * rate), duration)
+        // Plus Output-Device-Latenz: die Engine hat zwar Samples gerendert,
+        // bis zum Schall im Speaker vergeht aber zusätzlich diese Zeit.
+        // Damit die Anzeige zu dem passt, was gerade aus den Lautsprechern
+        // kommt, müssen wir um diesen Versatz weiter nach vorne projizieren.
+        let outputLatency = engine.outputNode.outputPresentationLatency
+
+        let projected = renderedSeconds + (elapsedSeconds + outputLatency) * rate
+        return min(max(0, projected), duration)
     }
 
     // Stored properties, damit @Observable die Änderungen mitbekommt und
