@@ -11,35 +11,49 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     let libraryStore: LibraryStore
+    let playerStore: PlayerStore
+
+    @State private var selectedTab: AppTab = .library
+
+    enum AppTab: Hashable { case library, player }
 
     var body: some View {
-        TabView {
-            LibraryScreen(store: libraryStore)
-                .tabItem {
-                    Label("Library", systemImage: "list.bullet")
-                }
+        TabView(selection: $selectedTab) {
+            LibraryScreen(
+                libraryStore: libraryStore,
+                playerStore: playerStore,
+                selectedTab: $selectedTab
+            )
+            .tabItem {
+                Label("Library", systemImage: "list.bullet")
+            }
+            .tag(AppTab.library)
 
-            PlayerScreen()
+            PlayerScreen(store: playerStore)
                 .tabItem {
                     Label("Player", systemImage: "waveform")
                 }
+                .tag(AppTab.player)
         }
     }
 }
 
 private struct LibraryScreen: View {
-    let store: LibraryStore
+    let libraryStore: LibraryStore
+    let playerStore: PlayerStore
+    @Binding var selectedTab: ContentView.AppTab
+
     @State private var showFolderImporter = false
 
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle(store.selectedFolder?.name ?? "Library")
+                .navigationTitle(libraryStore.selectedFolder?.name ?? "Library")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     sourceMenu
                     ToolbarItem(placement: .principal) {
-                        if let folder = store.selectedFolder {
+                        if let folder = libraryStore.selectedFolder {
                             VStack(spacing: 0) {
                                 Text(folder.name)
                                     .font(.system(size: 14, weight: .medium))
@@ -50,6 +64,13 @@ private struct LibraryScreen: View {
                         }
                     }
                 }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if playerStore.currentTrack != nil {
+                        MiniPlayerView(store: playerStore) {
+                            selectedTab = .player
+                        }
+                    }
+                }
         }
         .fileImporter(
             isPresented: $showFolderImporter,
@@ -57,16 +78,16 @@ private struct LibraryScreen: View {
             allowsMultipleSelection: false
         ) { result in
             guard case .success(let urls) = result, let url = urls.first else { return }
-            Task { await store.addFolder(url: url) }
+            Task { await libraryStore.addFolder(url: url) }
         }
         .task {
-            await store.restoreSavedFolders()
+            await libraryStore.restoreSavedFolders()
         }
     }
 
     @ViewBuilder
     private var content: some View {
-        if let folder = store.selectedFolder {
+        if let folder = libraryStore.selectedFolder {
             trackList(for: folder)
         } else {
             ContentUnavailableView {
@@ -81,7 +102,7 @@ private struct LibraryScreen: View {
 
     @ViewBuilder
     private func trackList(for folder: FolderRecord) -> some View {
-        if store.tracks.isEmpty && !store.isScanning {
+        if libraryStore.tracks.isEmpty && !libraryStore.isScanning {
             ContentUnavailableView(
                 "Keine Tracks",
                 systemImage: "music.note",
@@ -89,21 +110,25 @@ private struct LibraryScreen: View {
             )
         } else {
             List {
-                if let error = store.lastError {
+                if let error = libraryStore.lastError {
                     Text(error)
                         .font(.footnote)
                         .foregroundStyle(.red)
                         .listRowBackground(Color.clear)
                 }
-                ForEach(store.tracks) { track in
+                ForEach(libraryStore.tracks) { track in
                     TrackRowView(
                         track: track,
-                        isPlaying: false,
-                        isAnalyzing: store.isAnalyzing(trackID: track.id)
+                        isPlaying: playerStore.currentTrack?.id == track.id && playerStore.isPlaying,
+                        isAnalyzing: libraryStore.isAnalyzing(trackID: track.id)
                     )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        playerStore.load(track)
+                    }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button {
-                            Task { await store.analyze(trackID: track.id) }
+                            Task { await libraryStore.analyze(trackID: track.id) }
                         } label: {
                             Label("Analyze", systemImage: "wand.and.stars")
                         }
@@ -116,21 +141,21 @@ private struct LibraryScreen: View {
     }
 
     private func statusLine(for folder: FolderRecord) -> String {
-        let count = "\(store.tracks.count) tracks"
-        return store.isScanning ? "\(count) · scanning…" : count
+        let count = "\(libraryStore.tracks.count) tracks"
+        return libraryStore.isScanning ? "\(count) · scanning…" : count
     }
 
     @ToolbarContentBuilder
     private var sourceMenu: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
-                if !store.folders.isEmpty {
+                if !libraryStore.folders.isEmpty {
                     Section("Sources") {
-                        ForEach(store.folders) { folder in
+                        ForEach(libraryStore.folders) { folder in
                             Button {
-                                Task { await store.selectFolder(id: folder.id) }
+                                Task { await libraryStore.selectFolder(id: folder.id) }
                             } label: {
-                                if folder.id == store.selectedFolderID {
+                                if folder.id == libraryStore.selectedFolderID {
                                     Label(folder.name, systemImage: "checkmark")
                                 } else {
                                     Text(folder.name)
@@ -138,14 +163,12 @@ private struct LibraryScreen: View {
                             }
                         }
                     }
-                    if !store.folders.isEmpty {
-                        Section("Remove") {
-                            ForEach(store.folders) { folder in
-                                Button(role: .destructive) {
-                                    Task { await store.removeFolder(id: folder.id) }
-                                } label: {
-                                    Label(folder.name, systemImage: "trash")
-                                }
+                    Section("Remove") {
+                        ForEach(libraryStore.folders) { folder in
+                            Button(role: .destructive) {
+                                Task { await libraryStore.removeFolder(id: folder.id) }
+                            } label: {
+                                Label(folder.name, systemImage: "trash")
                             }
                         }
                     }
@@ -159,16 +182,6 @@ private struct LibraryScreen: View {
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
-        }
-    }
-}
-
-private struct PlayerScreen: View {
-    var body: some View {
-        ContentUnavailableView {
-            Label("Player", systemImage: "waveform")
-        } description: {
-            Text("Phase 5b.2.e folgt")
         }
     }
 }

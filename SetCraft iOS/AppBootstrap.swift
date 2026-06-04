@@ -16,6 +16,8 @@ final class AppBootstrap {
     let database: DatabaseService
     let repository: LibraryRepository
     let libraryStore: LibraryStore
+    let audioSession: AudioSessionManager
+    let playerStore: PlayerStore
 
     init() {
         let supportDir = (try? FileManager.default.url(
@@ -34,5 +36,7 @@ final class AppBootstrap {
 
         self.repository = LibraryRepository(database: database)
         self.libraryStore = LibraryStore(database: database, repository: repository)
+        self.audioSession = AudioSessionManager()
+        self.playerStore = PlayerStore(library: libraryStore, session: audioSession)
     }
 }

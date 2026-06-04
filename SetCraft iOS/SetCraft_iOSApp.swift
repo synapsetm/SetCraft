@@ -13,8 +13,11 @@ struct SetCraft_iOSApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(libraryStore: bootstrap.libraryStore)
-                .preferredColorScheme(.dark)
+            ContentView(
+                libraryStore: bootstrap.libraryStore,
+                playerStore: bootstrap.playerStore
+            )
+            .preferredColorScheme(.dark)
         }
     }
 }
