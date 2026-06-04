@@ -108,4 +108,21 @@ final class PlayerStore {
     func seek(to seconds: TimeInterval) {
         engine.seek(to: seconds)
     }
+
+    /// Setzt das Sterne-Rating auf den aktiven Track und persistiert sofort.
+    /// Tap auf den gleichen Sternwert (Toggle-Off in der UI) übergibt 0.
+    func setRating(_ stars: Int) {
+        guard var track = currentTrack else { return }
+        track.rating = Rating(stars: stars)
+        currentTrack = track
+        Task { await library.updateTrack(track) }
+    }
+
+    /// Setzt BPM aus dem Edit-Sheet auf den aktiven Track und persistiert.
+    func setBPM(_ bpm: Double) {
+        guard var track = currentTrack else { return }
+        track.bpm = bpm
+        currentTrack = track
+        Task { await library.updateTrack(track) }
+    }
 }

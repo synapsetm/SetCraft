@@ -142,6 +142,20 @@ final class LibraryStore {
         }
     }
 
+    /// Persistiert einen geänderten Track (Rating / BPM / Key Edits aus dem
+    /// Player) in der Liste und schreibt ihn über das Repository zurück in
+    /// Datei + DB-Cache. Fehler beim Save landen in `lastError`.
+    func updateTrack(_ track: Track) async {
+        if let idx = tracks.firstIndex(where: { $0.id == track.id }) {
+            tracks[idx] = track
+        }
+        do {
+            try await repository.save(track)
+        } catch {
+            lastError = "Speichern fehlgeschlagen: \(error.localizedDescription)"
+        }
+    }
+
     /// Vergisst die Quelle. Dateien selbst bleiben unangetastet.
     func removeFolder(id: String) async {
         try? await database.deleteFolder(id: id)

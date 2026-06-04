@@ -14,6 +14,8 @@ import SetCraftCore
 struct PlayerScreen: View {
     let store: PlayerStore
 
+    @State private var showBPMSheet = false
+
     var body: some View {
         VStack(spacing: 0) {
             WaveformCanvasView(
@@ -27,6 +29,11 @@ struct PlayerScreen: View {
             controlPanel
         }
         .background(Color(red: 0.08, green: 0.08, blue: 0.09))
+        .sheet(isPresented: $showBPMSheet) {
+            BPMEditSheet(initialValue: store.currentTrack?.bpm) { newValue in
+                store.setBPM(newValue)
+            }
+        }
     }
 
     @ViewBuilder private var controlPanel: some View {
@@ -36,8 +43,18 @@ struct PlayerScreen: View {
             Spacer(minLength: 0)
             transport
             Spacer(minLength: 0)
-            placeholderChipsRow
+            chipsRow
             Spacer(minLength: 0)
+            starsRow
+            Spacer(minLength: 0)
+            if let error = store.lastError {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 8)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(red: 0.10, green: 0.10, blue: 0.13))
@@ -45,7 +62,7 @@ struct PlayerScreen: View {
 
     @ViewBuilder private var trackHeader: some View {
         HStack(spacing: 12) {
-            CoverPlaceholderView(size: 46, cornerRadius: 9, iconSize: 20)
+            ArtworkView(url: store.currentTrack?.url, size: 46, cornerRadius: 9)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(displayTitle)
@@ -61,6 +78,25 @@ struct PlayerScreen: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 18)
+    }
+
+    @ViewBuilder private var chipsRow: some View {
+        if hasTrack {
+            HStack(spacing: 12) {
+                BPMChipView(bpm: store.currentTrack?.bpm) {
+                    showBPMSheet = true
+                }
+                KeyChipView(key: store.currentTrack?.key)
+            }
+        }
+    }
+
+    @ViewBuilder private var starsRow: some View {
+        if hasTrack {
+            BigStarsView(value: store.currentTrack?.rating.stars ?? 0) { newValue in
+                store.setRating(newValue)
+            }
+        }
     }
 
     @ViewBuilder private var transport: some View {
@@ -95,20 +131,6 @@ struct PlayerScreen: View {
             .disabled(!hasTrack)
         }
         .buttonStyle(.plain)
-    }
-
-    @ViewBuilder private var placeholderChipsRow: some View {
-        if let error = store.lastError {
-            Text(error)
-                .font(.footnote)
-                .foregroundStyle(.red)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 18)
-        } else if hasTrack {
-            Text("BPM/Key/Sterne folgen (5b.2.e3)")
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
-        }
     }
 
     private var hasTrack: Bool { store.currentTrack != nil }
