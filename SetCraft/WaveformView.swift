@@ -79,9 +79,15 @@ struct WaveformView: View {
 
         // Auf Pixelbreite herunterrechnen: jede Säule fasst die Bins eines
         // Zeitabschnitts zusammen (Max für die Höhe, Mittelwert für die Farbe).
+        // KRITISCH: Float-Division, damit alle Bins über die volle Breite
+        // verteilt sind. Integer-Division (bins.count / columnCount) wirft
+        // den Rest weg — die letzten Sekunden des Tracks würden nicht
+        // gezeichnet, der Playhead-Cursor liefe aber trotzdem über die volle
+        // Breite. Folge: visueller Drift, der linear mit Track-Position
+        // wächst (bei 460-s-Track mit 800 px: ~2 s nach 3 min).
         let columnCount = Int(width.rounded())
         guard columnCount > 0 else { return }
-        let binsPerColumn = max(1, data.bins.count / columnCount)
+        let binsPerColumnExact = Double(data.bins.count) / Double(columnCount)
 
         let progressX = CGFloat(progress) * width
 
@@ -89,9 +95,9 @@ struct WaveformView: View {
         let midY = height * 0.5
 
         for col in 0..<columnCount {
-            let start = col * binsPerColumn
-            guard start < data.bins.count else { break }
-            let end = min(start + binsPerColumn, data.bins.count)
+            let start = Int(Double(col) * binsPerColumnExact)
+            let end = min(data.bins.count, Int(Double(col + 1) * binsPerColumnExact))
+            guard start < end else { continue }
 
             var maxRms: Float = 0
             var sumBass: Float = 0
