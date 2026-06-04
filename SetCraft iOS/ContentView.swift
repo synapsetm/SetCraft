@@ -174,6 +174,13 @@ private struct LibraryScreen: View {
                             Label("Analyze", systemImage: "wand.and.stars")
                         }
                         .tint(.blue)
+
+                        Button {
+                            Task { await libraryStore.analyze(trackID: track.id, force: true) }
+                        } label: {
+                            Label("Re-analyze", systemImage: "arrow.clockwise")
+                        }
+                        .tint(.orange)
                     }
                 }
             }

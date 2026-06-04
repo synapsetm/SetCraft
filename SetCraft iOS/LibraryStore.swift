@@ -214,11 +214,12 @@ final class LibraryStore {
         }
     }
 
-    /// Startet aubio + libKeyFinder für einen Track (nur die noch fehlenden
-    /// Werte). Resultate werden in `tracks` und über `LibraryRepository.save`
-    /// auch in der Datei + DB-Cache aktualisiert. Wird vom Swipe-Left-Analyze
-    /// in der Track-Liste aufgerufen.
-    func analyze(trackID: UUID) async {
+    /// Startet aubio + libKeyFinder für einen Track. Wenn `force == false`
+    /// (Default) werden nur fehlende Werte ergänzt — passt zum
+    /// Swipe-Trailing-Default-Knopf „Analyze". Mit `force == true` wird die
+    /// Heuristik übersteuert; aubio rechnet BPM neu, libKeyFinder neu — der
+    /// Pfad für den zweiten Trailing-Knopf „Re-analyze".
+    func analyze(trackID: UUID, force: Bool = false) async {
         guard !analyzing.contains(trackID),
               let track = tracks.first(where: { $0.id == trackID })
         else { return }
@@ -229,8 +230,8 @@ final class LibraryStore {
         do {
             let result = try await analyzer.analyze(
                 url: track.url,
-                needsBPM: track.bpm == nil,
-                needsKey: track.key == nil,
+                needsBPM: force || track.bpm == nil,
+                needsKey: force || track.key == nil,
                 bpmRange: bpmPreset
             )
             guard result.bpm != nil || result.key != nil else { return }
