@@ -7,7 +7,7 @@
 
 ## 1. Ziel & Rahmen
 
-Ein DJ-orientierter Musikplayer („SetCraft") für **macOS** (zuerst), mit vorbereitetem **iOS/iPad**-Port.
+Ein DJ-orientierter Musikplayer („SetCraft") für **macOS** (zuerst), mit vorbereitetem **iOS**-Port (iPhone).
 Es geht **nicht** um eine Mixing-Software mit zwei Decks, sondern um einen **Player + Bibliotheks-/Vorbereitungstool**:
 Tracks sichten, analysieren, bewerten, Tempo/Key prüfen und anpassen, Metadaten pflegen.
 
@@ -283,7 +283,7 @@ Durchstich, dann Metal.)
 
 **Phase 5 — Politur & iOS-Vorbereitung**
 SQLite-Cache hinter `TrackStore` (GRDB). Optional SFBAudioEngine als Decoder-Schicht (Ogg Vorbis,
-schnelleres FLAC). Ggf. Umstellung auf Weg B. iOS/iPad-Target anlegen, plattformspezifische Stellen
+schnelleres FLAC). Ggf. Umstellung auf Weg B. iOS-Target (iPhone) anlegen, plattformspezifische Stellen
 mit `#if os(...)` kapseln (Dateizugriff via Document Picker, `AVAudioSession`).
 
 ---

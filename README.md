@@ -1,7 +1,7 @@
 # SetCraft
 
 Ein DJ-orientierter Musikplayer für macOS (Swift / SwiftUI), mit geplantem
-iOS/iPad-Port.
+iOS-Port (iPhone).
 
 - **Frequenzbasierte RGB-Waveform** (vDSP-FFT, additiv R = Bass, G = Mitten,
   B = Höhen; SwiftUI-Canvas).

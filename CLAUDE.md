@@ -12,7 +12,7 @@ Den vollständigen Plan (Architektur, Phasen, Detailentscheidungen) findest du i
 
 ## Was wir bauen
 
-Eine **DJ-orientierte Musikplayer-App für macOS** (Swift / SwiftUI), die später auf **iOS/iPad** portierbar sein soll.
+Eine **DJ-orientierte Musikplayer-App für macOS** (Swift / SwiftUI), die später auf **iOS (iPhone)** portierbar sein soll.
 Kernmerkmale:
 
 - Frequenzbasierte **RGB-Waveform** (Mixxx-Stil: Bass = Rot, Mitten = Grün, Höhen = Blau).

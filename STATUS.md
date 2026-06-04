@@ -5,6 +5,165 @@ und `SPEC.md` (vollständige Spezifikation und Phasenplan).
 
 ---
 
+## Sitzung 2026-06-04 — Phase 5b Schritt 2 abgeschlossen + UX-Politur, iPad-Ziel verworfen
+
+Phase 5b Schritt 2 ist inhaltlich fertig: iOS-Library und iOS-Player
+matchen die Mockups aus `docs/`, Tag-Writes laufen durch den
+gleichen `TagLibTrackStore`-Pfad wie auf dem Mac. Dazu eine Runde
+UX-Politur (Pinch-Zoom, Tag-Edit/Info-Sheets, Library-Sortierung)
+und eine reproduzierbare Test-Strecke für den Simulator.
+
+### iPad-Ziel verworfen — iPhone-only
+
+`TARGETED_DEVICE_FAMILY` von `1,2` (iPhone + iPad) auf `1` (nur
+iPhone) reduziert. Begründung: Die SetCraft-DJ-Workflows orientieren
+sich am Daumen-One-Hand-Modell und am im Mockup gewählten 306×612-
+Phone-Frame. iPad-spezifische Mehrwerte (NavigationSplitView,
+breitere Waveform) wären eine eigene Layout-Linie und wurden nicht
+gepflegt. CLAUDE.md, README.md und SPEC.md entsprechend angepasst —
+„iOS/iPad" → „iOS (iPhone)".
+
+### Phase 5b.2.d — Track-Liste mit Swipe-Analyze (Commits `c7e7125`, `4be423c`)
+
+- **Camelot-Color-Extension** aus dem Mac-Target nach Core gezogen
+  (`CamelotKey+Color.swift`), `var color` jetzt `public`. Wird von
+  Mac und iOS gemeinsam genutzt (Variante c aus
+  [[project-ios-ui-strategy]]).
+- **TrackRowView** mit Play-Indikator, Titel + Artist + 5 Sterne,
+  BPM (Mono) + Camelot-Badge in Modus-Farbe. Aktiver Track bekommt
+  linke orange Akzentlinie + leicht warmen Hintergrund.
+- **Swipe-Left** → blauer „Analyze"-Button (Wand-Icon). Tap
+  → `LibraryStore.analyze(trackID:)` → AnalysisCoordinator füllt
+  fehlende BPM/Key, Resultat geht über `LibraryRepository.save` in
+  Datei + DB-Cache.
+- **Dark Mode** als Default für die iOS-App, damit Camelot-Farben
+  gegen dunklen Background wirken.
+
+### Files-App-Integration + sc-push-Workflow (`b8a0f1d`, `092db5d`, `36b67e4`)
+
+iOS-Simulator hat ein Henne-Ei-Problem für Test-Tracks: drag-drop
+landet im „open with"-Pfad, iCloud-Drive-Login im Simulator hängt
+oft im endlosen „loading". Lösung: SetCraft iOS exponiert seinen
+eigenen `Documents`-Ordner über `LSSupportsOpeningDocumentsInPlace`
++ `UIFileSharingEnabled` in der Files-App.
+
+- `INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace` als Auto-Setting
+  reicht; `INFOPLIST_KEY_UIFileSharingEnabled` wird von Xcode beim
+  Auto-Generate stillschweigend verworfen — Fix mit einer
+  dedizierten `SetCraft-iOS-Info.plist` im Repo-Root, die Xcode mit
+  den Auto-Keys mergt.
+- `scripts/sc-push.sh` kopiert einen Ordner via
+  `xcrun simctl get_app_container booted ch.buehler.beat.SetCraft.iOS data`
+  in das Sandbox-Documents des gerade gebooteten Simulators. UUID
+  wird bei jedem Aufruf frisch geholt — robust gegen die UUID-Wechsel
+  bei Xcode-Reinstalls.
+
+### Phase 5b.2.e1 — Player-Infrastruktur + AVAudioSession (`c62455d`)
+
+- **AudioSessionManager** aktiviert `.playback` idempotent vor dem
+  ersten Sound. iOS-only; Mac braucht das nicht.
+- **PlayerStore** (`@Observable @MainActor`) besitzt einen
+  `AVAudioEnginePlayer` aus Core und kennt die `LibraryStore`-
+  Trackliste für Prev/Next.
+- **PlayerScreen**: Track-Header mit Cover-Placeholder, Skip-Back /
+  großer Play-Pause-Circle in Orange / Skip-Forward, Zeit-Anzeige
+  „M:SS / -M:SS".
+- **MiniPlayerView** über der Tab-Bar, Tap auf den Inhalt schaltet
+  Tab-Selection auf den Player, Play-Button rechts togglet inline.
+- `UIBackgroundModes = audio` in der Info.plist — Wiedergabe läuft
+  beim Wechsel in eine andere App oder gesperrten Bildschirm weiter.
+
+### Phase 5b.2.e2 — RGB-Waveform-Canvas mit Center-Playhead (`1060869`)
+
+iOS-Player nutzt einen festen Center-Playhead, die Wellenform scrollt
+unter ihm hindurch (CDJ-Stil) — im Gegensatz zum Mac mit beweglichem
+Playhead über fixer Wellenform.
+
+- Pro Pixelspalte ein Bin nachschlagen via
+  `leftTime + x/pxPerSec`. pxPerSec = 52 als Default.
+- Säulenhöhe ~ `pow(rms, 0.6) × 44%`, additive RGB-Farbe mit `pow(0.4)`
+  Gamma auf Bass/Mitten/Höhen — wie der Mac-Renderer.
+- Beat-Grid alle 4 Beats nur bei bekanntem BPM.
+- Played-Side links der Mitte mit 42% Schwarz überlagert, Center-
+  Playhead als weiße 2-pt Linie mit Dreieck-Markern oben/unten.
+- **Drag-Scrub**: Finger links = Zeit vorwärts (natürliche Wave-
+  Bewegung). `playerStore.seek(to:)` auf jedem Drag-Update —
+  `AVAudioEnginePlayer` reschedulet günstig.
+- **Waveform-Loading** im PlayerStore: `WaveformCache.waveform(for:)`
+  awaitet aus dem Cache (Memory → SQLite → vDSP-FFT). Cancel + Race-
+  Check beim schnellen Track-Wechsel.
+
+### Phase 5b.2.e3 — Chips, Sterne, Artwork (`1cd1225`)
+
+- **ArtworkView**: async-Load via Core-`ArtworkReader`, Fallback auf
+  `CoverPlaceholderView` (lila Gradient + Vinyl-Icon). 46-pt im
+  Player-Header, 34-pt im Mini-Player.
+- **BPMChipView** + **KeyChipView** im Mockup-Stil.
+- **BigStarsView**: fünf 32-pt Sterne, Tap auf den aktuellen Wert
+  setzt das Rating zurück (Toggle-Off).
+- Persistenz-Pfad: `PlayerStore.setRating(_:)` /
+  `PlayerStore.applyEdit(_:)` aktualisieren `currentTrack` und
+  reichen via `LibraryStore.updateTrack(_:)` an
+  `LibraryRepository.save` weiter — Tag-Write inkl. POPM +
+  Sterne-Präfix im Comment + DB-Cache-Update.
+
+### UX-Politur (`f0938b8`, `911bb8c`)
+
+- **Pinch-Zoom** auf der Waveform (15…200 px/s) via `MagnifyGesture`
+  + `.simultaneousGesture` mit dem Drag-Scrub. Persistent über
+  `@AppStorage("waveformPxPerSec")`. HUD „X.Xs sichtbar" während der
+  Geste, fadet nach Loslassen aus.
+- **TagEditSheet**: Form-basiertes Edit-Dialog für alle ID-Tags
+  (Title, Artist, Album, Label, Genre, Year, BPM, Key, Rating,
+  Comment). BPM-Schnell-Skalierungs-Buttons (÷2/÷1.5/×1.5/×2) für
+  den Triolen-Fix. Key-Picker über alle 24 Camelot-Werte + „—".
+  Done disabled solange BPM oder Year nicht-leer und unparsebar
+  sind.
+- **TrackInfoSheet**: read-only Datei-Eigenschaften (Name, Type,
+  Size mit `ByteCountFormatter`, Duration, Bitrate, komplette
+  Metadata-Übersicht plus auswählbarer Datei-Pfad).
+- **Library-Swipe-Right**: graues „Info" + indigoes „Edit" als
+  Leading-Actions. Swipe-Left bleibt das blaue „Analyze".
+- **Library-Sortierung**: neue `SortField`-Enum (Title/Artist/BPM/
+  Key) in `LibraryStore` mit Picker im `•••`-Menü. Sekundär-Sort
+  nach Titel; Key-Reihenfolge folgt 1A<1B<2A<2B<…<12B. Persistenz
+  via UserDefaults (`librarySortField`).
+- **Key-Chip im Player** ohne Background/Border — rein informativ.
+  Tap auf BPM- oder Key-Chip öffnet das `TagEditSheet`, dort ist
+  Key trotzdem editierbar.
+
+### Manuell verifiziert im Simulator
+
+- Tracks via `sc-push.sh` ins Sandbox-Documents kopiert, in der
+  Files-App unter „On My iPhone → SetCraft iOS → Documents"
+  sichtbar, in SetCraft pickbar.
+- Library-Liste zeigt Tracks mit Tag-Werten; Swipe-Analyze füllt
+  fehlende BPM/Key.
+- Tap auf Zeile lädt + spielt den Track, Mini-Player erscheint.
+- Player-Tab zeigt Waveform mit Beat-Grid, Drag-Scrub funktioniert,
+  Pinch-Zoom skaliert.
+- BPM-Chip-Tap öffnet Tag-Edit-Sheet, Done speichert nach Tag +
+  Cache, Library-Row aktualisiert sich.
+- Sterne setzen + zurücksetzen per Tap.
+
+### Offen
+
+- **AVAudioSession-Interruption-Handling** (Anruf/Siri,
+  Route-Change wenn Headphones abgezogen werden) — kommt
+  in der nächsten iOS-Politur-Runde.
+- **MPNowPlayingInfoCenter / Lock-Screen-Controls** —
+  Background-Audio läuft, aber ohne Now-Playing-Info-Update.
+- **Re-Analyze als Library-Action** (Mac hat das im Library-
+  Kontextmenü). Auf iOS aktuell nur Force über das BPM-Feld leeren
+  + Swipe-Analyze.
+- **TagLibTrackStore.setActiveTrack-Guard** wird auf iOS bewusst
+  nicht genutzt — Tag-Writes auf den gerade abspielenden Track
+  laufen damit ohne Schutz. Sollte ein Konflikt auftreten,
+  Mac-Pattern (`blockedByActivePlayer` + Retry nach Unload)
+  nachziehen.
+
+---
+
 ## Sitzung 2026-06-03 (Abend) — Phase 5b Schritt 2 angefangen: iOS-Target
 
 Mockups für die iOS-App zuerst entstanden (`docs/library.html`,
@@ -32,7 +191,8 @@ der iOS-Umsetzung.
   `TagLibTrackStore`-Pfad wie Mac. SMB-Atomic-Rename-Risiko bleibt
   als Edge-Case (Toast/Error-State, kein silent fail).
 - **Min-iOS = 26.5** (`IPHONEOS_DEPLOYMENT_TARGET`),
-  `TARGETED_DEVICE_FAMILY = 1,2` → iPhone + iPad.
+  `TARGETED_DEVICE_FAMILY = 1,2` → iPhone + iPad (am 2026-06-04
+  auf 1 = iPhone-only reduziert, siehe Sitzung 2026-06-04).
 - **Bundle-ID `ch.buehler.beat.SetCraft.iOS`** (Variante B/Suffix mit
   Punkt). Operationale Trennung von der Sparkle-Welt des Mac, keine
   Provisioning-Konflikte, kein iCloud-Sync aktuell geplant — falls
@@ -87,7 +247,7 @@ der iOS-Umsetzung.
 - Quellen-Wechsel + Quellen-Entfernen über das `•••`-Menü.
 - NAS/SMB nicht im Simulator getestet (kein realer Mount-Point),
   läuft aber durch denselben `.fileImporter`-Pfad — auf echtem
-  iPhone/iPad sollte es funktionieren.
+  iPhone sollte es funktionieren.
 
 ### Bewusst nicht in diesem Schritt
 
@@ -703,7 +863,7 @@ aubio 5 MB. macOS-Build und 36 Tests unverändert grün.
 
 Für die nächste Sitzung:
 
-- iOS/iPad-Target im Xcode-Projekt anlegen.
+- iOS-Target im Xcode-Projekt anlegen.
 - AppKit-Code mit `#if os(macOS)` kapseln (`AppDelegate`,
   `NSOpenPanel` in `PlayerViewModel`/`LibraryViewModel`,
   `NSApplicationDelegateAdaptor`).
