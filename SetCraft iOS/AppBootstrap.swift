@@ -19,6 +19,7 @@ final class AppBootstrap {
     let audioSession: AudioSessionManager
     let waveformCache: WaveformCache
     let playerStore: PlayerStore
+    let nowPlayingManager: NowPlayingManager
 
     init() {
         let supportDir = (try? FileManager.default.url(
@@ -44,5 +45,11 @@ final class AppBootstrap {
             session: audioSession,
             waveformCache: waveformCache
         )
+
+        // NowPlayingManager braucht den PlayerStore — und umgekehrt:
+        // PlayerStore.nowPlaying wird nachträglich gesetzt, damit
+        // Zustandsänderungen den Lock-Screen aktualisieren.
+        self.nowPlayingManager = NowPlayingManager(player: playerStore)
+        self.playerStore.nowPlaying = nowPlayingManager
     }
 }

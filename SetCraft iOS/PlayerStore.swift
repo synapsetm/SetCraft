@@ -25,6 +25,10 @@ final class PlayerStore {
 
     let engine: AVAudioEnginePlayer
 
+    /// Wird vom AppBootstrap nachträglich gesetzt — kreuzweise Initialisierung
+    /// (PlayerStore und NowPlayingManager halten Refs aufeinander).
+    weak var nowPlaying: NowPlayingManager?
+
     private let library: LibraryStore
     private let session: AudioSessionManager
     private let waveformCache: WaveformCache
@@ -35,6 +39,12 @@ final class PlayerStore {
         self.library = library
         self.session = session
         self.waveformCache = waveformCache
+
+        // Audio-Session-Callbacks verdrahten: Interruption pausiert,
+        // resume bei .shouldResume, Headphones-Abzug pausiert.
+        session.onInterruptionBegan = { [weak self] in self?.pause() }
+        session.onInterruptionEndedShouldResume = { [weak self] in self?.play() }
+        session.onShouldPause = { [weak self] in self?.pause() }
     }
 
     var isPlaying: Bool { engine.isPlaying }
@@ -51,9 +61,26 @@ final class PlayerStore {
             lastError = nil
             engine.play()
             loadWaveform(for: track.url)
+            nowPlaying?.update()
         } catch {
             lastError = "Konnte Track nicht laden: \(error.localizedDescription)"
         }
+    }
+
+    /// Primärer Play-Pfad. Wird auch aus Lock-Screen / AirPods-Commands +
+    /// Interruption-End aufgerufen.
+    func play() {
+        guard currentTrack != nil else { return }
+        if !engine.isPlaying { engine.play() }
+        nowPlaying?.update()
+    }
+
+    /// Primärer Pause-Pfad. Wird aus Lock-Screen / AirPods + Interruption-
+    /// Begin + Headphones-Abzug aufgerufen.
+    func pause() {
+        guard engine.isPlaying else { return }
+        engine.pause()
+        nowPlaying?.update()
     }
 
     /// Holt Waveform-Daten aus dem Cache (Memory → SQLite → vDSP-FFT).
@@ -82,11 +109,7 @@ final class PlayerStore {
 
     func togglePlayPause() {
         guard currentTrack != nil else { return }
-        if engine.isPlaying {
-            engine.pause()
-        } else {
-            engine.play()
-        }
+        if engine.isPlaying { pause() } else { play() }
     }
 
     func next() {
@@ -107,6 +130,7 @@ final class PlayerStore {
 
     func seek(to seconds: TimeInterval) {
         engine.seek(to: seconds)
+        nowPlaying?.update()
     }
 
     /// Setzt das Sterne-Rating auf den aktiven Track und persistiert sofort.
@@ -115,6 +139,7 @@ final class PlayerStore {
         guard var track = currentTrack else { return }
         track.rating = Rating(stars: stars)
         currentTrack = track
+        nowPlaying?.update()
         Task { await library.updateTrack(track) }
     }
 
@@ -124,6 +149,7 @@ final class PlayerStore {
     func applyEdit(_ updated: Track) {
         guard currentTrack?.id == updated.id else { return }
         currentTrack = updated
+        nowPlaying?.update()
         Task { await library.updateTrack(updated) }
     }
 }
