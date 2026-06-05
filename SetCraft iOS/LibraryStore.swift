@@ -84,6 +84,11 @@ final class LibraryStore {
     private let analyzer = AnalysisCoordinator()
     private var scanTask: Task<Void, Never>?
     private var accessingScopedURL: URL?
+    /// `restoreSavedFolders` ist als `.task`-Aufruf aus der Library-View
+    /// verdrahtet. SwiftUI-TabView feuert `.task` bei jedem Tab-Wechsel
+    /// neu — ohne diesen Guard würde jedes Wechsel zurück zur Library-Tab
+    /// einen kompletten Re-Scan auslösen (tracks = [] → neu füllen).
+    private var didRestoreFolders = false
     /// Markiert, ob `lastError` aktuell die Scan-Diagnostik trägt — sonst
     /// können wir nicht über die lokalisierten Varianten hinweg sauber
     /// unterscheiden, welche Message vom Scan gesetzt wurde.
@@ -122,7 +127,11 @@ final class LibraryStore {
 
     /// Lädt alle gespeicherten Quellen beim App-Start. Wenn welche vorhanden
     /// sind, wird die zuletzt hinzugefügte aktiv geschaltet — wie auf dem Mac.
+    /// Idempotent: weitere Aufrufe (z. B. wenn SwiftUI das `.task` beim
+    /// Tab-Wechsel neu feuert) sind ein No-op und triggern keinen Re-Scan.
     func restoreSavedFolders() async {
+        guard !didRestoreFolders else { return }
+        didRestoreFolders = true
         let saved = (try? await database.listFolders()) ?? []
         folders = saved
         if let last = saved.last {
@@ -219,23 +228,19 @@ final class LibraryStore {
     }
 
     /// Persistiert einen geänderten Track (Rating / BPM / Key Edits aus dem
-    /// Player) in der Liste und schreibt ihn über das Repository zurück in
-    /// Datei + DB-Cache. Schreibvorgänge auf den gerade abspielenden Track
-    /// werden mit `.fileInUse` abgelehnt — die landen in `pendingSaves` und
-    /// werden beim nächsten `setActiveTrack`-Wechsel automatisch nachgeholt.
+    /// Player oder Library-Swipe) in der Liste und schreibt ihn über das
+    /// Repository zurück in Datei + DB-Cache. Bypasst den Active-Track-Guard
+    /// (`force: true`), weil sonst Edits am gerade gespielten Track in einer
+    /// Queue hängen blieben und beim App-Kill verloren gingen — der Bypass
+    /// ist sicher, da `replaceItemAt` atomar inode-swappt und die offene
+    /// AVAudioFile-fd weiter aufs alte inode zeigt.
     func updateTrack(_ track: Track) async {
         if let idx = tracks.firstIndex(where: { $0.id == track.id }) {
             tracks[idx] = track
         }
         do {
-            try await repository.save(track)
+            try await repository.save(track, force: true)
             pendingSaves.removeValue(forKey: track.id)
-        } catch let storeError as TagLibTrackStore.StoreError {
-            if case .fileInUse = storeError {
-                pendingSaves[track.id] = track
-            } else {
-                lastError = String(localized: "Save failed: \(storeError.localizedDescription)")
-            }
         } catch {
             lastError = String(localized: "Save failed: \(error.localizedDescription)")
         }

@@ -155,9 +155,13 @@ private struct LibraryScreen: View {
                         .listRowBackground(Color.clear)
                 }
                 ForEach(libraryStore.sortedTracks) { track in
+                    // Match über URL — Track.id wird beim Scan/Cache-Read
+                    // neu vergeben, URL ist die stabile Identität.
+                    let isCurrent = playerStore.currentTrack?.url == track.url
                     TrackRowView(
                         track: track,
-                        isPlaying: playerStore.currentTrack?.id == track.id && playerStore.isPlaying,
+                        isCurrent: isCurrent,
+                        isPlaying: isCurrent && playerStore.isPlaying,
                         isAnalyzing: libraryStore.isAnalyzing(trackID: track.id)
                     )
                     .contentShape(Rectangle())

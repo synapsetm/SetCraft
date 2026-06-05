@@ -13,6 +13,13 @@ public final class AVAudioEnginePlayer: AudioEngine {
     public private(set) var duration: TimeInterval = 0
     public private(set) var loadedURL: URL?
 
+    /// Wird gefeuert, wenn ein Track natürlich zu Ende gespielt hat
+    /// (nicht bei pause/seek/load). Der iOS-PlayerStore hängt sich
+    /// hier ein, um automatisch zum nächsten Track in der Liste zu
+    /// springen — auf Mac bleibt der Hook ungesetzt, Verhalten dort
+    /// unverändert.
+    public var onPlaybackEnded: (() -> Void)?
+
     /// Frischer Position-Read mit Render-Drift-Korrektur. `currentFrame()`
     /// liefert die Sample-Position **bei `playerNode.lastRenderTime`** — also
     /// die Vergangenheit (bis zu eine Render-Buffer-Länge ~10 ms her). Bei
@@ -232,6 +239,7 @@ public final class AVAudioEnginePlayer: AudioEngine {
             stopPositionTimer()
             scheduleFromSeekFrame()
             _ = file
+            onPlaybackEnded?()
         }
     }
 

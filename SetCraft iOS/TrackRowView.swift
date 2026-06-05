@@ -10,18 +10,23 @@ import SetCraftCore
 
 /// Eine Zeile in der Library-Liste, eng am Mockup `docs/library.html`:
 /// Play-Indikator links, Titel + Artist + Sterne mittig, BPM + Camelot-
-/// Badge rechts. Bei aktivem Player blinkt links eine orange Akzentlinie
-/// auf, der Zeilenhintergrund wird leicht warm.
+/// Badge rechts. Bei aktivem Track (geladen im Player) zeigt links eine
+/// orange Akzentlinie, der Zeilenhintergrund wird leicht warm — das
+/// Icon wechselt zwischen Play/Pause je nach Wiedergabe-Zustand.
 struct TrackRowView: View {
     let track: Track
+    /// Track ist der gerade im Player geladene — unabhängig davon, ob
+    /// gerade abgespielt oder pausiert wird. Steuert Hintergrund-Tint
+    /// und den linken Akzentstreifen.
+    let isCurrent: Bool
+    /// Engine spielt aktuell ab. Steuert nur das Icon (play vs. pause).
     let isPlaying: Bool
     let isAnalyzing: Bool
 
     var body: some View {
         HStack(spacing: 0) {
-            // Orange Akzentstreifen links bei aktivem Track
             Rectangle()
-                .fill(isPlaying ? Color.orange : Color.clear)
+                .fill(isCurrent ? Color.orange : Color.clear)
                 .frame(width: 3)
 
             HStack(spacing: 10) {
@@ -34,15 +39,15 @@ struct TrackRowView: View {
             .padding(.vertical, 6)
         }
         .listRowBackground(
-            isPlaying ? Color.orange.opacity(0.10) : Color.clear
+            isCurrent ? Color.orange.opacity(0.10) : Color.clear
         )
         .listRowInsets(EdgeInsets())
     }
 
     @ViewBuilder private var playIndicator: some View {
         ZStack {
-            if isPlaying {
-                Image(systemName: "play.fill")
+            if isCurrent {
+                Image(systemName: isPlaying ? "play.fill" : "pause.fill")
                     .font(.system(size: 12))
                     .foregroundStyle(.orange)
             }

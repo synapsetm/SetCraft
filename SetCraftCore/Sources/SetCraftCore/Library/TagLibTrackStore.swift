@@ -32,7 +32,17 @@ public actor TagLibTrackStore: TrackStore {
     }
 
     public func save(_ track: Track) async throws {
-        if let active = activeURL, active == track.url {
+        try await save(track, force: false)
+    }
+
+    /// Schreibt Tags. Wenn `force == true`, wird der Active-Track-Guard
+    /// übersprungen — gedacht für explizite User-Edits aus dem Player
+    /// (TagEditSheet, Rating-Tap), die sonst hängen blieben, weil der
+    /// gerade abgespielte Track aktiv ist. `replaceItemAt` ist unter
+    /// Unix-Semantik sicher: AVAudioFile hält das alte inode via fd
+    /// weiterhin offen, der Pfad zeigt nach dem atomaren Swap aufs neue.
+    public func save(_ track: Track, force: Bool) async throws {
+        if !force, let active = activeURL, active == track.url {
             throw StoreError.fileInUse
         }
 

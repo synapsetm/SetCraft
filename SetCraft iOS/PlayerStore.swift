@@ -53,6 +53,11 @@ final class PlayerStore {
         session.onInterruptionBegan = { [weak self] in self?.pause() }
         session.onInterruptionEndedShouldResume = { [weak self] in self?.play() }
         session.onShouldPause = { [weak self] in self?.pause() }
+
+        // Auto-Advance: läuft ein Track natürlich aus, automatisch
+        // den nächsten in der Liste laden. `next()` ist ein No-op,
+        // wenn der aktuelle Track das letzte Element ist.
+        engine.onPlaybackEnded = { [weak self] in self?.next() }
     }
 
     var isPlaying: Bool { engine.isPlaying }
@@ -160,19 +165,25 @@ final class PlayerStore {
     }
 
     func next() {
+        let list = library.sortedTracks
+        // Match über URL statt Track.id: CachedTrack vergibt bei jedem
+        // Cache-Read eine frische UUID, ein erneuter Scan (z. B. nach
+        // Folder-Re-Select) würde sonst die Identität brechen und
+        // Prev/Next zu No-ops machen.
         guard let current = currentTrack,
-              let idx = library.tracks.firstIndex(where: { $0.id == current.id }),
-              idx + 1 < library.tracks.count
+              let idx = list.firstIndex(where: { $0.url == current.url }),
+              idx + 1 < list.count
         else { return }
-        load(library.tracks[idx + 1])
+        load(list[idx + 1])
     }
 
     func previous() {
+        let list = library.sortedTracks
         guard let current = currentTrack,
-              let idx = library.tracks.firstIndex(where: { $0.id == current.id }),
+              let idx = list.firstIndex(where: { $0.url == current.url }),
               idx > 0
         else { return }
-        load(library.tracks[idx - 1])
+        load(list[idx - 1])
     }
 
     func seek(to seconds: TimeInterval) {

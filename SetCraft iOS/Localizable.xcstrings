@@ -4,7 +4,28 @@
     "—" : {
       "shouldTranslate" : false
     },
+    "%@ / -%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ / -%2$@"
+          }
+        }
+      }
+    },
+    "addFolder failed (scope=%@): %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "addFolder failed (scope=%1$@): %2$@"
+          }
+        }
+      }
+    },
     "addFolder failed (scope=%1$@): %2$@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {

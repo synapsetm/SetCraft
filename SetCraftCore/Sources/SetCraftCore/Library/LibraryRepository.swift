@@ -62,7 +62,15 @@ public actor LibraryRepository: TrackStore {
     // MARK: - TrackStore
 
     public func save(_ track: Track) async throws {
-        try await tagStore.save(track)
+        try await save(track, force: false)
+    }
+
+    /// `force == true` umgeht den Active-Track-Guard im TagLibTrackStore.
+    /// Wird vom iOS-Player für explizite User-Edits (TagEditSheet, Rating)
+    /// genutzt — ohne diesen Bypass landeten Edits am gerade gespielten
+    /// Track in einer Queue, die bis zum nächsten Track-Wechsel wartet.
+    public func save(_ track: Track, force: Bool) async throws {
+        try await tagStore.save(track, force: force)
         // Datei wurde neu geschrieben → mtime neu ermitteln.
         let mtime = (try? fileModifiedDate(url: track.url)) ?? Date()
         try? await database.saveTrack(track, modifiedAt: mtime)
