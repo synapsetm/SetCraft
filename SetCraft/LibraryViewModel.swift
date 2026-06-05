@@ -267,7 +267,8 @@ final class LibraryViewModel {
         isScanning = true
 
         scanTask = Task { [folder, repository] in
-            for await track in repository.scan(folder: folder) {
+            let (stream, _) = repository.scan(folder: folder)
+            for await track in stream {
                 if Task.isCancelled { break }
                 tracks.append(track)
                 // Welle direkt im Hintergrund rechnen lassen, sobald der Track

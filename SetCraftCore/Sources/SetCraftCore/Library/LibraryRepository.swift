@@ -40,21 +40,23 @@ public actor LibraryRepository: TrackStore {
 
     /// Streamt alle Audio-Dateien im Ordner. Für jede URL wird der Cache
     /// konsultiert; das spart bei einem reinen App-Restart praktisch die
-    /// gesamte TagLib-Leselast.
-    public nonisolated func scan(folder: URL) -> AsyncStream<Track> {
-        AsyncStream { continuation in
+    /// gesamte TagLib-Leselast. Liefert zusätzlich ein `ScanReport` zurück,
+    /// damit die UI bei leerem Ergebnis diagnostisch antworten kann
+    /// (typisch: iCloud-Ordner mit noch-nicht-runtergeladenen Dateien).
+    public nonisolated func scan(folder: URL) -> (stream: AsyncStream<Track>, report: ScanReport) {
+        let (urls, report) = FolderScanner.collect(in: folder)
+        let stream = AsyncStream<Track> { continuation in
             let task = Task.detached(priority: .utility) { [self] in
-                let urls = FolderScanner.collectAudioFiles(in: folder)
                 for url in urls {
                     if Task.isCancelled { break }
-                    if let track = await self.loadTrack(url: url) {
-                        continuation.yield(track)
-                    }
+                    let track = await self.loadTrack(url: url) ?? Track(url: url)
+                    continuation.yield(track)
                 }
                 continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+        return (stream, report)
     }
 
     // MARK: - TrackStore

@@ -129,10 +129,12 @@ private struct LibraryScreen: View {
     @ViewBuilder
     private func trackList(for folder: FolderRecord) -> some View {
         if libraryStore.tracks.isEmpty && !libraryStore.isScanning {
+            let base = "Der Ordner „\(folder.name)\" enthält keine erkannten Audio-Dateien."
+            let detail = libraryStore.lastError.map { "\n\n\($0)" } ?? ""
             ContentUnavailableView(
                 "Keine Tracks",
                 systemImage: "music.note",
-                description: Text("Der Ordner „\(folder.name)\" enthält keine erkannten Audio-Dateien.")
+                description: Text(base + detail)
             )
         } else {
             List {

@@ -284,13 +284,19 @@ final class LibraryStore {
     private func scan(folder: URL) {
         scanTask?.cancel()
         isScanning = true
-        let stream = repository.scan(folder: folder)
+        let (stream, report) = repository.scan(folder: folder)
         scanTask = Task { [weak self] in
             for await track in stream {
                 if Task.isCancelled { break }
                 self?.tracks.append(track)
             }
             self?.isScanning = false
+            // Wenn der Scan nichts gefunden hat, Diagnostik in lastError —
+            // sonst rätselt der Nutzer, ob's am Picker, an iCloud, am
+            // Filter oder am Pfad liegt.
+            if self?.tracks.isEmpty == true {
+                self?.lastError = "Scan-Diagnostik · \(report.summary)"
+            }
         }
     }
 }

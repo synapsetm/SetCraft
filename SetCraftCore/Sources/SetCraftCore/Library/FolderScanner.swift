@@ -1,5 +1,26 @@
 import Foundation
 
+/// Diagnostik einer Scan-Runde — nützlich, wenn die Track-Liste leer
+/// bleibt und nicht klar ist, ob der Enumerator nichts gefunden oder
+/// der Filter alles rausgeworfen hat (typisch für iCloud).
+public struct ScanReport: Sendable {
+    public let enumeratedCount: Int
+    public let audioCount: Int
+    public let placeholderCount: Int
+    public let firstFew: [String]
+
+    public var summary: String {
+        var parts = ["Enumeriert: \(enumeratedCount)", "Audio: \(audioCount)"]
+        if placeholderCount > 0 {
+            parts.append("iCloud-Platzhalter: \(placeholderCount)")
+        }
+        if !firstFew.isEmpty {
+            parts.append("Items: " + firstFew.joined(separator: ", "))
+        }
+        return parts.joined(separator: " · ")
+    }
+}
+
 /// Rekursiver Ordner-Scan auf Audiodateien. Liest pro Datei die Tags
 /// (TagReader) auf einem Hintergrund-Task und liefert die `Track`-Werte als
 /// `AsyncStream`, damit die UI Reihen sofort beim Eintreffen anzeigen kann.
@@ -15,7 +36,7 @@ public enum FolderScanner {
     public static func scan(folder: URL) -> AsyncStream<Track> {
         AsyncStream { continuation in
             let task = Task.detached(priority: .utility) {
-                let urls = collectAudioFiles(in: folder)
+                let (urls, _) = collect(in: folder)
                 for url in urls {
                     if Task.isCancelled { break }
                     continuation.yield(trackForURL(url))
@@ -26,43 +47,66 @@ public enum FolderScanner {
         }
     }
 
-    /// Synchrones Sammeln aller Audio-URLs unter `folder`. macOS-Pakete
-    /// (z. B. Logic-Sessions) werden übersprungen. iCloud-Platzhalter
-    /// (`.<name>.icloud`) werden erkannt, in die echte URL aufgelöst und
-    /// der Download wird angestoßen — sonst sähe die App den Ordner leer,
-    /// wenn die Files noch nicht aufs Gerät geladen sind.
+    /// Backward-Kompatibilität: Liefert nur die URLs, wirft die Report-Daten
+    /// weg. Neuere Aufrufer sollten `collect(in:)` nutzen.
     public static func collectAudioFiles(in folder: URL) -> [URL] {
-        let fm = FileManager.default
-        // KEIN `.skipsHiddenFiles` — sonst übersehen wir iCloud-Platzhalter
-        // (sie sind als hidden markiert). Wir filtern non-Audio unten raus.
-        guard let enumerator = fm.enumerator(
-            at: folder,
-            includingPropertiesForKeys: [.isRegularFileKey, .isUbiquitousItemKey],
-            options: [.skipsPackageDescendants]
-        ) else {
-            return []
+        collect(in: folder).urls
+    }
+
+    /// Synchrones Sammeln aller Audio-URLs unter `folder` PLUS Diagnostik.
+    /// macOS-Pakete werden übersprungen, iCloud-Platzhalter (`.<name>.icloud`)
+    /// erkannt, in die echte URL aufgelöst und Download angestoßen.
+    ///
+    /// Verzeichnis wird via `NSFileCoordinator` gelesen, damit iCloud auf
+    /// iOS die Listing-Materialisierung erzwingt — sonst gibt der Enumerator
+    /// auf einem frisch ausgewählten iCloud-Drive-Ordner gar nichts zurück.
+    public static func collect(in folder: URL) -> (urls: [URL], report: ScanReport) {
+        var enumerated: [URL] = []
+        let coordinator = NSFileCoordinator()
+        var coordinatorError: NSError?
+        coordinator.coordinate(readingItemAt: folder, options: [], error: &coordinatorError) { coordinatedURL in
+            let fm = FileManager.default
+            // KEIN `.skipsHiddenFiles` — sonst übersehen wir iCloud-Platzhalter
+            // (sie sind als hidden markiert). Wir filtern non-Audio unten raus.
+            guard let enumerator = fm.enumerator(
+                at: coordinatedURL,
+                includingPropertiesForKeys: [.isRegularFileKey, .isUbiquitousItemKey],
+                options: [.skipsPackageDescendants]
+            ) else { return }
+
+            for case let url as URL in enumerator {
+                enumerated.append(url)
+            }
         }
 
-        var result: [URL] = []
-        for case let url as URL in enumerator {
+        let fm = FileManager.default
+        var audio: [URL] = []
+        var placeholderCount = 0
+        for url in enumerated {
             let resolved = resolveICloudPlaceholder(url)
             let ext = resolved.pathExtension.lowercased()
             guard audioExtensions.contains(ext) else { continue }
             if url == resolved {
-                // Echte Datei — regularFile-Check, sonst raus (Ordner, Symlink).
                 guard
                     let values = try? url.resourceValues(forKeys: [.isRegularFileKey]),
                     values.isRegularFile == true
                 else { continue }
             } else {
-                // Platzhalter → Download triggern, die echte URL nehmen wir
-                // ohne weitere Resource-Checks (Datei existiert noch nicht).
+                placeholderCount += 1
                 try? fm.startDownloadingUbiquitousItem(at: resolved)
             }
-            result.append(resolved)
+            audio.append(resolved)
         }
-        result.sort { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
-        return result
+        audio.sort { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+
+        let firstFew = enumerated.prefix(5).map { $0.lastPathComponent }
+        let report = ScanReport(
+            enumeratedCount: enumerated.count,
+            audioCount: audio.count,
+            placeholderCount: placeholderCount,
+            firstFew: Array(firstFew)
+        )
+        return (audio, report)
     }
 
     /// iCloud-Platzhalter heißen `.<originalname>.icloud` und sind hidden.
