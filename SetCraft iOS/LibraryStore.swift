@@ -175,6 +175,17 @@ final class LibraryStore {
         }
     }
 
+    /// Re-scannt die aktuell ausgewählte Quelle und wartet, bis der Stream
+    /// durch ist. Wird vom Pull-to-Refresh in der Library-Liste aufgerufen,
+    /// damit extern hinzugefügte/entfernte Dateien sichtbar werden.
+    func refresh() async {
+        guard let id = selectedFolderID else { return }
+        await selectFolder(id: id)
+        // selectFolder() startet einen neuen scanTask — auf dessen Ende
+        // warten, damit der Pull-to-Refresh-Spinner nicht zu früh ausgeht.
+        await scanTask?.value
+    }
+
     /// Wechselt die aktive Quelle. Resolved das Bookmark, öffnet den Security-
     /// Scope, startet den Scan. Stale-Bookmarks werden refresht; unbrauchbare
     /// Einträge stillschweigend gelöscht (Ordner verschoben oder NAS getrennt).
@@ -235,20 +246,39 @@ final class LibraryStore {
 
     /// Persistiert einen geänderten Track (Rating / BPM / Key Edits aus dem
     /// Player oder Library-Swipe) in der Liste und schreibt ihn über das
-    /// Repository zurück in Datei + DB-Cache. Bypasst den Active-Track-Guard
-    /// (`force: true`), weil sonst Edits am gerade gespielten Track in einer
-    /// Queue hängen blieben und beim App-Kill verloren gingen — der Bypass
-    /// ist sicher, da `replaceItemAt` atomar inode-swappt und die offene
-    /// AVAudioFile-fd weiter aufs alte inode zeigt.
+    /// Repository zurück in Datei + DB-Cache. Wird `.fileInUse` zurückgemeldet
+    /// (Datei ist gerade im Player aktiv), wird der Save in `pendingSaves`
+    /// geparkt — `setActiveTrack` drained ihn beim nächsten Player-Wechsel,
+    /// `flushPendingSaves` beim App-Backgrounding (siehe scenePhase-Hook).
     func updateTrack(_ track: Track) async {
         if let idx = tracks.firstIndex(where: { $0.id == track.id }) {
             tracks[idx] = track
         }
         do {
-            try await repository.save(track, force: true)
+            try await repository.save(track)
             pendingSaves.removeValue(forKey: track.id)
+        } catch let storeError as TagLibTrackStore.StoreError {
+            if case .fileInUse = storeError {
+                pendingSaves[track.id] = track
+            } else {
+                lastError = String(localized: "Save failed: \(storeError.localizedDescription)")
+            }
         } catch {
             lastError = String(localized: "Save failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Schreibt alle bisher als `.fileInUse` abgelehnten Saves jetzt mit
+    /// `force: true` raus — Notbremse für App-Backgrounding, damit der User
+    /// keine Edits verliert, wenn iOS die App suspendiert oder beendet,
+    /// bevor der Player auf einen anderen Track wechselt. `replaceItemAt`
+    /// ist atomar; die noch offene `AVAudioFile`-fd zeigt anschließend
+    /// aufs alte inode und spielt weiter ohne Glitch.
+    func flushPendingSaves() async {
+        let saves = Array(pendingSaves.values)
+        pendingSaves.removeAll()
+        for track in saves {
+            try? await repository.save(track, force: true)
         }
     }
 

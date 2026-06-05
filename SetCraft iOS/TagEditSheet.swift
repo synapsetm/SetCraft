@@ -44,9 +44,28 @@ struct TagEditSheet: View {
         _comment = State(initialValue: track.comment)
     }
 
+    /// WAV speichert ID3 nur in einem RIFF-Chunk, den Serato und Rekordbox
+    /// nicht zuverlässig lesen — TagLib schreibt zwar erfolgreich, das
+    /// Ergebnis ist in den DJ-Apps aber häufig unsichtbar. User vorwarnen.
+    private var isWAVFile: Bool {
+        track.url.pathExtension.lowercased() == "wav"
+    }
+
     var body: some View {
         NavigationStack {
             Form {
+                if isWAVFile {
+                    Section {
+                        Label {
+                            Text("WAV-Tags werden von Serato und Rekordbox unzuverlässig gelesen — Änderungen können in DJ-Apps unsichtbar bleiben.")
+                                .font(.footnote)
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                }
+
                 Section("Track") {
                     TextField("Title", text: $title)
                     TextField("Artist", text: $artist)

@@ -194,6 +194,9 @@ private struct LibraryScreen: View {
                 }
             }
             .listStyle(.plain)
+            .refreshable {
+                await libraryStore.refresh()
+            }
         }
     }
 
