@@ -72,11 +72,14 @@ struct TrackRowView: View {
                 ProgressView()
                     .controlSize(.mini)
                     .frame(width: 14, height: 14)
+                ProgressView()
+                    .controlSize(.mini)
+                    .frame(width: 14, height: 14)
             } else {
                 Text(formattedBPM)
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
+                KeyBadgeView(key: track.key)
             }
-            KeyBadgeView(key: track.key)
         }
     }
 

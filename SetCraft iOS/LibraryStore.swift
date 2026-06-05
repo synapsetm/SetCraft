@@ -300,9 +300,27 @@ final class LibraryStore {
             if let idx = tracks.firstIndex(where: { $0.id == trackID }) {
                 tracks[idx] = updated
             }
-            try await repository.save(updated)
+            try await persistAnalyzed(updated)
         } catch {
             lastError = String(localized: "Analysis failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Schreibt die analysierten BPM/Key-Werte in Datei + DB. Wenn die Datei
+    /// gerade im Player aktiv ist, lehnt `TagLibTrackStore` mit `.fileInUse`
+    /// ab — das ist kein Fehler, sondern Schutz vor parallelen Writes auf
+    /// die offene `AVAudioFile`. Wir parken den Save dann in `pendingSaves`,
+    /// `setActiveTrack` holt ihn beim nächsten Player-Wechsel nach.
+    private func persistAnalyzed(_ track: Track) async throws {
+        do {
+            try await repository.save(track)
+            pendingSaves.removeValue(forKey: track.id)
+        } catch let storeError as TagLibTrackStore.StoreError {
+            if case .fileInUse = storeError {
+                pendingSaves[track.id] = track
+            } else {
+                throw storeError
+            }
         }
     }
 
