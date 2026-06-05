@@ -96,12 +96,12 @@ private struct LibraryScreen: View {
             switch result {
             case .success(let urls):
                 guard let url = urls.first else {
-                    libraryStore.lastError = "Picker: keine URL zurückgegeben."
+                    libraryStore.lastError = String(localized: "Picker: no URL returned.")
                     return
                 }
                 Task { await libraryStore.addFolder(url: url) }
             case .failure(let error):
-                libraryStore.lastError = "Picker fehlgeschlagen: \(error.localizedDescription)"
+                libraryStore.lastError = String(localized: "Picker failed: \(error.localizedDescription)")
             }
         }
         .sheet(item: $activeSheet) { sheet in
@@ -124,10 +124,10 @@ private struct LibraryScreen: View {
         if let folder = libraryStore.selectedFolder {
             trackList(for: folder)
         } else {
-            let baseDesc = "Tippe oben rechts auf das Menü, dann „Open folder…\". NAS/SMB-Shares aus der Files-App werden transparent unterstützt."
+            let baseDesc = String(localized: "Tap the menu button in the top right, then “Open folder…”. NAS/SMB shares mounted via the Files app are transparently supported.")
             let errorTail = libraryStore.lastError.map { "\n\n⚠️ \($0)" } ?? ""
             ContentUnavailableView {
-                Label("Keine Quelle aktiv", systemImage: "folder.badge.plus")
+                Label("No source selected", systemImage: "folder.badge.plus")
             } description: {
                 Text(baseDesc + errorTail)
             } actions: {
@@ -139,10 +139,10 @@ private struct LibraryScreen: View {
     @ViewBuilder
     private func trackList(for folder: FolderRecord) -> some View {
         if libraryStore.tracks.isEmpty && !libraryStore.isScanning {
-            let base = "Der Ordner „\(folder.name)\" enthält keine erkannten Audio-Dateien."
+            let base = String(localized: "The folder “\(folder.name)” contains no recognized audio files.")
             let detail = libraryStore.lastError.map { "\n\n\($0)" } ?? ""
             ContentUnavailableView(
-                "Keine Tracks",
+                "No tracks",
                 systemImage: "music.note",
                 description: Text(base + detail)
             )
@@ -207,10 +207,13 @@ private struct LibraryScreen: View {
                         Button {
                             libraryStore.sortField = field
                         } label: {
+                            // rawValue ist ein String — über LocalizedStringKey
+                            // den Catalog-Lookup erzwingen, damit „Title" usw.
+                            // im DE-Build als „Titel" erscheinen.
                             if libraryStore.sortField == field {
-                                Label(field.rawValue, systemImage: "checkmark")
+                                Label(LocalizedStringKey(field.rawValue), systemImage: "checkmark")
                             } else {
-                                Text(field.rawValue)
+                                Text(LocalizedStringKey(field.rawValue))
                             }
                         }
                     }

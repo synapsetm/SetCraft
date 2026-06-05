@@ -76,7 +76,7 @@ final class PlayerStore {
         // Datei lokal ist.
         if !isLocallyAvailable(track.url) {
             try? FileManager.default.startDownloadingUbiquitousItem(at: track.url)
-            lastError = "Track wird aus iCloud geladen — gleich noch mal versuchen."
+            lastError = String(localized: "Track is loading from iCloud — try again in a moment.")
             return
         }
         do {
@@ -93,7 +93,7 @@ final class PlayerStore {
             // zum nächsten Track-Wechsel).
             Task { await library.setActiveTrack(track.url) }
         } catch {
-            lastError = "Konnte Track nicht laden: \(error.localizedDescription)"
+            lastError = String(localized: "Failed to load track: \(error.localizedDescription)")
         }
     }
 

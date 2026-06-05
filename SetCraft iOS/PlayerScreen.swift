@@ -155,7 +155,7 @@ struct PlayerScreen: View {
     }
 
     private var displayTitle: String {
-        store.currentTrack?.displayTitle ?? "Kein Track geladen"
+        store.currentTrack?.displayTitle ?? String(localized: "No track loaded")
     }
 
     private var displayArtist: String {

@@ -84,6 +84,10 @@ final class LibraryStore {
     private let analyzer = AnalysisCoordinator()
     private var scanTask: Task<Void, Never>?
     private var accessingScopedURL: URL?
+    /// Markiert, ob `lastError` aktuell die Scan-Diagnostik trägt — sonst
+    /// können wir nicht über die lokalisierten Varianten hinweg sauber
+    /// unterscheiden, welche Message vom Scan gesetzt wurde.
+    private var scanDiagnosticActive = false
 
     /// Saves, die TagLibTrackStore mit `.fileInUse` abgelehnt hat — die Datei
     /// ist gerade im Player aktiv. Werden in `setActiveTrack` automatisch
@@ -140,7 +144,7 @@ final class LibraryStore {
             folders.append(record)
             await selectFolder(id: record.id)
         } catch {
-            lastError = "addFolder fehlgeschlagen (scope=\(didAccess)): \(error.localizedDescription)"
+            lastError = String(localized: "addFolder failed (scope=\(String(describing: didAccess))): \(error.localizedDescription)")
         }
     }
 
@@ -168,7 +172,7 @@ final class LibraryStore {
                 bookmarkDataIsStale: &isStale
             )
             guard url.startAccessingSecurityScopedResource() else {
-                lastError = "Quelle kann nicht geöffnet werden."
+                lastError = String(localized: "Source cannot be opened.")
                 return
             }
 
@@ -218,10 +222,10 @@ final class LibraryStore {
             if case .fileInUse = storeError {
                 pendingSaves[track.id] = track
             } else {
-                lastError = "Speichern fehlgeschlagen: \(storeError.localizedDescription)"
+                lastError = String(localized: "Save failed: \(storeError.localizedDescription)")
             }
         } catch {
-            lastError = "Speichern fehlgeschlagen: \(error.localizedDescription)"
+            lastError = String(localized: "Save failed: \(error.localizedDescription)")
         }
     }
 
@@ -283,13 +287,14 @@ final class LibraryStore {
             }
             try await repository.save(updated)
         } catch {
-            lastError = "Analyse fehlgeschlagen: \(error.localizedDescription)"
+            lastError = String(localized: "Analysis failed: \(error.localizedDescription)")
         }
     }
 
     private func scan(folder: URL) {
         scanTask?.cancel()
         isScanning = true
+        scanDiagnosticActive = false
         let (stream, report) = repository.scan(folder: folder)
         scanTask = Task { [weak self] in
             for await track in stream {
@@ -298,8 +303,9 @@ final class LibraryStore {
                 // vorherigen leeren Scan-Runde stehengebliebene Diagnostik
                 // wegräumen — sonst klebt der rote Hinweis über einer
                 // funktionierenden Liste.
-                if self?.lastError?.hasPrefix("Scan-Diagnostik") == true {
+                if self?.scanDiagnosticActive == true {
                     self?.lastError = nil
+                    self?.scanDiagnosticActive = false
                 }
                 self?.tracks.append(track)
             }
@@ -308,7 +314,8 @@ final class LibraryStore {
             // sonst rätselt der Nutzer, ob's am Picker, an iCloud, am
             // Filter oder am Pfad liegt.
             if self?.tracks.isEmpty == true {
-                self?.lastError = "Scan-Diagnostik · \(report.summary)"
+                self?.lastError = String(localized: "Scan diagnostics · \(report.summary)")
+                self?.scanDiagnosticActive = true
             }
         }
     }
