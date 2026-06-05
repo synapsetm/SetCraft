@@ -15,6 +15,7 @@ import SetCraftCore
 struct BPMChipView: View {
     let bpm: Double?
     let isAnalyzing: Bool
+    let isEnabled: Bool
     let onTap: () -> Void
 
     var body: some View {
@@ -39,8 +40,9 @@ struct BPMChipView: View {
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 9)
+        .opacity(isEnabled ? 1 : 0.4)
         .contentShape(Rectangle())
-        .onTapGesture(perform: onTap)
+        .onTapGesture { if isEnabled { onTap() } }
     }
 
     private var formattedBPM: String {

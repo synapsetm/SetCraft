@@ -247,7 +247,7 @@ private struct LibraryScreen: View {
 
                 if !libraryStore.tracks.isEmpty {
                     Button {
-                        libraryStore.analyzeAllMissing()
+                        libraryStore.analyzeAll()
                     } label: {
                         Label("Analyze all", systemImage: "wand.and.stars")
                     }

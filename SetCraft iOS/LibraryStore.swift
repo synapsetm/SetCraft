@@ -103,12 +103,13 @@ final class LibraryStore {
         analyzing.contains(trackID)
     }
 
-    /// Stösst die aubio/KeyFinder-Analyse für alle Tracks an, denen BPM
-    /// oder Key fehlt. Tracks mit beidem werden übersprungen — die teure
-    /// Pipeline läuft nur dort, wo wirklich noch was zu rechnen ist.
-    /// Pendant zu `LibraryViewModel.analyzeAllMissing()` auf dem Mac.
-    func analyzeAllMissing() {
-        for track in tracks where track.bpm == nil || track.key == nil {
+    /// Stösst eine **vollständige** Re-Analyse (BPM + Key) für jeden
+    /// geladenen Track an. Bewusst kein Skip-Wenn-Vorhanden-Guard: User
+    /// hat sich aktiv für „alle analysieren" entschieden, und ohne echte
+    /// Arbeit blitzen die Spinner nur für Mikrosekunden auf — wirkt
+    /// wie ein Bug.
+    func analyzeAll() {
+        for track in tracks {
             let id = track.id
             Task { await analyze(trackID: id) }
         }
@@ -279,10 +280,13 @@ final class LibraryStore {
         defer { analyzing.remove(trackID) }
 
         do {
+            // User-getriggert (Swipe oder Menü) → IMMER vollständig analysieren,
+            // auch wenn BPM/Key schon gesetzt sind. Re-Analyze ist genau dann
+            // nützlich, wenn man den existierenden Werten misstraut.
             let result = try await analyzer.analyze(
                 url: track.url,
-                needsBPM: track.bpm == nil,
-                needsKey: track.key == nil,
+                needsBPM: true,
+                needsKey: true,
                 bpmRange: bpmPreset
             )
             guard result.bpm != nil || result.key != nil else { return }

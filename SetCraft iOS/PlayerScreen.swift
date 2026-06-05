@@ -85,7 +85,11 @@ struct PlayerScreen: View {
         VStack(spacing: 16) {
             transport
             HStack(spacing: 10) {
-                BPMChipView(bpm: store.effectiveBPM, isAnalyzing: store.isAnalyzingCurrentTrack) {
+                BPMChipView(
+                    bpm: store.effectiveBPM,
+                    isAnalyzing: store.isAnalyzingCurrentTrack,
+                    isEnabled: hasTrack
+                ) {
                     showTempoSheet = true
                 }
                 KeyChipView(key: store.currentTrack?.key, isAnalyzing: store.isAnalyzingCurrentTrack)
