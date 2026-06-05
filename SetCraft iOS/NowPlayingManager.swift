@@ -29,18 +29,32 @@ final class NowPlayingManager {
     /// seek, applyEdit) aufgerufen. Position + Rate werden gesetzt, der
     /// System-Extrapolator zeichnet den Scrubber dazwischen selbst.
     func update() {
-        var info: [String: Any] = [:]
+        let center = MPNowPlayingInfoCenter.default()
 
-        if let track = player.currentTrack {
-            info[MPMediaItemPropertyTitle] = track.displayTitle
-            if !track.artist.isEmpty { info[MPMediaItemPropertyArtist] = track.artist }
-            if !track.album.isEmpty { info[MPMediaItemPropertyAlbumTitle] = track.album }
-            info[MPMediaItemPropertyPlaybackDuration] = player.duration
-            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player.position
-            info[MPNowPlayingInfoPropertyPlaybackRate] = player.isPlaying ? player.currentRate : 0.0
+        guard let track = player.currentTrack else {
+            // Kein Track geladen → Now-Playing-Eintrag entfernen, sonst
+            // bleibt der vorherige Track samt Play/Pause-Button auf dem
+            // Lock-Screen sichtbar.
+            center.nowPlayingInfo = nil
+            center.playbackState = .stopped
+            return
         }
 
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        var info: [String: Any] = [:]
+        info[MPMediaItemPropertyTitle] = track.displayTitle
+        if !track.artist.isEmpty { info[MPMediaItemPropertyArtist] = track.artist }
+        if !track.album.isEmpty { info[MPMediaItemPropertyAlbumTitle] = track.album }
+        info[MPMediaItemPropertyPlaybackDuration] = player.duration
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player.position
+        info[MPNowPlayingInfoPropertyPlaybackRate] = player.isPlaying ? player.currentRate : 0.0
+        info[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
+
+        center.nowPlayingInfo = info
+        // `playbackState` ist die maßgebliche Quelle für den Play/Pause-Button
+        // auf Lock-Screen und Control-Center. Ohne explizites Setzen kann iOS
+        // den Button auf dem alten Wert „kleben" lassen, obwohl
+        // `playbackRate` im Info-Dict bereits auf 0 steht.
+        center.playbackState = player.isPlaying ? .playing : .paused
 
         // Artwork nur bei Track-Wechsel neu laden — vermeidet redundante
         // ArtworkReader-Aufrufe bei jedem Play/Pause/Seek.

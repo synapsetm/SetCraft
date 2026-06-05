@@ -35,6 +35,7 @@ final class LibraryStore {
         case artist = "Artist"
         case bpm    = "BPM"
         case key    = "Key"
+        case rating = "Rating"
         var id: String { rawValue }
     }
 
@@ -68,6 +69,11 @@ final class LibraryStore {
                 let av = Self.keyOrder(a.key)
                 let bv = Self.keyOrder(b.key)
                 if av != bv { return av < bv }
+                return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
+            case .rating:
+                // Absteigend: 5★ zuerst, ungerated (0★) zuletzt — DJ-Workflow
+                // (Top-Tracks oben). Bei Gleichstand sekundär nach Titel.
+                if a.rating.stars != b.rating.stars { return a.rating.stars > b.rating.stars }
                 return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
             }
         }

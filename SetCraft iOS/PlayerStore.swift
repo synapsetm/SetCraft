@@ -56,8 +56,14 @@ final class PlayerStore {
 
         // Auto-Advance: läuft ein Track natürlich aus, automatisch
         // den nächsten in der Liste laden. `next()` ist ein No-op,
-        // wenn der aktuelle Track das letzte Element ist.
-        engine.onPlaybackEnded = { [weak self] in self?.next() }
+        // wenn der aktuelle Track das letzte Element ist — in dem Fall
+        // muss das NowPlaying-Info aktualisiert werden, sonst bleibt der
+        // Lock-Screen-Status (playbackRate=1.0) hängen und zeigt weiter
+        // den Pause-Button, obwohl die Engine bereits gestoppt hat.
+        engine.onPlaybackEnded = { [weak self] in
+            self?.next()
+            self?.nowPlaying?.update()
+        }
     }
 
     var isPlaying: Bool { engine.isPlaying }
