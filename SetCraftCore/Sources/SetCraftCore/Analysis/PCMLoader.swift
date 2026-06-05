@@ -54,6 +54,9 @@ public enum PCMLoader {
         var monoTemp = [Float](repeating: 0, count: Int(frameCapacity))
         let invChannels = 1.0 / Float(channelCount)
 
+        // Apple-Doku: `read(into:)` darf mitten im Stream auch weniger als
+        // `frameCapacity` Frames liefern, ohne dass der Stream zu Ende ist —
+        // einzig sicheres Abbruch-Signal ist `frameLength == 0`.
         while true {
             try file.read(into: buffer)
             let framesRead = Int(buffer.frameLength)
@@ -105,8 +108,6 @@ public enum PCMLoader {
                     }
                 }
             }
-
-            if framesRead < Int(frameCapacity) { break }
         }
 
         guard !monoData.isEmpty else {
