@@ -70,6 +70,15 @@ final class PlayerStore {
     /// Lädt einen Track, aktiviert die AVAudioSession (falls noch nicht),
     /// und startet die Wiedergabe direkt — analog zum Autoplay des Macs.
     func load(_ track: Track) {
+        // iCloud-Datei, die noch nicht runtergeladen ist: AVAudioFile würde
+        // mit kryptischem Fehler abbrechen. Download anstoßen, klaren
+        // Hinweis zeigen — Nutzer triggert das Laden noch mal, sobald die
+        // Datei lokal ist.
+        if !isLocallyAvailable(track.url) {
+            try? FileManager.default.startDownloadingUbiquitousItem(at: track.url)
+            lastError = "Track wird aus iCloud geladen — gleich noch mal versuchen."
+            return
+        }
         do {
             try session.activate()
             try engine.load(url: track.url)
@@ -86,6 +95,15 @@ final class PlayerStore {
         } catch {
             lastError = "Konnte Track nicht laden: \(error.localizedDescription)"
         }
+    }
+
+    private func isLocallyAvailable(_ url: URL) -> Bool {
+        let values = try? url.resourceValues(forKeys: [
+            .isUbiquitousItemKey,
+            .ubiquitousItemDownloadingStatusKey
+        ])
+        guard let values, values.isUbiquitousItem == true else { return true }
+        return values.ubiquitousItemDownloadingStatus == .current
     }
 
     /// Primärer Play-Pfad. Wird auch aus Lock-Screen / AirPods-Commands +
