@@ -35,6 +35,15 @@ readonly EXPORT_OPTIONS_PLIST="$PROJECT_ROOT/scripts/ExportOptions-iOS.plist"
 
 # ---------- Auth ------------------------------------------------------------
 
+# Bequeme Voreinstellung: liest Key-ID + Issuer-ID aus einer Datei
+# ausserhalb des Repos. Manuell überschreiben ist weiterhin via ENV
+# möglich (set -u greift erst nach diesem Block).
+readonly ASC_ENV_FILE="$HOME/.appstoreconnect/setcraft.env"
+if [ -f "$ASC_ENV_FILE" ]; then
+    # shellcheck disable=SC1090
+    source "$ASC_ENV_FILE"
+fi
+
 : "${ASC_API_KEY_ID:?ENV ASC_API_KEY_ID fehlt — z. B. ASC_API_KEY_ID=ABC123...}"
 : "${ASC_API_ISSUER_ID:?ENV ASC_API_ISSUER_ID fehlt — UUID aus App Store Connect}"
 
