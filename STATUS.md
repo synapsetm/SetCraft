@@ -5,6 +5,122 @@ und `SPEC.md` (vollständige Spezifikation und Phasenplan).
 
 ---
 
+## Sitzung 2026-06-05 (Abend) — iOS-Politur, Konzept-Restschuld abgearbeitet, Release v1.0-6
+
+Drei kleine iOS-Bugs, drei „Pflicht-Bug-Fixes" aus der Konzept-Restschuld
+und ein Mac- + iOS-Release. Build-Nummern: Mac 5→6, iOS 7→8→9.
+
+### Lock-Screen zeigte falschen Play/Pause-State (`28ea587`)
+
+`NowPlayingManager.update()` setzte nur `MPNowPlayingInfoPropertyPlaybackRate`
+im Info-Dict — und iOS klebte den Lock-Screen-Button gelegentlich am
+alten Zustand fest, obwohl Rate bereits auf 0 stand. Fix: explizit
+`MPNowPlayingInfoCenter.default().playbackState` auf `.playing` /
+`.paused` / `.stopped` setzen — das ist die maßgebliche Quelle für den
+Lock-Screen-Button. Zusätzlich `MPNowPlayingInfoPropertyDefaultPlaybackRate
+= 1.0` ergänzt (Tempo-Abweichungen sauber gegen Normalrate
+referenzierbar). Beim Track-Ende der Playlist (`next()` ist No-op auf
+dem letzten Track) ruft `engine.onPlaybackEnded` jetzt zusätzlich
+`nowPlaying.update()`, damit der Stop-Zustand sicher aufs Lock-Screen
+geht statt mit `playbackRate=1.0` hängenzubleiben.
+
+### Sterne als Sortier-Kriterium (`28ea587`)
+
+`LibraryStore.SortField` bekommt `.rating`. Sortierung absteigend (5★
+zuerst, ungerated zuletzt), Tiebreak nach Titel — DJ-Workflow-Optimum
+(Top-Tracks oben). „Rating" war im Strings-Catalog schon vorhanden,
+`ContentView`-Picker rendert den Eintrag automatisch via
+`SortField.allCases`.
+
+### Pull-to-Refresh in der Library (`2d0028f`)
+
+`LibraryStore.refresh()` ruft `selectFolder(id: selectedFolderID)` erneut
+und awaitet auf den frischen `scanTask` — damit bleibt der iOS-Spinner,
+bis der Stream durch ist. `.refreshable` an die `List` in der Library-
+Screen verdrahtet. Schließt den offenen Punkt aus der Vorsitzungs-
+Liste (Force-Refresh wenn extern Tracks dazukommen / verschwinden).
+
+### WAV-Tag-Warnung (`2d0028f`)
+
+`TagEditSheet` zeigt bei `.wav`-Dateien einen orangen Warn-Hinweis im
+Form-Header („WAV-Tags werden von Serato und Rekordbox unzuverlässig
+gelesen — Änderungen können in DJ-Apps unsichtbar bleiben"). Schreiben
+geht weiter durch — TagLib legt ID3-RIFF-Chunks an, das funktioniert
+lokal — der User weiß nur, dass DJ-Apps das Ergebnis möglicherweise
+ignorieren. Minimal-Implementierung des SPEC-§8-„WAV-Sonderfall"-
+Punkts, ohne den Write-Pfad zu komplizieren.
+
+### Active-Track-Guard auf iOS jetzt aktiv (`2d0028f`)
+
+`LibraryStore.updateTrack` ging bisher mit `force: true` durch — Edits am
+laufenden Track wurden sofort geschrieben (mit der Begründung, dass
+`replaceItemAt` atomar inode-swappt). Das Mac-Pattern ist
+konservativer: `.fileInUse` parkt den Save in `pendingSaves`, beim
+nächsten Track-Wechsel zieht `setActiveTrack` ihn nach. iOS hat den
+Drain-Mechanismus jetzt auch — bisher wurde er nur für analyze()-
+Ergebnisse genutzt, jetzt auch für User-Edits.
+
+Das macht aber einen iOS-spezifischen Edge-Case auf: iOS kann die App
+suspendieren oder beenden, ohne dass der Player auf einen anderen
+Track wechselt — Edits könnten verloren gehen. Lösung:
+`LibraryStore.flushPendingSaves()` schreibt alle geparkten Saves
+zwangsmäßig (mit `force: true`) raus, und die App-Struct triggert das
+via `.onChange(of: scenePhase)` bei `.background`.
+
+### PCMLoader bricht erst bei `framesRead == 0` ab (`8f94cb7`)
+
+Schließt einen latenten Bug, der seit Phase 3 offen stand:
+`AVAudioFile.read(into:)` darf laut Apple-Doku auch mitten im Stream
+weniger als `frameCapacity` Frames liefern. Die alte Abbruch-Bedingung
+`framesRead < frameCapacity` konnte dadurch theoretisch mitten im
+Track abbrechen — in der Praxis bei keinem getesteten Track passiert,
+aber latenter Datenverlust-Pfad in BPM/Key-Analyse und Waveform-DSP.
+Schließt den entsprechenden Punkt aus der Vorsitzungs-Offen-Liste.
+
+### Release v1.0-6 (Mac) + Build 9 (iOS) (`97a6468` + `42b0100`)
+
+Mac-Release ist live auf GitHub
+(`https://github.com/synapsetm/SetCraft/releases/tag/v1.0-6`), Appcast
+in `docs/appcast.xml` aktualisiert, bestehende User bekommen das
+Update beim nächsten Sparkle-Check.
+
+iOS-Build 9 für TestFlight gebaut. Cloud-Signing-Stolperstein aus
+[[reference-ios-testflight]] kam **wieder** — `exportArchive` bricht
+mit „Cloud signing permission error / No signing certificate iOS
+Distribution found" ab. Auch nach einem erfolgreichen Build (7)
+funktioniert es bei späteren Builds nicht automatisch — Distribution-
+Cert scheint nicht zuverlässig in der Keychain zu landen. Workaround
+weiter: Archive in Xcode Organizer öffnen, manuell „Distribute App →
+Upload" klicken. **Memory-Update nötig** — der „danach sollte
+automatisch durchlaufen"-Optimismus stimmt nicht.
+
+### Manuell zu prüfen (am Gerät)
+
+- Track laden → Pause in App → Lock-Screen aktivieren → Button muss
+  Play (▶) zeigen.
+- Library nach unten ziehen → Spinner, Re-Scan startet.
+- WAV-Track via Library-Swipe → Edit → Warnhinweis sichtbar.
+- Sterne setzen während Track läuft → App backgrounden → Stern
+  persistiert über App-Resume hinweg.
+- Track bis ans Ende der Playlist laufen lassen → Lock-Screen-Button
+  springt auf Play (▶) statt im Pause-State zu kleben.
+
+### Offen
+
+- **iCloud-Sync der Library** zwischen Mac und iPhone — unverändert
+  offen.
+- **Cloud-Signing für iOS-TestFlight** verhält sich nicht reproduzierbar.
+  Optionen für die nächste Runde: (1) API-Key-Rolle in ASC auf „Admin"
+  hochstufen, (2) Distribution-Cert manuell in die Keychain
+  installieren und im pbxproj/ExportOptions auf manual signing wechseln.
+- **WAV-Tagging-Sonderfall** ist nur als UI-Warnung implementiert. Wer
+  eine tiefere Lösung will (POPM auf WAV, separate Sidecar-DB für
+  WAV-Ratings), müsste das in einer eigenen Runde tun.
+- **Live-Activities** für iOS, **Crates / Playlists / Suche / History**
+  cross-Plattform — alle unverändert, siehe Priorisierung von heute.
+
+---
+
 ## Sitzung 2026-06-05 — Playhead-Sync, UI-Cleanup, Maus-Side-Buttons
 
 ### Audio↔Playhead jetzt vollständig synchron (Mac)
