@@ -28,11 +28,6 @@ struct PlayerScreen: View {
                 Spacer(minLength: 0)
                 controlsCard
                 Spacer(minLength: 0)
-                BigStarsView(value: store.currentTrack?.rating.stars ?? 0) { newValue in
-                    store.setRating(newValue)
-                }
-                .opacity(hasTrack ? 1 : 0)
-                Spacer(minLength: 0)
                 if let error = store.lastError {
                     Text(error)
                         .font(.footnote)
@@ -66,9 +61,9 @@ struct PlayerScreen: View {
 
     @ViewBuilder
     private var headerCard: some View {
-        HStack(spacing: 14) {
-            ArtworkView(url: store.currentTrack?.url, size: 80, cornerRadius: 10)
-            VStack(alignment: .leading, spacing: 3) {
+        VStack(spacing: 12) {
+            ArtworkView(url: store.currentTrack?.url, size: 160, cornerRadius: 14)
+            VStack(spacing: 3) {
                 Text(displayTitle)
                     .font(.system(size: 17, weight: .medium))
                     .lineLimit(1)
@@ -78,16 +73,10 @@ struct PlayerScreen: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                if let line = metaLine {
-                    Text(line)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.secondary.opacity(0.7))
-                        .lineLimit(1)
-                        .padding(.top, 1)
-                }
             }
-            Spacer(minLength: 0)
+            .multilineTextAlignment(.center)
         }
+        .frame(maxWidth: .infinity)
         .playerCardStyle()
     }
 
@@ -103,6 +92,11 @@ struct PlayerScreen: View {
                 Spacer(minLength: 4)
                 PlayerEditButton { showTagEditSheet = true }
             }
+            BigStarsView(value: store.currentTrack?.rating.stars ?? 0) { newValue in
+                store.setRating(newValue)
+            }
+            .disabled(!hasTrack)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .playerCardStyle()
     }
@@ -167,14 +161,6 @@ struct PlayerScreen: View {
     private var displayArtist: String {
         guard let track = store.currentTrack else { return "—" }
         return track.artist.isEmpty ? "—" : track.artist
-    }
-
-    private var metaLine: String? {
-        guard hasTrack else { return nil }
-        let bpmStr = store.effectiveBPM.map { String(format: "%.1f BPM", $0) }
-        let keyStr = store.currentTrack?.key?.description
-        let parts = [bpmStr, keyStr].compactMap { $0 }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }
 
