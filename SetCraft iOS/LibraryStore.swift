@@ -103,6 +103,17 @@ final class LibraryStore {
         analyzing.contains(trackID)
     }
 
+    /// Stösst die aubio/KeyFinder-Analyse für alle Tracks an, denen BPM
+    /// oder Key fehlt. Tracks mit beidem werden übersprungen — die teure
+    /// Pipeline läuft nur dort, wo wirklich noch was zu rechnen ist.
+    /// Pendant zu `LibraryViewModel.analyzeAllMissing()` auf dem Mac.
+    func analyzeAllMissing() {
+        for track in tracks where track.bpm == nil || track.key == nil {
+            let id = track.id
+            Task { await analyze(trackID: id) }
+        }
+    }
+
     var selectedFolder: FolderRecord? {
         guard let id = selectedFolderID else { return nil }
         return folders.first(where: { $0.id == id })

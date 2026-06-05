@@ -85,12 +85,14 @@ struct PlayerScreen: View {
         VStack(spacing: 16) {
             transport
             HStack(spacing: 10) {
-                BPMChipView(bpm: store.effectiveBPM) {
+                BPMChipView(bpm: store.effectiveBPM, isAnalyzing: store.isAnalyzingCurrentTrack) {
                     showTempoSheet = true
                 }
-                KeyChipView(key: store.currentTrack?.key)
+                KeyChipView(key: store.currentTrack?.key, isAnalyzing: store.isAnalyzingCurrentTrack)
                 Spacer(minLength: 4)
                 PlayerEditButton { showTagEditSheet = true }
+                    .disabled(!hasTrack)
+                    .opacity(hasTrack ? 1 : 0.4)
             }
             BigStarsView(value: store.currentTrack?.rating.stars ?? 0) { newValue in
                 store.setRating(newValue)

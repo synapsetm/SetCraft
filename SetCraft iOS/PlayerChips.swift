@@ -14,6 +14,7 @@ import SetCraftCore
 /// der read-only Key-Chip.
 struct BPMChipView: View {
     let bpm: Double?
+    let isAnalyzing: Bool
     let onTap: () -> Void
 
     var body: some View {
@@ -21,8 +22,14 @@ struct BPMChipView: View {
             Image(systemName: "metronome")
                 .foregroundStyle(.orange)
                 .font(.system(size: 16))
-            Text(formattedBPM)
-                .font(.system(size: 16, weight: .medium, design: .monospaced))
+            if isAnalyzing {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.secondary)
+            } else {
+                Text(formattedBPM)
+                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+            }
             Text("BPM")
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
@@ -77,15 +84,22 @@ struct PlayerEditButton: View {
 /// informationellen Charakter.
 struct KeyChipView: View {
     let key: CamelotKey?
+    let isAnalyzing: Bool
 
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "music.note")
                 .foregroundStyle(.secondary)
                 .font(.system(size: 15))
-            Text(key?.description ?? "—")
-                .font(.system(size: 16, weight: .medium, design: .monospaced))
-                .foregroundStyle(key?.color ?? .secondary)
+            if isAnalyzing {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.secondary)
+            } else {
+                Text(key?.description ?? "—")
+                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+                    .foregroundStyle(key?.color ?? .secondary)
+            }
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 9)

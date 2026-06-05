@@ -245,6 +245,14 @@ private struct LibraryScreen: View {
                     Divider()
                 }
 
+                if !libraryStore.tracks.isEmpty {
+                    Button {
+                        libraryStore.analyzeAllMissing()
+                    } label: {
+                        Label("Analyze all", systemImage: "wand.and.stars")
+                    }
+                }
+
                 Button {
                     showFolderImporter = true
                 } label: {

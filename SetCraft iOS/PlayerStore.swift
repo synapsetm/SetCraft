@@ -30,6 +30,14 @@ final class PlayerStore {
     weak var nowPlaying: NowPlayingManager?
 
     private let library: LibraryStore
+
+    /// `true` solange BPM- bzw. Key-Analyse für den aktuell geladenen Track
+    /// läuft — der Player liest das, um in BPM- und Key-Chip einen Spinner
+    /// statt des „—"-Platzhalters zu zeigen.
+    var isAnalyzingCurrentTrack: Bool {
+        guard let id = currentTrack?.id else { return false }
+        return library.isAnalyzing(trackID: id)
+    }
     private let session: AudioSessionManager
     private let waveformCache: WaveformCache
     private var waveformTask: Task<Void, Never>?

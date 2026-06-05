@@ -44,6 +44,16 @@
         }
       }
     },
+    "Analyze all" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle analysieren"
+          }
+        }
+      }
+    },
     "Artist" : {
       "localizations" : {
         "de" : {
