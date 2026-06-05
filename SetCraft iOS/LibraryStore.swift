@@ -294,6 +294,13 @@ final class LibraryStore {
         scanTask = Task { [weak self] in
             for await track in stream {
                 if Task.isCancelled { break }
+                // Sobald der erste Track ankommt, eine evtl. von einer
+                // vorherigen leeren Scan-Runde stehengebliebene Diagnostik
+                // wegräumen — sonst klebt der rote Hinweis über einer
+                // funktionierenden Liste.
+                if self?.lastError?.hasPrefix("Scan-Diagnostik") == true {
+                    self?.lastError = nil
+                }
                 self?.tracks.append(track)
             }
             self?.isScanning = false
