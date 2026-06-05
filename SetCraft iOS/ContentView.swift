@@ -93,8 +93,16 @@ private struct LibraryScreen: View {
             allowedContentTypes: [.folder],
             allowsMultipleSelection: false
         ) { result in
-            guard case .success(let urls) = result, let url = urls.first else { return }
-            Task { await libraryStore.addFolder(url: url) }
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else {
+                    libraryStore.lastError = "Picker: keine URL zurückgegeben."
+                    return
+                }
+                Task { await libraryStore.addFolder(url: url) }
+            case .failure(let error):
+                libraryStore.lastError = "Picker fehlgeschlagen: \(error.localizedDescription)"
+            }
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
@@ -116,10 +124,12 @@ private struct LibraryScreen: View {
         if let folder = libraryStore.selectedFolder {
             trackList(for: folder)
         } else {
+            let baseDesc = "Tippe oben rechts auf das Menü, dann „Open folder…\". NAS/SMB-Shares aus der Files-App werden transparent unterstützt."
+            let errorTail = libraryStore.lastError.map { "\n\n⚠️ \($0)" } ?? ""
             ContentUnavailableView {
                 Label("Keine Quelle aktiv", systemImage: "folder.badge.plus")
             } description: {
-                Text("Tippe oben rechts auf das Menü, dann „Open folder…\". NAS/SMB-Shares aus der Files-App werden transparent unterstützt.")
+                Text(baseDesc + errorTail)
             } actions: {
                 Button("Open folder…") { showFolderImporter = true }
             }

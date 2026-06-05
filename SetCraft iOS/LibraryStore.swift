@@ -117,6 +117,12 @@ final class LibraryStore {
     /// Aus `.fileImporter` aufgerufen, nachdem der Nutzer einen Ordner gewählt
     /// hat (lokal, iCloud Drive oder ein in der Files-App gemountetes NAS).
     func addFolder(url: URL) async {
+        // Auf iOS müssen wir den Security-Scope **vor** `bookmarkData` öffnen,
+        // sonst wirft die iCloud-Drive-URL `NSURLBookmarkResolutionWithoutUIMask`
+        // mit „Permission denied". DocumentPicker liefert die URL Security-Scoped,
+        // aber inaktiv — wir aktivieren sie kurz, bookmarken, deaktivieren wieder.
+        let didAccess = url.startAccessingSecurityScopedResource()
+        defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
         do {
             // iOS-Bookmarks aus dem DocumentPicker sind bereits Security-Scoped,
             // daher KEIN `.withSecurityScope` (macOS-only Flag).
@@ -134,7 +140,7 @@ final class LibraryStore {
             folders.append(record)
             await selectFolder(id: record.id)
         } catch {
-            lastError = error.localizedDescription
+            lastError = "addFolder fehlgeschlagen (scope=\(didAccess)): \(error.localizedDescription)"
         }
     }
 
