@@ -1,20 +1,20 @@
-# Setify App-Icon
+# SetCraft App-Icon
 
 Frequenzbasierte RGB-Waveform mit zentraler, überragender Playhead auf dunklem Squircle.
 
 ## Dateien
 
-- `setify-icon-1024.svg` — Vektor-Master des vollen Motivs (9 Balken + Playhead, symmetrisch).
-- `setify-icon-small.svg` — reduzierte Variante für kleine Größen (7 Balken + Playhead).
-- `setify-icon-1024.png`, `setify-icon-small.png` — gerasterte Vorschauen.
+- `setcraft-icon-1024.svg` — Vektor-Master des vollen Motivs (9 Balken + Playhead, symmetrisch).
+- `setcraft-icon-small.svg` — reduzierte Variante für kleine Größen (7 Balken + Playhead).
+- `setcraft-icon-1024.png`, `setcraft-icon-small.png` — gerasterte Vorschauen.
 - `preview-contact-sheet.png` — alle Größen nebeneinander zur Kontrolle.
 - `render_icons.py` — erzeugt sämtliche PNGs neu (Pillow nötig: `pip install pillow`).
-- `../../Setify/Assets.xcassets/AppIcon.appiconset/` — **fertiges Icon-Set für Xcode** (10 PNGs + `Contents.json`).
+- `../../SetCraft/Assets.xcassets/AppIcon.appiconset/` — **fertiges Icon-Set für Xcode** (10 PNGs + `Contents.json`).
 
 ## In Xcode einsetzen
 
-Das `AppIcon.appiconset` liegt bereits am richtigen Ort: `Setify/Assets.xcassets/AppIcon.appiconset/`.
-Sobald du den Setify-Ordner als Projekt öffnest, sollte Xcode das Icon automatisch erkennen
+Das `AppIcon.appiconset` liegt bereits am richtigen Ort: `SetCraft/Assets.xcassets/AppIcon.appiconset/`.
+Sobald du den SetCraft-Ordner als Projekt öffnest, sollte Xcode das Icon automatisch erkennen
 (Target → General → App Icons → „AppIcon"). Falls nicht:
 
 1. In Xcode `Assets.xcassets` öffnen.
@@ -32,7 +32,7 @@ Das ist bei macOS-Icons üblich und vorgesehen (separate Bilder pro Größe).
 Farben, Balkenhöhen oder -abstände in `render_icons.py` ändern und das Skript erneut ausführen:
 
 ```
-cd Setify
+cd SetCraft
 python3 docs/icon/render_icons.py
 ```
 

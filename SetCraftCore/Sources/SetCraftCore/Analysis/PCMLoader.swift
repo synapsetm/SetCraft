@@ -13,7 +13,7 @@ import OSLog
 /// CoreMedia-Decoder und kommt mit den problematischen Headern durch.
 public enum PCMLoader {
 
-    private static let log = Logger(subsystem: "ch.beat.buehler.Setify", category: "PCMLoader")
+    private static let log = Logger(subsystem: "ch.buehler.beat.SetCraft", category: "PCMLoader")
 
     public struct PCM: Sendable {
         public let samples: Data   // float32 mono

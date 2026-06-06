@@ -3,7 +3,7 @@
 # .xcframework für macOS (arm64 + x86_64), iOS device (arm64) und iOS
 # simulator (arm64 + x86_64).
 #
-# Output: SetifyCore/Vendor/KeyFinder.xcframework
+# Output: SetCraftCore/Vendor/KeyFinder.xcframework
 #
 # Requires: cmake, xcodebuild (Xcode, nicht nur CommandLineTools).
 
@@ -24,7 +24,7 @@ WORK_DIR="$HERE/build"
 SRC_DIR="$HERE/src"
 FFTW_SRC="$SRC_DIR/fftw-$FFTW_VERSION"
 KF_SRC="$SRC_DIR/libkeyfinder-$KEYFINDER_VERSION"
-XCF_OUT="$REPO_ROOT/SetifyCore/Vendor/KeyFinder.xcframework"
+XCF_OUT="$REPO_ROOT/SetCraftCore/Vendor/KeyFinder.xcframework"
 
 mkdir -p "$WORK_DIR" "$SRC_DIR"
 

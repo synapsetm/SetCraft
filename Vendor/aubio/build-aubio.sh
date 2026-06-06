@@ -3,7 +3,7 @@
 # iOS device (arm64) und iOS simulator (arm64 + x86_64) — als
 # universelle .xcframework.
 #
-# Output: SetifyCore/Vendor/aubio.xcframework
+# Output: SetCraftCore/Vendor/aubio.xcframework
 #
 # Requires:
 #  - /opt/homebrew/bin/python3.11 (aubio's bundled waf ist nicht
@@ -19,7 +19,7 @@ if ! xcode-select -p 2>/dev/null | grep -q "Xcode.app"; then
   fi
 fi
 
-PYTHON="${SETIFY_PYTHON:-/opt/homebrew/bin/python3.11}"
+PYTHON="${SETCRAFT_PYTHON:-/opt/homebrew/bin/python3.11}"
 if [ ! -x "$PYTHON" ]; then
   echo "ERROR: Python 3.11 fehlt: $PYTHON" >&2
   echo "       brew install python@3.11" >&2
@@ -33,7 +33,7 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 WORK_DIR="$HERE/build"
 SRC_DIR="$HERE/src"
 SRC="$SRC_DIR/aubio-$AUBIO_VERSION"
-XCF_OUT="$REPO_ROOT/SetifyCore/Vendor/aubio.xcframework"
+XCF_OUT="$REPO_ROOT/SetCraftCore/Vendor/aubio.xcframework"
 
 mkdir -p "$SRC_DIR"
 

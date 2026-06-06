@@ -8,7 +8,7 @@ import SwiftUI
 ///   - Abbrechen   → bleibt offen.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    /// Wird in `SetifyApp.init` gesetzt; gibt der App-Delegate Zugriff auf
+    /// Wird in `SetCraftApp.init` gesetzt; gibt der App-Delegate Zugriff auf
     /// den aktuellen Speicher-Status der Library, ohne dass der Delegate
     /// die View-Modelle selbst kennen muss.
     static var unsavedQuery: (() -> Bool)?

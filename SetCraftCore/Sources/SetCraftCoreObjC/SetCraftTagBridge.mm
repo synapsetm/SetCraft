@@ -6,7 +6,7 @@
 #include <tstringlist.h>
 #include <audioproperties.h>
 
-@implementation SetifyRawTags
+@implementation SetCraftRawTags
 @end
 
 
@@ -35,7 +35,7 @@ static NSString * _Nullable nonEmptyString(const TagLib::String &s) {
 
 @implementation SetCraftTagBridge
 
-+ (nullable SetifyRawTags *)readTagsAtPath:(NSString *)path
++ (nullable SetCraftRawTags *)readTagsAtPath:(NSString *)path
                                      error:(NSError * _Nullable * _Nullable)error {
     TagLib::FileRef fileRef([path fileSystemRepresentation], true);
     if (fileRef.isNull() || !fileRef.tag()) {
@@ -48,7 +48,7 @@ static NSString * _Nullable nonEmptyString(const TagLib::String &s) {
     }
 
     TagLib::Tag *tag = fileRef.tag();
-    SetifyRawTags *result = [SetifyRawTags new];
+    SetCraftRawTags *result = [SetCraftRawTags new];
 
     result.title       = nonEmptyString(tag->title());
     result.artist      = nonEmptyString(tag->artist());

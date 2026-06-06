@@ -8,7 +8,7 @@ import OSLog
 /// summiert und am Schluss über alle Bänder track-weit auf 0…1 normiert.
 public enum WaveformAnalyzer {
 
-    private static let log = Logger(subsystem: "ch.beat.buehler.Setify", category: "Waveform")
+    private static let log = Logger(subsystem: "ch.buehler.beat.SetCraft", category: "Waveform")
 
     private static let windowSize: Int = 1024
     private static let hopSize: Int = 512

@@ -8,7 +8,7 @@ import OSLog
 /// aktualisieren anschliessend den Cache.
 public actor LibraryRepository: TrackStore {
 
-    private static let log = Logger(subsystem: "ch.beat.buehler.Setify", category: "LibraryRepository")
+    private static let log = Logger(subsystem: "ch.buehler.beat.SetCraft", category: "LibraryRepository")
 
     private let database: DatabaseService
     private let tagStore: TagLibTrackStore

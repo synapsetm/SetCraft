@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rendert die Setify-Icons in alle macOS-Größen (PNG) plus 1024 Master."""
+"""Rendert die SetCraft-Icons in alle macOS-Größen (PNG) plus 1024 Master."""
 from PIL import Image, ImageDraw
 
 BG = (21, 21, 26, 255)  # #15151a
@@ -50,7 +50,7 @@ def render(bars, px):
         d.rounded_rectangle([x0, y0, x1, y1], radius=rr, fill=hx(col))
     return img.resize((px, px), Image.LANCZOS)
 
-OUT = "Setify/Assets.xcassets/AppIcon.appiconset"
+OUT = "SetCraft/Assets.xcassets/AppIcon.appiconset"
 import os
 os.makedirs(OUT, exist_ok=True)
 
@@ -71,6 +71,6 @@ for px, name, bars in jobs:
     render(bars, px).save(os.path.join(OUT, name))
 
 # Master-PNGs für die Doku
-render(FULL, 1024).save("docs/icon/setify-icon-1024.png")
-render(SMALL, 512).save("docs/icon/setify-icon-small.png")
+render(FULL, 1024).save("docs/icon/setcraft-icon-1024.png")
+render(SMALL, 512).save("docs/icon/setcraft-icon-small.png")
 print("done")

@@ -6,7 +6,7 @@ import OSLog
 /// Mehrere Anfragen auf dieselbe URL teilen sich denselben Task.
 public actor WaveformCache {
 
-    private static let log = Logger(subsystem: "ch.beat.buehler.Setify", category: "WaveformCache")
+    private static let log = Logger(subsystem: "ch.buehler.beat.SetCraft", category: "WaveformCache")
 
     private let database: DatabaseService?
 

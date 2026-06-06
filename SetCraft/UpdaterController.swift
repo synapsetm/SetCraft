@@ -5,7 +5,7 @@ import Sparkle
 ///
 /// Sparkle erwartet, dass der Updater-Controller über die gesamte App-Lebenszeit
 /// existiert (er hält die XPC-Verbindung und plant Hintergrund-Checks). Daher
-/// halten wir hier eine einzelne Instanz, die in `SetifyApp` als `@State`
+/// halten wir hier eine einzelne Instanz, die in `SetCraftApp` als `@State`
 /// instanziiert wird — und reichen den `updater` für den Menüeintrag durch.
 ///
 /// Konfiguration kommt aus `Info.plist`:

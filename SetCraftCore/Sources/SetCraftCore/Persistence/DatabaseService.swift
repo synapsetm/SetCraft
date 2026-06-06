@@ -8,7 +8,7 @@ import OSLog
 /// läuft und der Pfad via FileManager.applicationSupport gebaut wird.
 public actor DatabaseService {
 
-    private static let log = Logger(subsystem: "ch.beat.buehler.Setify", category: "Database")
+    private static let log = Logger(subsystem: "ch.buehler.beat.SetCraft", category: "Database")
 
     private let dbQueue: DatabaseQueue
 

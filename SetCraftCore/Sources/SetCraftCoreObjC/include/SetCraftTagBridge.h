@@ -6,7 +6,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Eigenschaften, die in der Datei fehlen, sind `nil` bzw. 0.
 /// Der Kommentar ist roh (inkl. eines eventuellen Sterne-Präfixes); das
 /// Parsen übernimmt der Swift-Layer.
-@interface SetifyRawTags : NSObject
+@interface SetCraftRawTags : NSObject
 
 @property (nonatomic, copy, nullable) NSString *title;
 @property (nonatomic, copy, nullable) NSString *artist;
@@ -43,7 +43,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Liest alle für die App relevanten Tag-Felder. Gibt `nil` zurück, wenn die
 /// Datei nicht geöffnet werden kann.
-+ (nullable SetifyRawTags *)readTagsAtPath:(NSString *)path
++ (nullable SetCraftRawTags *)readTagsAtPath:(NSString *)path
                                      error:(NSError * _Nullable * _Nullable)error;
 
 /// Schreibt den vollständigen gewünschten Tag-Zustand zurück in die Datei.

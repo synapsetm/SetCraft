@@ -44,7 +44,7 @@ final class AnalyzerSmokeTests: XCTestCase {
     private func writeSineWAV(frequency: Double, channels: AVAudioChannelCount, durationSeconds: Double) throws -> URL {
         let sampleRate: Double = 44_100
         let url = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("setify-sine-\(UUID().uuidString).wav")
+            .appendingPathComponent("setcraft-sine-\(UUID().uuidString).wav")
         let frameCount = AVAudioFrameCount(sampleRate * durationSeconds)
         let fmt = AVAudioFormat(commonFormat: .pcmFormatFloat32,
                                  sampleRate: sampleRate,
@@ -66,7 +66,7 @@ final class AnalyzerSmokeTests: XCTestCase {
     private func writeKickWAV(bpm: Double, durationSeconds: Double) throws -> URL {
         let sampleRate: Double = 44_100
         let url = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("setify-kick-\(UUID().uuidString).wav")
+            .appendingPathComponent("setcraft-kick-\(UUID().uuidString).wav")
         let frameCount = AVAudioFrameCount(sampleRate * durationSeconds)
         let fmt = AVAudioFormat(commonFormat: .pcmFormatFloat32,
                                  sampleRate: sampleRate,

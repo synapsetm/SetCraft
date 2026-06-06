@@ -3,7 +3,7 @@
 # iOS device (arm64) und iOS simulator (arm64 + x86_64),
 # packaged as an .xcframework that Swift Package Manager kann konsumieren.
 #
-# Output: SetifyCore/Vendor/TagLib.xcframework
+# Output: SetCraftCore/Vendor/TagLib.xcframework
 #
 # Requires: cmake, xcodebuild (Full Xcode, nicht nur CommandLineTools).
 
@@ -22,7 +22,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 WORK_DIR="$HERE/build"
 SRC_DIR="$HERE/src"
-XCF_OUT="$REPO_ROOT/SetifyCore/Vendor/TagLib.xcframework"
+XCF_OUT="$REPO_ROOT/SetCraftCore/Vendor/TagLib.xcframework"
 
 mkdir -p "$WORK_DIR" "$SRC_DIR"
 

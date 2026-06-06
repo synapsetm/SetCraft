@@ -34,7 +34,7 @@ final class PCMLoaderTests: XCTestCase {
     /// Schreibt eine WAV-Datei mit konstantem 440 Hz-Sinus, Float32-PCM.
     private func writeSineWAV(channels: AVAudioChannelCount, sampleRate: Double, durationSeconds: Double) throws -> URL {
         let url = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("setify-test-\(UUID().uuidString).wav")
+            .appendingPathComponent("setcraft-test-\(UUID().uuidString).wav")
 
         let frameCount = AVAudioFrameCount(sampleRate * durationSeconds)
         guard let writeFormat = AVAudioFormat(

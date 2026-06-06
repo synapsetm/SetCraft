@@ -47,7 +47,7 @@ final class WaveformAnalyzerTests: XCTestCase {
     private func writeSineWAV(frequency: Double, durationSeconds: Double) throws -> URL {
         let sampleRate: Double = 44_100
         let url = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("setify-wf-\(UUID().uuidString).wav")
+            .appendingPathComponent("setcraft-wf-\(UUID().uuidString).wav")
         let frameCount = AVAudioFrameCount(sampleRate * durationSeconds)
         let fmt = AVAudioFormat(commonFormat: .pcmFormatFloat32,
                                  sampleRate: sampleRate, channels: 1, interleaved: false)!

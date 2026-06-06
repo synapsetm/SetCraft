@@ -8,7 +8,7 @@ import SetCraftCoreObjC
 /// eine ganze Bibliothek auf einmal anstösst.
 public actor AnalysisCoordinator {
 
-    private static let log = Logger(subsystem: "ch.beat.buehler.Setify", category: "Analysis")
+    private static let log = Logger(subsystem: "ch.buehler.beat.SetCraft", category: "Analysis")
 
     public struct Result: Sendable {
         public let bpm: Double?

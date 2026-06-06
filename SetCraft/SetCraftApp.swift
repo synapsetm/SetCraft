@@ -40,7 +40,7 @@ enum AppearancePreference: String, CaseIterable, Identifiable {
 }
 
 @main
-struct SetifyApp: App {
+struct SetCraftApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     @State private var player: PlayerViewModel
