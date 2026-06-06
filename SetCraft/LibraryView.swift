@@ -72,18 +72,15 @@ struct LibraryView: View {
 
     private var toolbar: some View {
         HStack(spacing: 12) {
-            Button {
-                library.chooseFolder()
-            } label: {
-                Label("Choose folder…", systemImage: "folder")
-            }
-
             if let folder = library.folderURL {
-                Text(folder.path)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                HStack(spacing: 4) {
+                    Text("Folder:")
+                        .foregroundStyle(.secondary)
+                    Text(folder.path)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
 
             Spacer()
@@ -111,6 +108,13 @@ struct LibraryView: View {
                 Text(error)
                     .font(.caption)
                     .foregroundStyle(.orange)
+                    .lineLimit(1)
+                    .help(error)
+            }
+            if let error = library.lastLibraryError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
                     .lineLimit(1)
                     .help(error)
             }

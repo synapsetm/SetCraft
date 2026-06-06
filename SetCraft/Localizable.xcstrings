@@ -48,6 +48,9 @@
     "About SetCraft" : {
 
     },
+    "Access to ‘%@’ was lost. Remove the folder and add it again." : {
+
+    },
     "Add as source" : {
       "localizations" : {
         "de" : {
@@ -282,6 +285,9 @@
           }
         }
       }
+    },
+    "Folder:" : {
+
     },
     "Force a fresh BPM/key analysis for the selected track" : {
 
@@ -546,6 +552,16 @@
         }
       }
     },
+    "Removed ‘%@’: bookmark unreadable (%@)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Removed ‘%1$@’: bookmark unreadable (%2$@)."
+          }
+        }
+      }
+    },
     "Reset" : {
       "localizations" : {
         "de" : {
@@ -567,6 +583,7 @@
       }
     },
     "Save (%lld)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {

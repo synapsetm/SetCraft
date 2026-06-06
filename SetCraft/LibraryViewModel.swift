@@ -18,6 +18,7 @@ final class LibraryViewModel {
     var selectedTrackID: Track.ID?
     var lastWriteError: String?
     var lastAnalysisError: String?
+    var lastLibraryError: String?
 
     /// Liste aller persistierten Quellen (Ordner). Wird beim App-Start
     /// aus der DB geladen.
@@ -68,6 +69,15 @@ final class LibraryViewModel {
     private var scanTask: Task<Void, Never>?
     private var pendingSaves: [Track.ID: Task<Void, Never>] = [:]
     private var waveformPrefetchInflight: Set<URL> = []
+    private var waveformPrefetchQueue: [URL] = []
+    private var waveformPrefetchQueued: Set<URL> = []
+
+    /// Wie viele Waveform-Prefetches gleichzeitig laufen dürfen. Jeder
+    /// Prefetch öffnet einen AVAssetReader/AVAudioFile; ohne Limit sättigt
+    /// der Scan eines Library-Ordners den MediaToolbox-Decoder-Pool und
+    /// alle Worker bleiben in `copyNextSampleBuffer` auf einem internen
+    /// Semaphor hängen.
+    private static let maxConcurrentPrefetches = 3
 
     /// Hält den Security-Scoped Resource Access offen, solange die Library
     /// aktiv ist. Wird beim Wechsel/Schliessen freigegeben.
@@ -161,8 +171,9 @@ final class LibraryViewModel {
 
     /// Schaltet die aktive Quelle um: alter Scope wird freigegeben, das
     /// gespeicherte Bookmark des neuen Ordners wird resolved, dann gescannt.
-    /// Schlägt das Resolve fehl (Ordner verschoben), wird der Eintrag
-    /// stillschweigend gelöscht.
+    /// Bei verlorenem Sandbox-Zugriff (z. B. nach Reinstall/Signaturwechsel)
+    /// bleibt der Eintrag erhalten und es wird ein Fehler signalisiert —
+    /// nur wenn das Bookmark komplett unleserlich ist, wird gelöscht.
     @MainActor
     func selectFolder(id: String?) async {
         guard let id, let record = folders.first(where: { $0.id == id }) else {
@@ -177,6 +188,7 @@ final class LibraryViewModel {
             selectedFolderID = nil
             tracks = []
             folderURL = nil
+            lastLibraryError = nil
             return
         }
 
@@ -188,11 +200,30 @@ final class LibraryViewModel {
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
             )
-            guard url.startAccessingSecurityScopedResource() else { return }
+            guard url.startAccessingSecurityScopedResource() else {
+                // TCC-Zugriff verloren (typisch nach App-Neuinstallation oder
+                // Signaturwechsel). Pfad und Bookmark sind formal intakt,
+                // aber das System verweigert den Scope. Eintrag behalten,
+                // damit der Nutzer ihn gezielt entfernen und neu hinzufügen
+                // kann.
+                scanTask?.cancel()
+                scanTask = nil
+                isScanning = false
+                accessingScopedURL?.stopAccessingSecurityScopedResource()
+                accessingScopedURL = nil
+                selectedFolderID = id
+                tracks = []
+                folderURL = nil
+                lastLibraryError = String(
+                    localized: "Access to ‘\(record.name)’ was lost. Remove the folder and add it again."
+                )
+                return
+            }
 
             accessingScopedURL?.stopAccessingSecurityScopedResource()
             accessingScopedURL = url
             selectedFolderID = id
+            lastLibraryError = nil
             scan(folder: url)
 
             if isStale,
@@ -208,6 +239,11 @@ final class LibraryViewModel {
                 }
             }
         } catch {
+            // Bookmark komplett unleserlich → der Eintrag ist nicht mehr
+            // reparierbar. Eintrag entfernen, aber dem Nutzer zeigen warum.
+            lastLibraryError = String(
+                localized: "Removed ‘\(record.name)’: bookmark unreadable (\(error.localizedDescription))."
+            )
             try? await database.deleteFolder(id: id)
             folders.removeAll { $0.id == id }
             if selectedFolderID == id { selectedFolderID = nil; tracks = [] }
@@ -262,6 +298,7 @@ final class LibraryViewModel {
 
     func scan(folder: URL) {
         scanTask?.cancel()
+        cancelPendingWaveformPrefetches()
         folderURL = folder
         tracks = []
         isScanning = true
@@ -546,18 +583,42 @@ final class LibraryViewModel {
     /// Stellt sicher, dass die Waveform für `track` im Cache (Memory oder DB)
     /// liegt. Idempotent — pro URL läuft hoechstens ein Detached-Task. Ergebnis
     /// wird nicht verbraucht; `WaveformViewModel.setActiveURL` greift später
-    /// auf dieselbe Cache-Instanz zu.
+    /// auf dieselbe Cache-Instanz zu. Drosselt auf `maxConcurrentPrefetches`,
+    /// überzählige Anfragen werden in einer FIFO-Queue abgearbeitet.
     private func prefetchWaveform(_ track: Track) {
         let url = track.url
-        guard !waveformPrefetchInflight.contains(url) else { return }
-        waveformPrefetchInflight.insert(url)
-        let cache = waveformCache
-        Task.detached(priority: .utility) { [weak self] in
-            _ = try? await cache.waveform(for: url)
-            await MainActor.run {
-                self?.waveformPrefetchInflight.remove(url)
+        guard !waveformPrefetchInflight.contains(url),
+              !waveformPrefetchQueued.contains(url) else { return }
+        waveformPrefetchQueue.append(url)
+        waveformPrefetchQueued.insert(url)
+        pumpWaveformPrefetchQueue()
+    }
+
+    private func pumpWaveformPrefetchQueue() {
+        while waveformPrefetchInflight.count < Self.maxConcurrentPrefetches,
+              !waveformPrefetchQueue.isEmpty {
+            let url = waveformPrefetchQueue.removeFirst()
+            waveformPrefetchQueued.remove(url)
+            waveformPrefetchInflight.insert(url)
+            let cache = waveformCache
+            Task.detached(priority: .utility) { [weak self] in
+                _ = try? await cache.waveform(for: url)
+                await MainActor.run {
+                    guard let self else { return }
+                    self.waveformPrefetchInflight.remove(url)
+                    self.pumpWaveformPrefetchQueue()
+                }
             }
         }
+    }
+
+    /// Wirft die Prefetch-Queue weg (Inflight-Tasks laufen aus, ihre
+    /// Ergebnisse landen einfach im Cache). Wird beim Folder-Wechsel
+    /// aufgerufen, damit nicht weiter Wellen für die alte Quelle gerechnet
+    /// werden.
+    private func cancelPendingWaveformPrefetches() {
+        waveformPrefetchQueue.removeAll()
+        waveformPrefetchQueued.removeAll()
     }
 
     /// Analysisergebnisse landen direkt auf der Platte (ohne 600-ms-Debounce),
