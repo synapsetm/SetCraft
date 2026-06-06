@@ -42,6 +42,13 @@ final class PlayerStore {
     private let waveformCache: WaveformCache
     private var waveformTask: Task<Void, Never>?
 
+    /// Snapshot der Track-Reihenfolge zum Zeitpunkt des letzten manuellen
+    /// Tap (oder Folder-Wechsels). Skip Forward/Back folgt dieser Queue,
+    /// damit Edits am laufenden Track (z. B. Rating) die Position in der
+    /// live-sortierten Liste nicht verschieben und der nächste Tap nicht
+    /// zum eben re-sortierten Nachbarn springt.
+    private var playbackQueue: [URL] = []
+
     init(library: LibraryStore, session: AudioSessionManager, waveformCache: WaveformCache) {
         self.engine = AVAudioEnginePlayer()
         self.library = library
@@ -88,7 +95,10 @@ final class PlayerStore {
 
     /// Lädt einen Track, aktiviert die AVAudioSession (falls noch nicht),
     /// und startet die Wiedergabe direkt — analog zum Autoplay des Macs.
-    func load(_ track: Track) {
+    /// `snapshotQueue: true` (Default für manuelle Taps) friert die aktuelle
+    /// Sortierung als Playback-Queue ein; `next()`/`previous()` rufen mit
+    /// `false`, damit Skips innerhalb dieser Queue bleiben.
+    func load(_ track: Track, snapshotQueue: Bool = true) {
         // iCloud-Datei, die noch nicht runtergeladen ist: AVAudioFile würde
         // mit kryptischem Fehler abbrechen. Download anstoßen, klaren
         // Hinweis zeigen — Nutzer triggert das Laden noch mal, sobald die
@@ -104,6 +114,9 @@ final class PlayerStore {
             engine.rate = 1.0   // frisches Tempo pro Track — Vorgänger-Rate verwerfen
             currentTrack = track
             lastError = nil
+            if snapshotQueue {
+                playbackQueue = library.sortedTracks.map(\.url)
+            }
             engine.play()
             loadWaveform(for: track.url)
             nowPlaying?.update()
@@ -171,25 +184,28 @@ final class PlayerStore {
     }
 
     func next() {
-        let list = library.sortedTracks
-        // Match über URL statt Track.id: CachedTrack vergibt bei jedem
-        // Cache-Read eine frische UUID, ein erneuter Scan (z. B. nach
-        // Folder-Re-Select) würde sonst die Identität brechen und
-        // Prev/Next zu No-ops machen.
-        guard let current = currentTrack,
-              let idx = list.firstIndex(where: { $0.url == current.url }),
-              idx + 1 < list.count
-        else { return }
-        load(list[idx + 1])
+        guard let target = neighborInQueue(offset: 1) else { return }
+        load(target, snapshotQueue: false)
     }
 
     func previous() {
-        let list = library.sortedTracks
-        guard let current = currentTrack,
-              let idx = list.firstIndex(where: { $0.url == current.url }),
-              idx > 0
-        else { return }
-        load(list[idx - 1])
+        guard let target = neighborInQueue(offset: -1) else { return }
+        load(target, snapshotQueue: false)
+    }
+
+    /// Liefert den Track an Position `offset` relativ zum aktuell laufenden
+    /// in der `playbackQueue`. URL-Match wie zuvor — Track.id wechselt beim
+    /// Cache-Read. Fallback auf `library.sortedTracks`, falls die Queue noch
+    /// nie gefüllt wurde (etwa AirPods-Skip direkt nach App-Start).
+    private func neighborInQueue(offset: Int) -> Track? {
+        guard let current = currentTrack else { return nil }
+        let queue = playbackQueue.isEmpty
+            ? library.sortedTracks.map(\.url)
+            : playbackQueue
+        guard let idx = queue.firstIndex(of: current.url) else { return nil }
+        let next = idx + offset
+        guard next >= 0, next < queue.count else { return nil }
+        return library.tracks.first(where: { $0.url == queue[next] })
     }
 
     func seek(to seconds: TimeInterval) {
