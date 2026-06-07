@@ -5,6 +5,56 @@ und `SPEC.md` (vollständige Spezifikation und Phasenplan).
 
 ---
 
+## Sitzung 2026-06-07 — Library-Reihenfolge bei Tag-Edits einfrieren, Refresh-Button, Release v1.0-8
+
+Beim Editieren eines Tags (BPM, Titel, Rating, …) sprang der bearbeitete
+Eintrag in der Mac-Library sofort an seine neue Sortier-Position — der
+User verlor den visuellen Anker und musste neu suchen. Gleiches Verhalten
+auf iOS, dort aber an dieser Stelle (noch) nicht angefasst. Mac-Fix:
+
+- `LibraryViewModel.sortedTracks` (computed, hat bei jedem Render neu
+  sortiert) entfernt. Stattdessen ist `tracks` selbst die Anzeige-
+  Reihenfolge. Edits laufen wie bisher in-place über
+  `tracks[idx] = updated` — Sortier-Index ändert sich nicht, der
+  bearbeitete Eintrag bleibt stehen.
+- Neue Methode `applySortOrder()` sortiert `tracks` in-place. Wird nur
+  noch zu drei Zeitpunkten aufgerufen: (1) am Ende eines
+  `scan`-Streams, (2) bei Spalten-Header-Klick (`LibraryView` hängt
+  `.onChange(of: library.sortOrder)`), (3) beim neuen Refresh-Button.
+- Neue Methode `refresh()` re-scannt die aktive Quelle (analog
+  iOS-Pull-to-Refresh) — `applySortOrder` läuft am Stream-Ende
+  automatisch mit.
+- `nextTrack`/`previousTrack` benutzen jetzt `tracks` direkt statt
+  `sortedTracks` — Player-Skip folgt damit der eingefrorenen Anzeige-
+  Reihenfolge, ohne dass eine weitere Sortier-Berechnung anfällt.
+- Refresh-Button in der Library-Toolbar (`arrow.triangle.2.circlepath`,
+  links neben dem BPM-Preset-Menu). Deaktiviert wenn keine Quelle
+  ausgewählt ist oder gerade ein Scan läuft. Strings „Refresh" /
+  „Re-scan the current source and re-apply the sort order" mit DE-
+  Übersetzung im Catalog.
+
+### Manuell zu prüfen (Mac)
+
+- Bibliothek nach BPM sortieren → BPM eines sichtbaren Tracks editieren
+  → Track bleibt an seiner Position, nur die Zahl ändert sich.
+- Spalten-Header klicken → komplette Liste sortiert sich neu.
+- Refresh-Button → Re-Scan, am Ende ist Sortierung wiederhergestellt.
+
+### iOS noch offen
+
+iOS hat die gleiche Auto-Resort-Mechanik (`LibraryStore.sortedTracks`
+computed property). User-Feedback in dieser Sitzung war Mac-only, iOS
+wurde bewusst nicht angefasst — Fix wäre analog, aber als separate
+Runde.
+
+### Release v1.0-8 (Mac)
+
+`release.sh` durchgelaufen, DMG notarisiert, GitHub-Release
+`v1.0-8` angelegt, Appcast in `docs/appcast.xml` aktualisiert.
+Build-Nummer Mac: 7 → 8.
+
+---
+
 ## Sitzung 2026-06-05 (Abend) — iOS-Politur, Konzept-Restschuld abgearbeitet, Release v1.0-6
 
 Drei kleine iOS-Bugs, drei „Pflicht-Bug-Fixes" aus der Konzept-Restschuld
