@@ -40,18 +40,26 @@ auf iOS, dort aber an dieser Stelle (noch) nicht angefasst. Mac-Fix:
 - Spalten-Header klicken → komplette Liste sortiert sich neu.
 - Refresh-Button → Re-Scan, am Ende ist Sortierung wiederhergestellt.
 
-### iOS noch offen
+### iOS gleich nachgezogen
 
-iOS hat die gleiche Auto-Resort-Mechanik (`LibraryStore.sortedTracks`
-computed property). User-Feedback in dieser Sitzung war Mac-only, iOS
-wurde bewusst nicht angefasst — Fix wäre analog, aber als separate
-Runde.
+`LibraryStore.sortedTracks` (computed) ist weg, an seiner Stelle
+`applySortOrder()` mit demselben Sort-Body, der `tracks` in-place
+sortiert. Trigger: `sortField`-didSet, Pull-to-Refresh (über
+`refresh()` → `selectFolder` → `scan` → completion) und Scan-Ende.
+`ContentView` rendert `libraryStore.tracks`, `PlayerStore` schnappt
+Queue + Fallback aus `library.tracks`. Tag-Edit am gerade in der
+Liste sichtbaren Track lässt den Eintrag damit dort stehen — der
+gestrige Frozen-Queue-Fix in `d0bc9a0` deckt jetzt nur noch die
+Skip-Forward-Garantie ab, die sichtbare Liste ist separat eingefroren.
 
-### Release v1.0-8 (Mac)
+### Release v1.0-8 (Mac) + iOS-Build 11
 
-`release.sh` durchgelaufen, DMG notarisiert, GitHub-Release
+Mac: `release.sh` durchgelaufen, DMG notarisiert, GitHub-Release
 `v1.0-8` angelegt, Appcast in `docs/appcast.xml` aktualisiert.
 Build-Nummer Mac: 7 → 8.
+
+iOS-Build-Bump: 10 → 11 (TestFlight-Upload steht separat aus, siehe
+Cloud-Signing-Stolperstein aus [[reference-ios-testflight]]).
 
 ---
 
