@@ -115,7 +115,7 @@ final class PlayerStore {
             currentTrack = track
             lastError = nil
             if snapshotQueue {
-                playbackQueue = library.sortedTracks.map(\.url)
+                playbackQueue = library.tracks.map(\.url)
             }
             engine.play()
             loadWaveform(for: track.url)
@@ -195,12 +195,12 @@ final class PlayerStore {
 
     /// Liefert den Track an Position `offset` relativ zum aktuell laufenden
     /// in der `playbackQueue`. URL-Match wie zuvor — Track.id wechselt beim
-    /// Cache-Read. Fallback auf `library.sortedTracks`, falls die Queue noch
+    /// Cache-Read. Fallback auf `library.tracks`, falls die Queue noch
     /// nie gefüllt wurde (etwa AirPods-Skip direkt nach App-Start).
     private func neighborInQueue(offset: Int) -> Track? {
         guard let current = currentTrack else { return nil }
         let queue = playbackQueue.isEmpty
-            ? library.sortedTracks.map(\.url)
+            ? library.tracks.map(\.url)
             : playbackQueue
         guard let idx = queue.firstIndex(of: current.url) else { return nil }
         let next = idx + offset

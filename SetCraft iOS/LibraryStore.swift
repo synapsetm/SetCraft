@@ -40,19 +40,26 @@ final class LibraryStore {
     }
 
     /// Sort-Kriterium für die Anzeige. Persistiert über App-Sessions via
-    /// UserDefaults; die View liest `sortedTracks` statt direkt `tracks`.
+    /// UserDefaults. `tracks` selbst ist die Anzeige-Reihenfolge — Edits
+    /// laufen in-place, ohne dass die Liste umsortiert wird. Re-Sort
+    /// passiert nur, wenn der User explizit das Sort-Kriterium ändert
+    /// (`didSet`), beim Pull-to-Refresh (siehe `refresh()`) oder am Ende
+    /// eines Scans.
     var sortField: SortField = SortField(
         rawValue: UserDefaults.standard.string(forKey: "librarySortField") ?? ""
     ) ?? .title {
         didSet {
             UserDefaults.standard.set(sortField.rawValue, forKey: "librarySortField")
+            applySortOrder()
         }
     }
 
-    /// Sortierte Trackliste fürs UI. Bei Gleichstand wird sekundär nach Titel
-    /// sortiert, damit die Reihenfolge stabil bleibt.
-    var sortedTracks: [Track] {
-        tracks.sorted { a, b in
+    /// Re-sortiert `tracks` in-place nach `sortField`. Sekundärer Sort nach
+    /// Titel hält die Reihenfolge bei Gleichstand stabil. Wird vom
+    /// `sortField`-didSet, vom Pull-to-Refresh und am Ende eines Scans
+    /// aufgerufen.
+    func applySortOrder() {
+        tracks.sort { a, b in
             switch sortField {
             case .title:
                 return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
@@ -384,6 +391,11 @@ final class LibraryStore {
                 self?.tracks.append(track)
             }
             self?.isScanning = false
+            // Tracks während des Scans landen unsortiert am Ende — am Schluss
+            // einmal in die aktuelle Sortierung bringen. Danach bleibt die
+            // Reihenfolge stabil, bis der User explizit re-sortiert oder
+            // ein Refresh läuft.
+            self?.applySortOrder()
             // Wenn der Scan nichts gefunden hat, Diagnostik in lastError —
             // sonst rätselt der Nutzer, ob's am Picker, an iCloud, am
             // Filter oder am Pfad liegt.
