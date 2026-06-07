@@ -4,11 +4,11 @@
         <title>SetCraft</title>
         <item>
             <title>1.0</title>
-            <pubDate>Sat, 06 Jun 2026 23:21:04 +0200</pubDate>
-            <sparkle:version>7</sparkle:version>
+            <pubDate>Sun, 07 Jun 2026 13:30:07 +0200</pubDate>
+            <sparkle:version>8</sparkle:version>
             <sparkle:shortVersionString>1.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/synapsetm/SetCraft/releases/download/v1.0-7/SetCraft-1.0-7.dmg" length="5858952" type="application/octet-stream" sparkle:edSignature="bqjdMAC3pFzUh8K0pCQu2iWstfjLTassPYkS/6V226JrlgIse8GV2RDfVz0sEHR+TEEBqLsN5tCduomIsZYvCw=="/>
+            <enclosure url="https://github.com/synapsetm/SetCraft/releases/download/v1.0-8/SetCraft-1.0-8.dmg" length="5863754" type="application/octet-stream" sparkle:edSignature="hgo7fWJRqzt5YzbK3Ahdz3BerRtgANxEWsQAEYku9DeRKjBhdQ25S3nqY49EccqhwXUs3SLdGBes96/+n3D0CA=="/>
         </item>
     </channel>
 </rss>
