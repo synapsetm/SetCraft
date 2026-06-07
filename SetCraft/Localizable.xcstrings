@@ -532,6 +532,26 @@
     "Re-analyze" : {
 
     },
+    "Re-scan the current source and re-apply the sort order" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelle neu scannen und Sortierung neu anwenden"
+          }
+        }
+      }
+    },
+    "Refresh" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktualisieren"
+          }
+        }
+      }
+    },
     "Remove source" : {
       "localizations" : {
         "de" : {

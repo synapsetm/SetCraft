@@ -119,6 +119,14 @@ struct LibraryView: View {
                     .help(error)
             }
 
+            Button {
+                library.refresh()
+            } label: {
+                Label("Refresh", systemImage: "arrow.triangle.2.circlepath")
+            }
+            .disabled(library.folderURL == nil || library.isScanning)
+            .help("Re-scan the current source and re-apply the sort order")
+
             Menu {
                 ForEach(BPMRangePreset.allCases) { preset in
                     Button {
@@ -167,7 +175,7 @@ struct LibraryView: View {
 
     private var table: some View {
         Table(
-            library.sortedTracks,
+            library.tracks,
             selection: $library.selectedTrackID,
             sortOrder: $library.sortOrder,
             columnCustomization: $columnCustomization
@@ -181,6 +189,11 @@ struct LibraryView: View {
         }
         .onAppear { restoreColumnCustomization() }
         .onChange(of: columnCustomization) { _, _ in persistColumnCustomization() }
+        // Spalten-Klick ändert nur `sortOrder` — Daten erst hier nachziehen.
+        // Tag-Edits laufen über `update(...)` und mutieren `tracks` in-place,
+        // ohne den Sort anzuwerfen — der editierte Eintrag bleibt damit dort
+        // stehen, wo der User ihn gerade angefasst hat.
+        .onChange(of: library.sortOrder) { _, _ in library.applySortOrder() }
         .contextMenu(forSelectionType: Track.ID.self) { ids in
             Button("Load in player") {
                 loadFirst(ids)

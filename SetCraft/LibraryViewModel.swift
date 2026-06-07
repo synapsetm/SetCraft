@@ -30,14 +30,20 @@ final class LibraryViewModel {
 
     /// Aktuell aktive Sortierreihenfolge. Default: Titel A→Z. Mehrere
     /// Comparators sind möglich (z. B. Artist → Album → Titel).
+    /// `tracks` wird **nicht** automatisch nachgezogen, wenn sich ein Tag
+    /// ändert — sonst springt der gerade editierte Eintrag aus dem Sichtfeld.
+    /// Re-Sort passiert nur bei expliziten Anlässen: Spalten-Klick (siehe
+    /// `LibraryView.onChange(sortOrder)`), `refresh()`-Button und nach
+    /// einem abgeschlossenen Scan (`applySortOrder` am Ende von `scan`).
     var sortOrder: [KeyPathComparator<Track>] = [
         KeyPathComparator(\Track.title, order: .forward)
     ]
 
-    /// Wendet `sortOrder` auf `tracks` an. Wird vom SwiftUI-Table als
-    /// Datenquelle verwendet.
-    var sortedTracks: [Track] {
-        tracks.sorted(using: sortOrder)
+    /// Re-sortiert `tracks` in-place mit der aktuellen `sortOrder`. Wird
+    /// vom Refresh-Button, beim Wechsel der Sortierspalte und am Ende
+    /// eines Scans aufgerufen.
+    func applySortOrder() {
+        tracks.sort(using: sortOrder)
     }
 
     /// IDs der Tracks mit Änderungen, die noch nicht auf der Platte sind.
@@ -316,6 +322,10 @@ final class LibraryViewModel {
                 prefetchWaveform(track)
             }
             isScanning = false
+            // Tracks während des Scans landen unsortiert am Ende — am Schluss
+            // einmal in die aktuelle Sortierung bringen. Danach bleibt die
+            // Reihenfolge stabil, bis der User explizit re-sortiert.
+            applySortOrder()
         }
     }
 
@@ -331,25 +341,31 @@ final class LibraryViewModel {
     /// auf den ersten Library-Track gesprungen, damit der Knopf trotzdem
     /// etwas Sinnvolles tut.
     func nextTrack(after url: URL?) -> Track? {
-        let sorted = sortedTracks
-        guard !sorted.isEmpty else { return nil }
-        guard let url, let idx = sorted.firstIndex(where: { $0.url == url }) else {
-            return sorted.first
+        guard !tracks.isEmpty else { return nil }
+        guard let url, let idx = tracks.firstIndex(where: { $0.url == url }) else {
+            return tracks.first
         }
         let next = idx + 1
-        return next < sorted.count ? sorted[next] : nil
+        return next < tracks.count ? tracks[next] : nil
     }
 
     /// Vorheriger Track in der aktuell angezeigten Sortierung. Bei nicht-in-
     /// der-Library-geladenen Tracks Fallback auf den ersten Track.
     func previousTrack(before url: URL?) -> Track? {
-        let sorted = sortedTracks
-        guard !sorted.isEmpty else { return nil }
-        guard let url, let idx = sorted.firstIndex(where: { $0.url == url }) else {
-            return sorted.first
+        guard !tracks.isEmpty else { return nil }
+        guard let url, let idx = tracks.firstIndex(where: { $0.url == url }) else {
+            return tracks.first
         }
         let prev = idx - 1
-        return prev >= 0 ? sorted[prev] : nil
+        return prev >= 0 ? tracks[prev] : nil
+    }
+
+    /// Re-scannt die aktuell ausgewählte Quelle. Frisst extern hinzugefügte/
+    /// entfernte Dateien ein und stellt die aktuelle Sortierung am Ende
+    /// wieder her (siehe `scan` → `applySortOrder` nach Stream-Ende).
+    func refresh() {
+        guard let folderURL else { return }
+        scan(folder: folderURL)
     }
 
     /// Setzt das Rating eines Tracks anhand seiner URL und plant den
