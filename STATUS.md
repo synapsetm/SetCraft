@@ -58,8 +58,10 @@ Mac: `release.sh` durchgelaufen, DMG notarisiert, GitHub-Release
 `v1.0-8` angelegt, Appcast in `docs/appcast.xml` aktualisiert.
 Build-Nummer Mac: 7 → 8.
 
-iOS-Build-Bump: 10 → 11 (TestFlight-Upload steht separat aus, siehe
-Cloud-Signing-Stolperstein aus [[reference-ios-testflight]]).
+iOS-Build 11 ging nach TestFlight — `release-ios.sh` baute das
+Archive sauber, `exportArchive` brach aber erwartungsgemäß am
+Cloud-Signing-Stolperstein ab (siehe `reference-ios-testflight`).
+Upload via Xcode Organizer manuell durchgeklickt.
 
 ---
 
