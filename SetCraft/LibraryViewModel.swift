@@ -417,7 +417,22 @@ final class LibraryViewModel {
                     if sameVolume {
                         try fm.moveItem(at: src, to: dst)
                     } else {
+                        // Cross-Volume: Foundation kennt keinen atomaren
+                        // Move über Volumes, also Copy + Delete der Quelle.
+                        // Delete ist best-effort — wenn die Sandbox uns das
+                        // Löschen verweigert (Source liegt ausserhalb der
+                        // gedroppten/bookmarked Scopes), bleibt die Datei
+                        // halt am alten Ort und wir surfacen das als Warnung.
                         try fm.copyItem(at: src, to: dst)
+                        do {
+                            try fm.removeItem(at: src)
+                        } catch {
+                            await MainActor.run {
+                                self?.lastWriteError = String(
+                                    localized: "Imported, but could not remove source ‘\(src.lastPathComponent)’: \(error.localizedDescription)"
+                                )
+                            }
+                        }
                     }
                     anyImported = true
                 } catch {

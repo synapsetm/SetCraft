@@ -25,6 +25,8 @@ struct LibraryView: View {
                     .padding(.vertical, 8)
                 Divider()
                 table
+                Divider()
+                statusBar
             }
         }
     }
@@ -86,28 +88,6 @@ struct LibraryView: View {
             }
 
             Spacer()
-
-            if library.isScanning {
-                ProgressView()
-                    .controlSize(.small)
-                Text("\(library.tracks.count) found")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if !library.tracks.isEmpty {
-                Text("\(library.tracks.count) tracks")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if let error = library.lastWriteError {
-                ErrorChip(text: error, tint: .red)
-            }
-            if let error = library.lastAnalysisError {
-                ErrorChip(text: error, tint: .orange)
-            }
-            if let error = library.lastLibraryError {
-                ErrorChip(text: error, tint: .red)
-            }
 
             Button {
                 library.refresh()
@@ -183,6 +163,39 @@ struct LibraryView: View {
                 }
             }
         }
+    }
+
+    /// Statuszeile unter der Tabelle: Track-Counter links, Fehler-Chips
+    /// rechts. Höhe/Padding bewusst gespiegelt zum „Add folder…"-Balken
+    /// unten in der Sidebar, damit beide Bars auf einer Linie liegen.
+    private var statusBar: some View {
+        HStack(spacing: 8) {
+            if library.isScanning {
+                ProgressView()
+                    .controlSize(.small)
+                Text("\(library.tracks.count) found")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if !library.tracks.isEmpty {
+                Text("\(library.tracks.count) tracks")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if let error = library.lastWriteError {
+                ErrorChip(text: error, tint: .red)
+            }
+            if let error = library.lastAnalysisError {
+                ErrorChip(text: error, tint: .orange)
+            }
+            if let error = library.lastLibraryError {
+                ErrorChip(text: error, tint: .red)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     private var table: some View {

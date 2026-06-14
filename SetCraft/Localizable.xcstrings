@@ -223,6 +223,12 @@
         }
       }
     },
+    "Choose a folder to move %lld tracks into." : {
+
+    },
+    "Choose a folder to move 1 track into." : {
+
+    },
     "Choose folder…" : {
       "localizations" : {
         "de" : {
@@ -425,6 +431,15 @@
       }
     },
     "Modified" : {
+
+    },
+    "Move Here" : {
+
+    },
+    "Move to Folder…" : {
+
+    },
+    "Move Tracks" : {
 
     },
     "Next" : {
