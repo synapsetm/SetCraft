@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SetCraftCoreObjC
 
 /// `TrackStore`-Implementierung über die TagLib-Bridge. Schreibt Tag-
@@ -19,10 +20,27 @@ public actor TagLibTrackStore: TrackStore {
                 return "TagLib could not write \(url.lastPathComponent): \(underlying?.localizedDescription ?? "unknown")"
             case .fileSystem(let url, let stage, let underlying):
                 let ns = underlying as NSError
-                return "Filesystem error for \(url.lastPathComponent) at \(stage): \(ns.localizedDescription) [\(ns.domain) #\(ns.code)]"
+                let errno = Self.posixErrno(in: ns)
+                let errnoSuffix = errno.map { " errno=\($0) (\(String(cString: strerror(Int32($0)))))" } ?? ""
+                return "Filesystem error for \(url.lastPathComponent) at \(stage): \(ns.localizedDescription) [\(ns.domain) #\(ns.code)\(errnoSuffix)]"
             }
         }
+
+        /// Sucht im NSError und seinen `NSUnderlyingError`-Ketten nach einem
+        /// `NSPOSIXErrorDomain`-Code. Foundation verpackt SMB-/Sandbox-
+        /// Fehler oft so, dass der eigentliche POSIX-Errno nur im
+        /// Underlying steckt — der ist aber für die Diagnose entscheidend
+        /// (EACCES = Server lehnt ab, EPERM = Sandbox, ENOTSUP = xattr).
+        private static func posixErrno(in error: NSError) -> Int? {
+            if error.domain == NSPOSIXErrorDomain { return error.code }
+            if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+                return posixErrno(in: underlying)
+            }
+            return nil
+        }
     }
+
+    private static let log = Logger(subsystem: "ch.setcraft.core", category: "TagWrite")
 
     private var activeURL: URL?
 
@@ -50,6 +68,10 @@ public actor TagLibTrackStore: TrackStore {
         let original = track.url
         let fm = FileManager.default
 
+        let comment = RatingPrefix.format(track.rating, rest: track.comment)
+        let bpmString = track.bpm.map(Self.formatBPM) ?? ""
+        let keyString = track.key?.description ?? ""
+
         // Sibling-Temp im selben Ordner wie das Original. Bewusst KEIN
         // `.itemReplacementDirectory` mehr: dessen `(A Document Being Saved …)`-
         // Unterordner liegt auf SMB-Mounts zwar physisch am richtigen Ort,
@@ -66,12 +88,28 @@ public actor TagLibTrackStore: TrackStore {
         do {
             try fm.copyItem(at: original, to: tempFile)
         } catch {
-            throw StoreError.fileSystem(original, stage: "copyItem", underlying: error)
+            // Sibling-Temp lässt sich auf manchen SMB-Shares nicht anlegen —
+            // typischerweise weil der Server Dot-Files unter `veto files`
+            // sperrt oder der Share-User nur Schreibrechte auf existierende
+            // Dateien hat, nicht aufs Anlegen neuer. Da wir die Original-
+            // datei nachweislich lesen können (sonst hätten wir keinen
+            // Track), versuchen wir als letzte Eskalation einen direkten
+            // TagLib-Write auf dem Original. Nicht-atomar, aber pragmatisch.
+            Self.log.warning("copyItem failed for \(original.path, privacy: .public): \(error.localizedDescription, privacy: .public) — falling back to in-place write")
+            try Self.writeInPlace(
+                original: original,
+                title: track.title,
+                artist: track.artist,
+                album: track.album,
+                genre: track.genre,
+                comment: comment,
+                bpm: bpmString,
+                initialKey: keyString,
+                label: track.label,
+                copyError: error
+            )
+            return
         }
-
-        let comment = RatingPrefix.format(track.rating, rest: track.comment)
-        let bpmString = track.bpm.map(Self.formatBPM) ?? ""
-        let keyString = track.key?.description ?? ""
 
         do {
             try SetCraftTagBridge.writeTags(
@@ -90,6 +128,47 @@ public actor TagLibTrackStore: TrackStore {
         }
 
         try Self.atomicReplace(original: original, with: tempFile, fm: fm)
+    }
+
+    /// Letzter Ausweg: schreibt direkt auf die Originaldatei, ohne Sibling-
+    /// Temp und ohne Rename. Wird **nur** aufgerufen, wenn der Sibling-Temp-
+    /// Pfad scheitert — typischerweise auf SMB-Shares, die Dot-Files oder
+    /// das Anlegen neuer Dateien per ACL blockieren. TagLib öffnet das
+    /// Original mit `O_RDWR` und arbeitet in-place; das überlebt die meisten
+    /// SMB-Konstellationen, ist aber nicht atomar. Wenn auch das scheitert,
+    /// surfacen wir den ursprünglichen Copy-Fehler — der ist diagnostisch
+    /// wertvoller als ein generischer TagLib-Error.
+    private static func writeInPlace(
+        original: URL,
+        title: String,
+        artist: String,
+        album: String,
+        genre: String,
+        comment: String,
+        bpm: String,
+        initialKey: String,
+        label: String,
+        copyError: Error
+    ) throws {
+        do {
+            try SetCraftTagBridge.writeTags(
+                atPath: original.path,
+                title: title,
+                artist: artist,
+                album: album,
+                genre: genre,
+                comment: comment,
+                bpm: bpm,
+                initialKey: initialKey,
+                label: label
+            )
+            log.notice("In-place write succeeded for \(original.path, privacy: .public)")
+        } catch let bridgeError {
+            log.error("In-place write failed for \(original.path, privacy: .public): \(bridgeError.localizedDescription, privacy: .public)")
+            // Lieber den copy-Fehler zeigen (513/EACCES erklärt die
+            // Ursache); der bridge-Fehler wäre nur "TagLib could not open".
+            throw StoreError.fileSystem(original, stage: "copyItem", underlying: copyError)
+        }
     }
 
     /// Ersetzt `original` durch `tempFile`. Versucht zuerst den atomaren
