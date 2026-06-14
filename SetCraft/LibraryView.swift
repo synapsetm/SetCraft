@@ -198,8 +198,8 @@ struct LibraryView: View {
 
     private var table: some View {
         Table(
-            library.tracks,
-            selection: $library.selectedTrackID,
+            of: Track.self,
+            selection: $library.selectedTrackIDs,
             sortOrder: $library.sortOrder,
             columnCustomization: $columnCustomization
         ) {
@@ -209,6 +209,27 @@ struct LibraryView: View {
             metadataColumns
             fileInfoColumns
             tailColumns
+        } rows: {
+            // Explizite Rows-Builder statt der `Table(data, …)`-Overload,
+            // damit jede Zeile via `.draggable(track.url)` mitsamt Multi-
+            // Selection in den Finder gezogen werden kann. URL ist
+            // Transferable und erzeugt einen `public.file-url`-Drag;
+            // Finder entscheidet beim Drop selber zwischen Move (gleiches
+            // Volume) und Copy (cross-volume) — genau das gewünschte
+            // System-Standard-Verhalten.
+            ForEach(library.tracks) { track in
+                TableRow(track)
+                    .draggable(track.url)
+            }
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            // Drop auf der Tabelle = "in den aktuell angezeigten Ordner".
+            // Same-Volume → Move, cross-Volume → Copy (Foundation kann
+            // beides). Den globalen ContentView-Drop für „Track in den
+            // Player laden" lassen wir am ContentView; SwiftUI nimmt den
+            // innersten Drop-Receiver, also gewinnt diese Tabelle.
+            library.importDroppedFiles(urls)
+            return true
         }
         .onAppear { restoreColumnCustomization() }
         .onChange(of: columnCustomization) { _, _ in persistColumnCustomization() }

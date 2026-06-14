@@ -283,7 +283,7 @@ struct ContentView: View {
     private func loadIntoPlayer(_ track: Track) {
         player.loadTrack(track)
         library.analyzeIfNeeded(track)
-        library.selectedTrackID = track.id
+        library.selectedTrackIDs = [track.id]
         library.notePlay(forURL: track.url)
     }
 

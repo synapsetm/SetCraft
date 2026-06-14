@@ -15,7 +15,11 @@ final class LibraryViewModel {
     var tracks: [Track] = []
     var folderURL: URL?
     var isScanning = false
-    var selectedTrackID: Track.ID?
+    /// Mehrfachselektion: `Table` braucht ein `Set<Track.ID>` als Binding,
+    /// damit Shift-/Cmd-Klick und Drag-Bulkaktionen funktionieren. Einzel-
+    /// Track-Operationen (Re-Analyze, Player laden) greifen weiter auf
+    /// `selectedTrack` — das liefert den ersten Eintrag der Selektion.
+    var selectedTrackIDs: Set<Track.ID> = []
     var lastWriteError: String?
     var lastAnalysisError: String?
     var lastLibraryError: String?
@@ -330,8 +334,15 @@ final class LibraryViewModel {
     }
 
     var selectedTrack: Track? {
-        guard let id = selectedTrackID else { return nil }
+        guard let id = selectedTrackIDs.first else { return nil }
         return tracks.first(where: { $0.id == id })
+    }
+
+    /// Liefert alle aktuell selektierten Tracks in Tabellenreihenfolge.
+    /// Sinnvoll für Bulk-Aktionen (Re-Analyze, BPM-Scaling, Drag-OUT), die
+    /// stabil über die sichtbare Sortierung iterieren sollen.
+    var selectedTracks: [Track] {
+        tracks.filter { selectedTrackIDs.contains($0.id) }
     }
 
     // MARK: - Navigation
@@ -366,6 +377,47 @@ final class LibraryViewModel {
     func refresh() {
         guard let folderURL else { return }
         scan(folder: folderURL)
+    }
+
+    /// Verschiebt (gleiches Volume) bzw. kopiert (volume-übergreifend) per
+    /// Drag & Drop in die Liste gezogene Dateien in den aktuell angezeigten
+    /// Library-Ordner. Anschliessend wird neu gescannt, damit die Tracks
+    /// auftauchen. Tracks im selben Folder werden ignoriert (Self-Drop).
+    /// Fehler landen in `lastWriteError`, damit die Toolbar sie zeigt.
+    @MainActor
+    func importDroppedFiles(_ urls: [URL]) {
+        guard let target = folderURL else { return }
+        let fm = FileManager.default
+        Task { [weak self, target, urls] in
+            var anyImported = false
+            for src in urls {
+                let src = src.standardizedFileURL
+                let dst = target.appendingPathComponent(src.lastPathComponent)
+                if src == dst.standardizedFileURL { continue }
+                if src.deletingLastPathComponent().standardizedFileURL == target.standardizedFileURL {
+                    continue // schon im Ziel-Ordner
+                }
+                let sameVolume = (try? src.resourceValues(forKeys: [.volumeURLKey]).volume)
+                    == (try? target.resourceValues(forKeys: [.volumeURLKey]).volume)
+                do {
+                    if sameVolume {
+                        try fm.moveItem(at: src, to: dst)
+                    } else {
+                        try fm.copyItem(at: src, to: dst)
+                    }
+                    anyImported = true
+                } catch {
+                    await MainActor.run {
+                        self?.lastWriteError = String(
+                            localized: "Could not import \(src.lastPathComponent): \(error.localizedDescription)"
+                        )
+                    }
+                }
+            }
+            if anyImported {
+                await MainActor.run { self?.refresh() }
+            }
+        }
     }
 
     /// Setzt das Rating eines Tracks anhand seiner URL und plant den
