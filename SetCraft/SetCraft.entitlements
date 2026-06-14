@@ -15,11 +15,16 @@
 	     Erlaubnis, sich mit den beiden XPC-Services zu verbinden, die
 	     Sparkle unter `<bundle-id>-spks` (Installer) und `<bundle-id>-spki`
 	     (Downloader) registriert. Siehe
-	     https://sparkle-project.org/documentation/sandboxing/. -->
+	     https://sparkle-project.org/documentation/sandboxing/.
+	     `com.apple.audioanalyticsd` wird von AVAudioEngine intern beim
+	     Setup angerufen — ohne diese Exception wirft die Sandbox eine
+	     PRECONDITION-FAILURE-Warnung in die Konsole. Funktional läuft
+	     Audio auch ohne, aber die Warnung verschwindet damit. -->
 	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spks</string>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spki</string>
+		<string>com.apple.audioanalyticsd</string>
 	</array>
 </dict>
 </plist>

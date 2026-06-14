@@ -25,6 +25,7 @@ struct LibraryView: View {
                     .padding(.vertical, 8)
                 Divider()
                 table
+                    .frame(maxHeight: .infinity)
                 Divider()
                 statusBar
             }
@@ -70,7 +71,7 @@ struct LibraryView: View {
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .frame(height: Self.bottomBarHeight)
         }
     }
 
@@ -166,8 +167,10 @@ struct LibraryView: View {
     }
 
     /// Statuszeile unter der Tabelle: Track-Counter links, Fehler-Chips
-    /// rechts. Höhe/Padding bewusst gespiegelt zum „Add folder…"-Balken
-    /// unten in der Sidebar, damit beide Bars auf einer Linie liegen.
+    /// rechts. Padding + minHeight gespiegelt zum „Add folder…"-Balken
+    /// in der Sidebar; die fixe Mindesthöhe verhindert, dass die Bar nach
+    /// Scan-Ende von ~32pt auf ~27pt zusammenschrumpft (caption-Text ist
+    /// kleiner als die scan-zeitige ProgressView).
     private var statusBar: some View {
         HStack(spacing: 8) {
             if library.isScanning {
@@ -195,8 +198,14 @@ struct LibraryView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .frame(height: Self.bottomBarHeight)
     }
+
+    /// Gemeinsame Höhe für die beiden unteren Bars: „Add folder…" links
+    /// in der Sidebar und die Status-Bar rechts unter der Tabelle. Damit
+    /// liegen sie pixel-exakt auf einer Linie, unabhängig vom aktuellen
+    /// Inhalt (Caption-Text, ProgressView, leer …).
+    private static let bottomBarHeight: CGFloat = 32
 
     private var table: some View {
         Table(
