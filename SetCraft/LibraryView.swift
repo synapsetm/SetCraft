@@ -11,6 +11,7 @@ struct LibraryView: View {
     /// Kontextmenü auf den Header umgeschaltet, Reihenfolge per Drag.
     @AppStorage("librarytable.columns") private var columnsRaw: String = ""
     @State private var columnCustomization = TableColumnCustomization<Track>()
+    @State private var showResetConfirm = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -170,6 +171,28 @@ struct LibraryView: View {
             }
             .disabled(library.selectedTrack == nil)
             .help("Force a fresh BPM/key analysis for the selected track")
+
+            Button {
+                showResetConfirm = true
+            } label: {
+                Label("Reset plays", systemImage: "arrow.counterclockwise.circle")
+            }
+            .disabled(library.folderURL == nil || library.tracks.isEmpty)
+            .help("Reset the play counter for every track in this source")
+            .confirmationDialog(
+                "Reset play counts for this source?",
+                isPresented: $showResetConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Reset", role: .destructive) {
+                    library.resetPlayCountsInCurrentFolder()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                if let folder = library.folderURL {
+                    Text("All \(library.tracks.count) tracks in “\(folder.lastPathComponent)” will have their play count set back to 0.")
+                }
+            }
         }
     }
 
@@ -238,6 +261,14 @@ struct LibraryView: View {
         .width(14)
         .customizationID("status")
         .disabledCustomizationBehavior([.visibility, .reorder])
+
+        TableColumn("Plays", value: \.playCount) { track in
+            Text(track.playCount == 0 ? "—" : String(track.playCount))
+                .monospacedDigit()
+                .foregroundStyle(track.playCount == 0 ? .secondary : .primary)
+        }
+        .width(min: 45, ideal: 55, max: 70)
+        .customizationID("plays")
 
         TableColumn("Title", value: \.title) { track in
             TextField("Title", text: binding(track, \.title))
@@ -357,6 +388,14 @@ struct LibraryView: View {
         }
         .width(min: 55, ideal: 70, max: 90)
         .customizationID("size")
+
+        TableColumn("Modified", value: \.modifiedDateSortable) { track in
+            Text(formatModifiedDate(track.modifiedDate))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .width(min: 110, ideal: 140, max: 180)
+        .customizationID("modified")
     }
 
     @TableColumnBuilder<Track, KeyPathComparator<Track>>
@@ -457,6 +496,20 @@ struct LibraryView: View {
         return f
     }()
 
+    private func formatModifiedDate(_ date: Date?) -> String {
+        guard let date else { return "—" }
+        return Self.fullDateFormatter.string(from: date)
+    }
+
+    fileprivate static let fullDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        // Explizites Format mit Punkten — `.medium`/`.short` rendert je nach
+        // Locale unterschiedlich ("14. Jun 2026" / "14.06.26"), wir wollen
+        // konsistent "14.06.2026, 15:43".
+        f.dateFormat = "dd.MM.yyyy, HH:mm"
+        return f
+    }()
+
     // MARK: - Spalten-Persistenz
 
     /// `TableColumnCustomization` ist Codable; wir serialisieren als JSON
@@ -489,5 +542,9 @@ extension Track {
     var bitrateSortable: Int { bitrate ?? -1 }
     /// File size zum Sortieren: nil → -1.
     var fileSizeSortable: Int64 { fileSize ?? -1 }
+    /// Modified-Date zum Sortieren: nil → distantPast (sortiert ganz unten bei
+    /// Descending, ganz oben bei Ascending — bewusst nicht .distantFuture,
+    /// damit ungelesene Werte beim Default-Sortieren "alt" wirken).
+    var modifiedDateSortable: Date { modifiedDate ?? .distantPast }
 }
 

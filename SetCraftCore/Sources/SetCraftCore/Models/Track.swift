@@ -22,6 +22,14 @@ public struct Track: Identifiable, Hashable, Sendable {
     public var label: String
     /// Dateigrösse in Bytes, zur Scan-Zeit ermittelt. `nil` falls FileManager fehlschlug.
     public var fileSize: Int64?
+    /// Modifikationsdatum der Datei aus dem Dateisystem. Sortier- und
+    /// Anzeige-Quelle in der Library. Wird vom `LibraryRepository` aus den
+    /// FileManager-Attributen gesetzt; `nil` solange noch nichts gelesen wurde.
+    public var modifiedDate: Date?
+    /// Wie oft der Track in SetCraft abgespielt wurde. App-lokal in der DB
+    /// gehalten — Tag-Daten der Datei bleiben unangetastet (Serato/Rekordbox
+    /// haben kein Standardfeld dafür).
+    public var playCount: Int
 
     public init(
         id: UUID = UUID(),
@@ -38,7 +46,9 @@ public struct Track: Identifiable, Hashable, Sendable {
         year: Int? = nil,
         bitrate: Int? = nil,
         label: String = "",
-        fileSize: Int64? = nil
+        fileSize: Int64? = nil,
+        modifiedDate: Date? = nil,
+        playCount: Int = 0
     ) {
         self.id = id
         self.url = url
@@ -55,6 +65,8 @@ public struct Track: Identifiable, Hashable, Sendable {
         self.bitrate = bitrate
         self.label = label
         self.fileSize = fileSize
+        self.modifiedDate = modifiedDate
+        self.playCount = playCount
     }
 
     public var displayTitle: String {

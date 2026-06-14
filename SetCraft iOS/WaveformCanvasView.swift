@@ -13,6 +13,9 @@ import SetCraftCore
 /// Mitte und die Wellenform scrollt unter ihm hindurch — CDJ-Look.
 ///
 /// Drag-Scrub: Finger nach links → Wave nach links → Zeit läuft vorwärts.
+/// `axis == .vertical` rendert dieselbe Welle um 90° gedreht — Zeit verläuft
+/// von oben nach unten, Playhead ist eine horizontale Linie in der Mitte.
+/// Wird im iPhone-Landscape vom `PlayerScreen` genutzt.
 struct WaveformCanvasView: View {
     let data: WaveformData?
     let position: TimeInterval
@@ -20,6 +23,7 @@ struct WaveformCanvasView: View {
     let bpm: Double?
     let isLoading: Bool
     let onScrub: (TimeInterval) -> Void
+    var axis: Axis = .horizontal
 
     /// Zoom-Level: Pixel pro Sekunde der Wellenform. Persistent über
     /// App-Sessions via `@AppStorage`. Pinch-Geste (Magnify) skaliert
@@ -41,14 +45,24 @@ struct WaveformCanvasView: View {
                 Color(red: 0.055, green: 0.055, blue: 0.07)
 
                 Canvas { ctx, size in
-                    draw(in: ctx, size: size)
+                    if axis == .horizontal {
+                        draw(in: ctx, size: size)
+                    } else {
+                        drawVertical(in: ctx, size: size)
+                    }
                 }
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 1)
                         .onChanged { value in
                             if dragStartTime == nil { dragStartTime = position }
-                            let dt = -Double(value.translation.width) / pxPerSec
+                            // Im Landscape verläuft die Zeit von oben (Zukunft)
+                            // nach unten (Vergangenheit). Finger nach unten ziehen
+                            // = Welle nach unten schieben = Zeit läuft vorwärts.
+                            let primary = axis == .horizontal
+                                ? -Double(value.translation.width)
+                                : Double(value.translation.height)
+                            let dt = primary / pxPerSec
                             let new = max(0, min(duration, (dragStartTime ?? 0) + dt))
                             onScrub(new)
                         }
@@ -80,13 +94,21 @@ struct WaveformCanvasView: View {
                     }
                 )
 
-                progressBar(width: proxy.size.width)
-
-                timeLabels(width: proxy.size.width)
+                if axis == .horizontal {
+                    progressBar(width: proxy.size.width)
+                    timeLabels(width: proxy.size.width)
+                } else {
+                    progressBarVertical(height: proxy.size.height)
+                    timeLabelsVertical(height: proxy.size.height)
+                }
 
                 zoomHUD(width: proxy.size.width)
 
-                zoomButtonsOverlay
+                // Im schmalen Landscape-Streifen überdecken die Buttons sonst
+                // das Duration-Label. Pinch-to-zoom bleibt aktiv.
+                if axis == .horizontal {
+                    zoomButtonsOverlay
+                }
 
                 if isLoading {
                     ProgressView()
@@ -282,6 +304,146 @@ struct WaveformCanvasView: View {
     private func formatTime(_ s: TimeInterval) -> String {
         let total = max(0, Int(s.rounded()))
         return "\(total / 60):\(String(format: "%02d", total % 60))"
+    }
+
+    @ViewBuilder
+    private func progressBarVertical(height: CGFloat) -> some View {
+        let frac = duration > 0 ? CGFloat(position / duration) : 0
+        HStack {
+            Spacer(minLength: 0)
+            // Wächst von unten nach oben — passt zur Logik „Vergangenheit unten,
+            // Zukunft oben". Voll = Track komplett gespielt.
+            ZStack(alignment: .bottom) {
+                Rectangle()
+                    .fill(Color(red: 0.15, green: 0.15, blue: 0.18))
+                    .frame(width: 2, height: height)
+                Rectangle()
+                    .fill(Color.orange)
+                    .frame(width: 2, height: height * frac)
+            }
+            .padding(.trailing, 2)
+        }
+        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private func timeLabelsVertical(height _: CGFloat) -> some View {
+        VStack {
+            // Oben: abgespielt / Restzeit (CDJ-Layout, identisch zum
+            // Portrait-Header). Unten: Gesamtdauer als zweite Pill.
+            Text("\(formatTime(position)) / -\(formatTime(max(0, duration - position)))")
+                .modifier(WaveformTimeLabel())
+                .padding(.top, 8)
+            Spacer()
+            Text(formatTime(duration))
+                .modifier(WaveformTimeLabel())
+                .padding(.bottom, 8)
+        }
+        .frame(maxWidth: .infinity)
+        .allowsHitTesting(false)
+    }
+
+    /// Vertikales Pendant zu `draw(in:size:)` für den Landscape-Modus.
+    /// Zeit verläuft top→bottom: oben liegt die ZUKUNFT, unten die
+    /// VERGANGENHEIT, der Playhead bleibt zentriert. Das matched die
+    /// Erwartung „die Welle läuft von oben nach unten ab" — neue Audio-
+    /// Inhalte kommen oben rein, scrollen durch den Playhead und
+    /// verschwinden unten.
+    private func drawVertical(in ctx: GraphicsContext, size: CGSize) {
+        let width = size.width
+        let height = size.height
+        guard width > 0, height > 0 else { return }
+        let midX = width * 0.5
+        let centerY = height * 0.5
+        // Zeit am Punkt y: oben (y=0) ist Zukunft, unten (y=height) ist
+        // Vergangenheit — daher (centerY - y) im Zähler.
+        let timeOffsetPerPixel = 1.0 / pxPerSec
+        let topTime = position + Double(centerY) * timeOffsetPerPixel
+
+        if let bpm, bpm > 0 {
+            let bar = (60.0 / bpm) * 4
+            // Beat-Linien zwischen bottomTime und topTime, von der ältesten
+            // sichtbaren aus aufwärts iterieren.
+            let bottomTime = position - Double(height - centerY) * timeOffsetPerPixel
+            var t = (bottomTime / bar).rounded(.up) * bar
+            while t <= topTime {
+                let y = centerY - CGFloat((t - position) * pxPerSec)
+                if y >= 0, y <= height {
+                    var p = Path()
+                    p.move(to: CGPoint(x: 0, y: y))
+                    p.addLine(to: CGPoint(x: width, y: y))
+                    ctx.stroke(p, with: .color(.white.opacity(0.05)), lineWidth: 1)
+                }
+                t += bar
+            }
+        }
+
+        if let data, !data.bins.isEmpty {
+            let totalSeconds = data.secondsPerBin * Double(data.bins.count)
+            let binsPerPixel = max(1, Int((timeOffsetPerPixel / data.secondsPerBin).rounded()))
+            let halfWindow = binsPerPixel / 2
+
+            for y in 0..<Int(height.rounded()) {
+                // y wächst nach unten = ältere Zeit.
+                let t = topTime - Double(y) * timeOffsetPerPixel
+                if t < 0 || t > totalSeconds { continue }
+                let centerBin = Int(t / data.secondsPerBin)
+                let startBin = max(0, centerBin - halfWindow)
+                let endBin = min(data.bins.count, centerBin + halfWindow + 1)
+                guard startBin < endBin else { continue }
+
+                var maxRms: Float = 0
+                var sumBass: Float = 0
+                var sumMid: Float = 0
+                var sumHigh: Float = 0
+                for i in startBin..<endBin {
+                    let bin = data.bins[i]
+                    if bin.rms > maxRms { maxRms = bin.rms }
+                    sumBass += bin.bass
+                    sumMid  += bin.mid
+                    sumHigh += bin.high
+                }
+                let n = Float(endBin - startBin)
+                let bass = sumBass / n
+                let mid  = sumMid  / n
+                let high = sumHigh / n
+
+                let amp = CGFloat(pow(Double(maxRms), 0.6)) * width * 0.44
+                let gamma = 0.4
+                let color = Color(
+                    red:   pow(Double(bass), gamma),
+                    green: pow(Double(mid),  gamma),
+                    blue:  pow(Double(high), gamma)
+                )
+                var p = Path()
+                p.move(to: CGPoint(x: midX - amp, y: CGFloat(y) + 0.5))
+                p.addLine(to: CGPoint(x: midX + amp, y: CGFloat(y) + 0.5))
+                ctx.stroke(p, with: .color(color), lineWidth: 1)
+            }
+        }
+
+        // Played-Overlay deckt die untere Hälfte ab (= Vergangenheit).
+        let overlay = Path(CGRect(x: 0, y: centerY, width: width, height: height - centerY))
+        ctx.fill(overlay, with: .color(.black.opacity(0.42)))
+
+        var line = Path()
+        line.move(to: CGPoint(x: 0, y: centerY))
+        line.addLine(to: CGPoint(x: width, y: centerY))
+        ctx.stroke(line, with: .color(.white), lineWidth: 2)
+
+        var triLeft = Path()
+        triLeft.move(to: CGPoint(x: 0, y: centerY - 6))
+        triLeft.addLine(to: CGPoint(x: 0, y: centerY + 6))
+        triLeft.addLine(to: CGPoint(x: 8, y: centerY))
+        triLeft.closeSubpath()
+        ctx.fill(triLeft, with: .color(.white))
+
+        var triRight = Path()
+        triRight.move(to: CGPoint(x: width, y: centerY - 6))
+        triRight.addLine(to: CGPoint(x: width, y: centerY + 6))
+        triRight.addLine(to: CGPoint(x: width - 8, y: centerY))
+        triRight.closeSubpath()
+        ctx.fill(triRight, with: .color(.white))
     }
 }
 

@@ -29,8 +29,14 @@ public actor LibraryRepository: TrackStore {
             return cached.track()
         }
         do {
-            let fresh = try TagReader.read(url: url)
+            var fresh = try TagReader.read(url: url)
+            fresh.modifiedDate = mtime
             try? await database.saveTrack(fresh, modifiedAt: mtime)
+            // play_count im DB-Cache wurde von saveTrack erhalten; falls eine
+            // alte Zeile existierte, deren Wert auch ins In-Memory-Track ziehen.
+            if let row = try? await database.loadTrack(url: url) {
+                fresh.playCount = row.play_count
+            }
             return fresh
         } catch {
             Self.log.error("loadTrack failed for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")

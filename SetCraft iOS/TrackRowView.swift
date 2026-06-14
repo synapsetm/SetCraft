@@ -66,8 +66,19 @@ struct TrackRowView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
-            StarStripView(stars: track.rating.stars)
-                .padding(.top, 2)
+            HStack(spacing: 6) {
+                StarStripView(stars: track.rating.stars)
+                if track.playCount > 0 {
+                    HStack(spacing: 2) {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 9))
+                        Text("\(track.playCount)")
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    }
+                    .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.top, 2)
         }
     }
 

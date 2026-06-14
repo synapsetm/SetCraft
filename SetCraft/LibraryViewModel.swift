@@ -458,6 +458,39 @@ final class LibraryViewModel {
         }
     }
 
+    // MARK: - Play-Count
+
+    /// Inkrementiert den Play-Count des Tracks an `url` im DB-Cache und
+    /// zieht den neuen Wert ins In-Memory-`tracks`-Array nach. Wird aus
+    /// `ContentView.loadIntoPlayer` aufgerufen — also genau dann, wenn der
+    /// Nutzer einen Track aus der Library in den Player lädt.
+    func notePlay(forURL url: URL) {
+        Task { [weak self, database] in
+            guard let count = try? await database.incrementPlayCount(url: url) else { return }
+            await MainActor.run {
+                guard let self,
+                      let idx = self.tracks.firstIndex(where: { $0.url == url })
+                else { return }
+                self.tracks[idx].playCount = count
+            }
+        }
+    }
+
+    /// Setzt die Play-Counts aller Tracks im aktuell ausgewählten Folder
+    /// auf 0 (DB + In-Memory). Wird vom Toolbar-Knopf aufgerufen.
+    func resetPlayCountsInCurrentFolder() {
+        guard let folder = folderURL else { return }
+        Task { [weak self, database] in
+            try? await database.resetPlayCounts(inFolder: folder)
+            await MainActor.run {
+                guard let self else { return }
+                for idx in self.tracks.indices {
+                    self.tracks[idx].playCount = 0
+                }
+            }
+        }
+    }
+
     // MARK: - Analyse
 
     /// Startet eine Analyse für `track`, wenn BPM oder Key fehlen, und wärmt

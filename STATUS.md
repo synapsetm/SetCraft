@@ -5,6 +5,144 @@ und `SPEC.md` (vollständige Spezifikation und Phasenplan).
 
 ---
 
+## Sitzung 2026-06-14 — Modified-Date, Play-Count, iOS-Landscape, Player-Swipe, NAS-Fix, Release v1.0-9 / iOS-Build 12
+
+Grosse Feature-Welle plus ein hartnäckiger Filesystem-Bug auf NAS-Mounts.
+Mac-Build 8→9, iOS-Build 11→12.
+
+### NAS-Schreibfehler in `TagLibTrackStore.save` behoben
+
+Mac-App warf reproduzierbar einen „Filesystem error" beim Schreiben von
+Tags auf einen Synology-SMB-Mount. Ursache: `.itemReplacementDirectory`
+und `FileManager.replaceItemAt` stolpern auf SMB regelmässig über
+interne `setattrlist`-/xattr-Calls, die der Server mit ENOTSUP/EPERM
+quittiert; das Apple-„(A Document Being Saved By …)"-Unterverzeichnis
+wird zudem von der Sandbox-Extension nicht zuverlässig abgedeckt. Fix:
+
+- Sibling-Temp im selben Verzeichnis wie das Original (`.setcraft-
+  <UUID>-<name>`) statt `.itemReplacementDirectory` — bleibt garantiert
+  innerhalb des Security-Scope.
+- `replaceItemAt` bleibt erster Versuch (atomar auf APFS); bei Fehler
+  Fallback auf Rename-über-Backup: `original → backup`, `temp →
+  original`, `backup` löschen. Falls der zweite Rename scheitert, wird
+  das Original aus dem Backup wiederhergestellt — kein Datenverlust.
+- `StoreError.fileSystem` trägt jetzt zusätzlich einen `stage`-String
+  (`copyItem`, `replaceItemAt+backup`, `replaceItemAt+rename`) +
+  NSError-Domain/Code, damit künftige Diagnosen sofort die Bruchstelle
+  zeigen.
+
+Verifiziert mit XCTest-Probe gegen `/Volumes/share/04_Audio/...`,
+Smoke-Test in der Mac-App auf dem zuvor problematischen NAS-Verzeichnis
+durchgeführt. Korrektur lebt im geteilten `SetCraftCore`-Paket, iOS
+profitiert automatisch.
+
+### Modified-Date als Spalte + Sortierung
+
+`Track.modifiedDate: Date?` neu im Modell. Der DB-Cache hatte
+`modified_at` ohnehin schon (für Stale-Check), wird jetzt zusätzlich
+über `CachedTrack.track()` ins Domain-Modell exponiert. Frische
+Cache-Miss-Reads im `LibraryRepository.loadTrack` setzen das Datum
+selbst aus den FileManager-Attributen. Anzeige + Sortierung:
+
+- Mac: neue Spalte „Modified" mit explizitem Format `dd.MM.yyyy, HH:mm`
+  (z. B. `14.06.2026, 15:43` — `dateStyle`-Konstanten lieferten je
+  nach Locale „Jun" vs. Punkte, das explizite Format ist konsistent).
+  Sortbar via `modifiedDateSortable: Date` (nil → `.distantPast`).
+- iOS: zusätzliche Sort-Option „Modified" im `…`-Menü. Anzeige in der
+  TrackRow bewusst nicht — User wollte explizit nur Sortierung.
+
+### Play-Count + Reset
+
+App-lokaler Counter, nicht in die Tag-Datei geschrieben (Serato/
+Rekordbox haben kein gemeinsames Standardfeld). Neu auf `Track`,
+DB-Migration `v4_track_play_count`, drei API-Punkte am
+`DatabaseService`:
+
+- `incrementPlayCount(url:)` — atomares `UPDATE ... SET play_count =
+  play_count + 1 WHERE url = ?`, liefert den neuen Wert zurück.
+- `resetPlayCounts(inFolder:)` — `UPDATE ... WHERE url LIKE folder/%
+  SET play_count = 0`.
+- `saveTrack` zieht beim Schreiben den existierenden `play_count` aus
+  der Zeile, damit Tag-Edits oder Cache-Refreshes den Counter nicht
+  resetten.
+
+Trigger: in beiden Apps beim Track-Load. Mac über
+`ContentView.loadIntoPlayer`, iOS in `PlayerStore.load`. Auto-Advance
+am Trackende zählt bewusst mit — der Track wurde tatsächlich
+abgespielt.
+
+Anzeige:
+
+- Mac: neue Spalte „Plays" direkt nach der Save-Indikator-Spalte (●),
+  rechtsbündig, „—" für 0. Toolbar-Knopf „Reset plays" mit
+  `confirmationDialog`; deaktiviert ohne aktive Quelle.
+- iOS: kleines `▶ N`-Badge in der `TrackRowView` neben dem
+  Sterne-Strip, nur sichtbar wenn > 0. Menü-Eintrag „Reset play
+  counts" im `…`-Menü mit Bestätigungsdialog.
+
+### iOS-Landscape-Player
+
+iPhone war auf Portrait gelockt
+(`INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone =
+UIInterfaceOrientationPortrait`). Lock entfernt, Landscape-Layout
+gebaut:
+
+- `WaveformCanvasView` bekommt `axis: Axis = .horizontal`-Parameter
+  mit komplettem `drawVertical(in:size:)`-Pendant zu `draw(in:size:)`.
+  Zeit verläuft top→bottom: oben = Zukunft, unten = Vergangenheit,
+  Playhead bleibt zentriert als horizontale Linie. Played-Overlay
+  deckt die untere Hälfte (Vergangenheit) ab. Beat-Grid horizontal.
+  Scrub-Drag: Finger nach unten → Welle nach unten → Zeit vorwärts.
+- `PlayerScreen` schaltet bei `verticalSizeClass == .compact` auf
+  `HStack(VerticalWaveform 140pt | TrackInfo flex | Controls 360pt)`.
+  Waveform-Streifen wurde von 110 → 140 pt verbreitert, damit oben
+  beide Zeitwerte (abgespielt + Restzeit) als kombinierte Pill in
+  CDJ-Manier nebeneinander Platz haben; Gesamtdauer als zweite Pill
+  unten.
+- Zoom-Buttons im Quer-Modus ausgeblendet (würden im schmalen
+  Streifen das Duration-Label überdecken); Pinch-Geste und
+  Double-Tap-Reset bleiben aktiv.
+- Vertikaler Progress-Balken wächst von unten nach oben — passt zur
+  „Vergangenheit unten, Zukunft oben"-Logik.
+
+### iOS Player-Swipe für Track-Wechsel
+
+`DragGesture(minimumDistance: 40)` auf den Track-Info- und
+Controls-Bereich (NICHT auf der Waveform — würde mit dem Scrub-
+Gesture kollidieren). Schwellwert: `abs(dx) > abs(dy) * 1.5` und
+`abs(dx) > 60`. Links → `store.next()`, rechts → `store.previous()`.
+
+### Swift 6 / `Notification`-Sendable in `AudioSessionManager`
+
+Xcode warf in Swift-6-Mode: „Capture of 'note' with non-Sendable type
+'Notification' in a '@Sendable' closure". Fix:
+NotificationCenter-Callback zieht die UInt-Scalars aus `userInfo`
+SYNCHRON (der Block läuft sowieso auf `.main`) und reicht nur die
+`Sendable` Rohwerte in den `@MainActor`-Task weiter; die
+`handleInterruption`/`handleRouteChange`-Methoden nehmen jetzt
+entpackte Parameter statt der Notification.
+
+### Manuell zu prüfen (siehe `feedback_mac_smoke_test`)
+
+- Mac: Tag-Write auf NAS-Mount erfolgreich; Modified-Spalte mit
+  Punkten formatiert; Plays-Spalte zeigt Counter; Reset-Toolbar-Knopf
+  resettet aktive Quelle.
+- iOS Portrait: Sort-Option „Modified" greift; Play-Count-Badge
+  erscheint; Menü-Reset wirkt; Player-Swipe wechselt Track ohne
+  Scrub-Konflikte.
+- iOS Landscape: Gerät drehen → vertikale Waveform sichtbar; obere
+  Pill zeigt `abgespielt / -restzeit`, untere Pill Gesamtdauer;
+  Scrub-Drag vorwärts/rückwärts; Swipe wechselt Track.
+
+### Release
+
+Mac: `release.sh` → DMG notarisiert, GitHub-Release `v1.0-9`,
+Appcast aktualisiert. Build-Nummer 8 → 9.
+iOS: `release-ios.sh` für TestFlight, Build 11 → 12 (Upload erwartet
+über Xcode Organizer wegen Cloud-Signing-Stolperstein).
+
+---
+
 ## Sitzung 2026-06-07 — Library-Reihenfolge bei Tag-Edits einfrieren, Refresh-Button, Release v1.0-8
 
 Beim Editieren eines Tags (BPM, Titel, Rating, …) sprang der bearbeitete

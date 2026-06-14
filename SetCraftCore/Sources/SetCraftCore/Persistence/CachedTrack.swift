@@ -22,6 +22,7 @@ public struct CachedTrack: Codable, FetchableRecord, PersistableRecord, Sendable
     public var bitrate: Int?
     public var label: String
     public var file_size: Int64?
+    public var play_count: Int
 
     public init(track: Track, modifiedAt: Date, cachedAt: Date) {
         self.url               = track.url.standardizedFileURL.path
@@ -40,6 +41,7 @@ public struct CachedTrack: Codable, FetchableRecord, PersistableRecord, Sendable
         self.bitrate           = track.bitrate
         self.label             = track.label
         self.file_size         = track.fileSize
+        self.play_count        = track.playCount
     }
 
     /// Baut wieder ein domain-`Track` aus der Cache-Zeile. Die `id` wird
@@ -60,7 +62,9 @@ public struct CachedTrack: Codable, FetchableRecord, PersistableRecord, Sendable
             year: year,
             bitrate: bitrate,
             label: label,
-            fileSize: file_size
+            fileSize: file_size,
+            modifiedDate: Date(timeIntervalSince1970: modified_at),
+            playCount: play_count
         )
     }
 

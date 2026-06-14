@@ -16,6 +16,7 @@ struct ContentView: View {
             LibraryView(library: library) { track in
                 player.loadTrack(track)
                 library.analyzeIfNeeded(track)
+                library.notePlay(forURL: track.url)
             }
         }
         .frame(minWidth: 760, minHeight: 520)
@@ -283,6 +284,7 @@ struct ContentView: View {
         player.loadTrack(track)
         library.analyzeIfNeeded(track)
         library.selectedTrackID = track.id
+        library.notePlay(forURL: track.url)
     }
 
     /// Nur noch die Zeitanzeige — gesucht wird ab Phase 4 ausschliesslich

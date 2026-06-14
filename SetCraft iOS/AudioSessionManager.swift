@@ -48,13 +48,20 @@ final class AudioSessionManager {
     }
 
     private func setupObservers() {
+        // KRITISCH: Swift 6 erlaubt nicht, `Notification` (non-Sendable) in
+        // einen @Sendable-Task-Closure zu capturen. Daher die relevanten
+        // Werte SYNCHRON aus `userInfo` ziehen — der Observer-Callback läuft
+        // bereits auf .main — und nur die UInt-Scalars in den MainActor-Task
+        // weiterreichen.
         let interruption = NotificationCenter.default.addObserver(
             forName: AVAudioSession.interruptionNotification,
             object: nil,
             queue: .main
         ) { [weak self] note in
+            let rawType = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+            let rawOptions = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
             Task { @MainActor [weak self] in
-                self?.handleInterruption(note)
+                self?.handleInterruption(rawType: rawType, rawOptions: rawOptions)
             }
         }
         observers.append(interruption)
@@ -64,23 +71,22 @@ final class AudioSessionManager {
             object: nil,
             queue: .main
         ) { [weak self] note in
+            let rawReason = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
             Task { @MainActor [weak self] in
-                self?.handleRouteChange(note)
+                self?.handleRouteChange(rawReason: rawReason)
             }
         }
         observers.append(routeChange)
     }
 
-    private func handleInterruption(_ note: Notification) {
-        guard let rawType = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-              let type = AVAudioSession.InterruptionType(rawValue: rawType)
+    private func handleInterruption(rawType: UInt?, rawOptions: UInt) {
+        guard let rawType, let type = AVAudioSession.InterruptionType(rawValue: rawType)
         else { return }
 
         switch type {
         case .began:
             onInterruptionBegan?()
         case .ended:
-            let rawOptions = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
             let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
             if options.contains(.shouldResume) {
                 onInterruptionEndedShouldResume?()
@@ -90,8 +96,8 @@ final class AudioSessionManager {
         }
     }
 
-    private func handleRouteChange(_ note: Notification) {
-        guard let rawReason = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+    private func handleRouteChange(rawReason: UInt?) {
+        guard let rawReason,
               let reason = AVAudioSession.RouteChangeReason(rawValue: rawReason)
         else { return }
 

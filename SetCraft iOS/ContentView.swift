@@ -60,6 +60,7 @@ private struct LibraryScreen: View {
 
     @State private var showFolderImporter = false
     @State private var activeSheet: LibrarySheet?
+    @State private var showResetConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -102,6 +103,20 @@ private struct LibraryScreen: View {
                 Task { await libraryStore.addFolder(url: url) }
             case .failure(let error):
                 libraryStore.lastError = String(localized: "Picker failed: \(error.localizedDescription)")
+            }
+        }
+        .confirmationDialog(
+            "Reset play counts for this source?",
+            isPresented: $showResetConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Reset", role: .destructive) {
+                Task { await libraryStore.resetPlayCountsInCurrentFolder() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            if let folder = libraryStore.selectedFolder {
+                Text("All tracks in “\(folder.name)” will have their play count set back to 0.")
             }
         }
         .sheet(item: $activeSheet) { sheet in
@@ -257,6 +272,11 @@ private struct LibraryScreen: View {
                         libraryStore.analyzeAll()
                     } label: {
                         Label("Analyze all", systemImage: "wand.and.stars")
+                    }
+                    Button(role: .destructive) {
+                        showResetConfirm = true
+                    } label: {
+                        Label("Reset play counts", systemImage: "arrow.counterclockwise.circle")
                     }
                 }
 

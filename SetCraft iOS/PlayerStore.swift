@@ -124,6 +124,10 @@ final class PlayerStore {
             // Tag-Writes auf diesen Track werden serialisiert (gequeued bis
             // zum nächsten Track-Wechsel).
             Task { await library.setActiveTrack(track.url) }
+            // Play-Count +1 für jeden Track-Load. Auto-Advance (snapshotQueue=
+            // false) zählt bewusst auch — der Track wurde tatsächlich
+            // abgespielt; das entspricht der Mac-Logik.
+            library.notePlay(forURL: track.url)
         } catch {
             lastError = String(localized: "Failed to load track: \(error.localizedDescription)")
         }

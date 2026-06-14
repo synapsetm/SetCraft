@@ -8,16 +8,45 @@
 import SwiftUI
 import SetCraftCore
 
-/// Player-Tab im Card-based Portrait-Layout. Landscape ist auf
-/// Projektebene gesperrt (`INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone
-/// = UIInterfaceOrientationPortrait`), daher gibt es nur diese eine Variante.
+/// Player-Tab. Im Portrait ist das Layout vertikal aufgebaut: Waveform oben,
+/// Track-Info darunter, Controls unten. Im iPhone-Landscape (verticalSizeClass
+/// `.compact`) klappt das Layout horizontal: vertikale Waveform links, Track-
+/// Info mittig, Controls rechts — passend zur DJ-Hand-am-Gerät-Erwartung.
 struct PlayerScreen: View {
     let store: PlayerStore
 
     @State private var showTagEditSheet = false
     @State private var showTempoSheet = false
+    @Environment(\.verticalSizeClass) private var vSizeClass
 
     var body: some View {
+        Group {
+            if vSizeClass == .compact {
+                landscapeBody
+            } else {
+                portraitBody
+            }
+        }
+        .background(Color(red: 0.08, green: 0.08, blue: 0.09))
+        .sheet(isPresented: $showTagEditSheet) {
+            if let track = store.currentTrack {
+                TagEditSheet(track: track) { updated in
+                    store.applyEdit(updated)
+                }
+            }
+        }
+        .sheet(isPresented: $showTempoSheet) {
+            TempoSheet(
+                originalBPM: store.currentTrack?.bpm,
+                initialRate: store.currentRate,
+                onRateChange: { store.setRate($0) },
+                onReset: { store.resetTempo() }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var portraitBody: some View {
         VStack(spacing: 0) {
             waveform
                 .frame(height: 208)
@@ -40,23 +69,82 @@ struct PlayerScreen: View {
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(red: 0.10, green: 0.10, blue: 0.13))
+            .contentShape(Rectangle())
+            .gesture(trackSwipeGesture)
         }
-        .background(Color(red: 0.08, green: 0.08, blue: 0.09))
-        .sheet(isPresented: $showTagEditSheet) {
-            if let track = store.currentTrack {
-                TagEditSheet(track: track) { updated in
-                    store.applyEdit(updated)
+    }
+
+    /// Landscape-Layout: vertikale Waveform links, Track-Header mittig,
+    /// Steuerelemente rechts. Mini-Player + TabView bleiben unangetastet.
+    @ViewBuilder
+    private var landscapeBody: some View {
+        HStack(spacing: 0) {
+            verticalWaveform
+                .frame(width: 140)
+
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                headerCard
+                Spacer(minLength: 0)
+                if let error = store.lastError {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
                 }
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(trackSwipeGesture)
+
+            VStack {
+                Spacer(minLength: 0)
+                controlsCard
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .frame(width: 360)
+            .contentShape(Rectangle())
+            .gesture(trackSwipeGesture)
         }
-        .sheet(isPresented: $showTempoSheet) {
-            TempoSheet(
-                originalBPM: store.currentTrack?.bpm,
-                initialRate: store.currentRate,
-                onRateChange: { store.setRate($0) },
-                onReset: { store.resetTempo() }
-            )
-        }
+        .background(Color(red: 0.10, green: 0.10, blue: 0.13))
+    }
+
+    /// Horizontaler Swipe wechselt den Track: nach links → next, nach rechts
+    /// → previous. Wird bewusst NUR auf den Track-Info-/Controls-Bereich gelegt
+    /// und nicht auf die Waveform, damit das Scrubbing nicht hijacked wird.
+    private var trackSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 40, coordinateSpace: .local)
+            .onEnded { value in
+                let dx = value.translation.width
+                let dy = value.translation.height
+                // Mehr horizontal als vertikal + ausreichend Distanz, sonst
+                // schluckt der Swipe versehentlich Tap-In-Drag-Sequenzen.
+                guard abs(dx) > abs(dy) * 1.5, abs(dx) > 60 else { return }
+                if dx < 0 {
+                    store.next()
+                } else {
+                    store.previous()
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var verticalWaveform: some View {
+        WaveformCanvasView(
+            data: store.currentWaveform,
+            position: store.position,
+            duration: store.duration,
+            bpm: store.effectiveBPM,
+            isLoading: store.isLoadingWaveform,
+            onScrub: { store.seek(to: $0) },
+            axis: .vertical
+        )
     }
 
     @ViewBuilder

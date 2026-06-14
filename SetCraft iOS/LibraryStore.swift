@@ -31,11 +31,12 @@ final class LibraryStore {
     var bpmPreset: BPMRangePreset = .universal
 
     enum SortField: String, CaseIterable, Identifiable {
-        case title  = "Title"
-        case artist = "Artist"
-        case bpm    = "BPM"
-        case key    = "Key"
-        case rating = "Rating"
+        case title    = "Title"
+        case artist   = "Artist"
+        case bpm      = "BPM"
+        case key      = "Key"
+        case rating   = "Rating"
+        case modified = "Modified"
         var id: String { rawValue }
     }
 
@@ -81,6 +82,13 @@ final class LibraryStore {
                 // Absteigend: 5★ zuerst, ungerated (0★) zuletzt — DJ-Workflow
                 // (Top-Tracks oben). Bei Gleichstand sekundär nach Titel.
                 if a.rating.stars != b.rating.stars { return a.rating.stars > b.rating.stars }
+                return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
+            case .modified:
+                // Neueste zuerst — typischer DJ-Workflow (neu zugefügte Tracks
+                // oben). nil-Werte landen ganz unten (distantPast).
+                let av = a.modifiedDate ?? .distantPast
+                let bv = b.modifiedDate ?? .distantPast
+                if av != bv { return av > bv }
                 return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
             }
         }
@@ -136,6 +144,42 @@ final class LibraryStore {
     var selectedFolder: FolderRecord? {
         guard let id = selectedFolderID else { return nil }
         return folders.first(where: { $0.id == id })
+    }
+
+    // MARK: - Play-Count
+
+    /// Inkrementiert den Play-Count des Tracks an `url` (DB + In-Memory).
+    /// Wird vom `PlayerStore.load` bei jedem erfolgreichen Track-Load
+    /// aufgerufen — analog zur Mac-`loadIntoPlayer`-Stelle.
+    func notePlay(forURL url: URL) {
+        Task { [weak self, database] in
+            guard let count = try? await database.incrementPlayCount(url: url) else { return }
+            await MainActor.run {
+                guard let self,
+                      let idx = self.tracks.firstIndex(where: { $0.url == url })
+                else { return }
+                self.tracks[idx].playCount = count
+            }
+        }
+    }
+
+    /// Setzt die Play-Counts aller Tracks des aktuell ausgewählten Folders
+    /// auf 0. Aus dem ContentView-Source-Menü mit Bestätigungsdialog
+    /// aufgerufen.
+    func resetPlayCountsInCurrentFolder() async {
+        guard let folderURL = selectedFolderURL else { return }
+        try? await database.resetPlayCounts(inFolder: folderURL)
+        for idx in tracks.indices {
+            tracks[idx].playCount = 0
+        }
+    }
+
+    /// URL des aktuell ausgewählten Folders über die Bookmark-Resolution
+    /// des `accessingScopedURL`-Handles — der ist die einzige Stelle, an
+    /// der die echte Filesystem-URL der Quelle vorliegt (FolderRecord.url
+    /// ist nur ein Anzeige-Pfad-String).
+    private var selectedFolderURL: URL? {
+        accessingScopedURL
     }
 
     /// Lädt alle gespeicherten Quellen beim App-Start. Wenn welche vorhanden

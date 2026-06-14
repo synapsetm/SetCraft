@@ -101,6 +101,16 @@
         }
       }
     },
+    "All %lld tracks in “%@” will have their play count set back to 0." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "All %1$lld tracks in “%2$@” will have their play count set back to 0."
+          }
+        }
+      }
+    },
     "Analyze" : {
       "localizations" : {
         "de" : {
@@ -395,6 +405,9 @@
         }
       }
     },
+    "Modified" : {
+
+    },
     "Next" : {
 
     },
@@ -513,6 +526,9 @@
         }
       }
     },
+    "Plays" : {
+
+    },
     "Previous" : {
 
     },
@@ -591,6 +607,15 @@
           }
         }
       }
+    },
+    "Reset play counts for this source?" : {
+
+    },
+    "Reset plays" : {
+
+    },
+    "Reset the play counter for every track in this source" : {
+
     },
     "Save" : {
       "localizations" : {

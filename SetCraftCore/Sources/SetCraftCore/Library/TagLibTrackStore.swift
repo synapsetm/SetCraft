@@ -9,7 +9,7 @@ public actor TagLibTrackStore: TrackStore {
     public enum StoreError: LocalizedError {
         case fileInUse
         case bridgeFailed(URL, underlying: Error?)
-        case fileSystem(URL, underlying: Error)
+        case fileSystem(URL, stage: String, underlying: Error)
 
         public var errorDescription: String? {
             switch self {
@@ -17,8 +17,9 @@ public actor TagLibTrackStore: TrackStore {
                 return "File is currently active in the player — write skipped."
             case .bridgeFailed(let url, let underlying):
                 return "TagLib could not write \(url.lastPathComponent): \(underlying?.localizedDescription ?? "unknown")"
-            case .fileSystem(let url, let underlying):
-                return "Filesystem error for \(url.lastPathComponent): \(underlying.localizedDescription)"
+            case .fileSystem(let url, let stage, let underlying):
+                let ns = underlying as NSError
+                return "Filesystem error for \(url.lastPathComponent) at \(stage): \(ns.localizedDescription) [\(ns.domain) #\(ns.code)]"
             }
         }
     }
@@ -49,24 +50,23 @@ public actor TagLibTrackStore: TrackStore {
         let original = track.url
         let fm = FileManager.default
 
-        let tempDir: URL
-        do {
-            tempDir = try fm.url(
-                for: .itemReplacementDirectory,
-                in: .userDomainMask,
-                appropriateFor: original,
-                create: true
-            )
-        } catch {
-            throw StoreError.fileSystem(original, underlying: error)
-        }
-        defer { try? fm.removeItem(at: tempDir) }
+        // Sibling-Temp im selben Ordner wie das Original. Bewusst KEIN
+        // `.itemReplacementDirectory` mehr: dessen `(A Document Being Saved …)`-
+        // Unterordner liegt auf SMB-Mounts zwar physisch am richtigen Ort,
+        // wird aber von der Sandbox-Extension der gewählten Quelle in manchen
+        // Konstellationen nicht abgedeckt — Schreibversuche schlagen dann mit
+        // EPERM/ENOTSUP fehl. Ein Dot-File neben dem Original bleibt
+        // garantiert innerhalb des Security-Scope.
+        let parent = original.deletingLastPathComponent()
+        let tempFile = parent.appendingPathComponent(
+            ".setcraft-\(UUID().uuidString)-\(original.lastPathComponent)"
+        )
+        defer { try? fm.removeItem(at: tempFile) }
 
-        let tempFile = tempDir.appendingPathComponent(original.lastPathComponent)
         do {
             try fm.copyItem(at: original, to: tempFile)
         } catch {
-            throw StoreError.fileSystem(original, underlying: error)
+            throw StoreError.fileSystem(original, stage: "copyItem", underlying: error)
         }
 
         let comment = RatingPrefix.format(track.rating, rest: track.comment)
@@ -89,10 +89,44 @@ public actor TagLibTrackStore: TrackStore {
             throw StoreError.bridgeFailed(original, underlying: error)
         }
 
+        try Self.atomicReplace(original: original, with: tempFile, fm: fm)
+    }
+
+    /// Ersetzt `original` durch `tempFile`. Versucht zuerst den atomaren
+    /// `replaceItemAt`-Pfad (APFS, lokale Volumes) und fällt bei Fehlern auf
+    /// einen Rename-Über-Backup-Pfad zurück, der auf SMB-Mounts zuverlässig
+    /// funktioniert. `replaceItemAt` schlägt auf SMB regelmässig fehl, weil
+    /// es interne `setattrlist`-/xattr-Operationen macht, die der SMB-Server
+    /// mit ENOTSUP quittiert.
+    private static func atomicReplace(
+        original: URL,
+        with tempFile: URL,
+        fm: FileManager
+    ) throws {
         do {
             _ = try fm.replaceItemAt(original, withItemAt: tempFile)
+            return
         } catch {
-            throw StoreError.fileSystem(original, underlying: error)
+            // Fallback: rename(original → backup) + rename(temp → original) +
+            // remove(backup). Nicht atomar, aber überlebt jeden Zwischenschritt
+            // ohne Datenverlust:
+            //   - backup bleibt liegen, falls move scheitert
+            //   - falls remove(backup) scheitert, ist die Datei trotzdem korrekt
+            let backup = original.appendingPathExtension("setcraft-bak-\(UUID().uuidString)")
+            do {
+                try fm.moveItem(at: original, to: backup)
+            } catch let moveError {
+                throw StoreError.fileSystem(original, stage: "replaceItemAt+backup", underlying: moveError)
+            }
+            do {
+                try fm.moveItem(at: tempFile, to: original)
+            } catch let renameError {
+                // Original aus Backup wiederherstellen, sonst verliert der
+                // Nutzer die Datei.
+                try? fm.moveItem(at: backup, to: original)
+                throw StoreError.fileSystem(original, stage: "replaceItemAt+rename", underlying: renameError)
+            }
+            try? fm.removeItem(at: backup)
         }
     }
 

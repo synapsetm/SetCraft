@@ -75,6 +75,11 @@ public actor DatabaseService {
         m.registerMigration("v3_refresh_cache_after_extra_columns") { db in
             try db.execute(sql: "DELETE FROM tracks")
         }
+        m.registerMigration("v4_track_play_count") { db in
+            try db.alter(table: "tracks") { t in
+                t.add(column: "play_count", .integer).notNull().defaults(to: 0)
+            }
+        }
         return m
     }()
 
@@ -87,8 +92,17 @@ public actor DatabaseService {
     }
 
     public func saveTrack(_ track: Track, modifiedAt: Date) async throws {
-        let row = CachedTrack(track: track, modifiedAt: modifiedAt, cachedAt: Date())
+        let key = track.url.standardizedFileURL.path
+        let cachedAt = Date()
         try await dbQueue.write { db in
+            var row = CachedTrack(track: track, modifiedAt: modifiedAt, cachedAt: cachedAt)
+            // play_count ist app-lokal und überlebt Tag-/Scan-Updates. Wenn
+            // bereits eine Zeile existiert, deren Wert behalten — sonst
+            // würde jede Tag-Edit oder jeder Cache-Refresh den Counter
+            // resetten.
+            if let existing = try CachedTrack.fetchOne(db, key: key) {
+                row.play_count = existing.play_count
+            }
             try row.save(db)
         }
     }
@@ -96,6 +110,34 @@ public actor DatabaseService {
     public func deleteTrack(url: URL) async throws {
         _ = try await dbQueue.write { db in
             try CachedTrack.deleteOne(db, key: url.standardizedFileURL.path)
+        }
+    }
+
+    /// Erhöht den Play-Count für `url` um 1 und liefert den neuen Wert.
+    /// Wenn die Zeile (noch) nicht im Cache liegt, liefert 0 zurück und
+    /// macht nichts — der Counter zieht beim nächsten Scan auf.
+    @discardableResult
+    public func incrementPlayCount(url: URL) async throws -> Int {
+        let path = url.standardizedFileURL.path
+        return try await dbQueue.write { db in
+            try db.execute(
+                sql: "UPDATE tracks SET play_count = play_count + 1 WHERE url = ?",
+                arguments: [path]
+            )
+            return try CachedTrack.fetchOne(db, key: path)?.play_count ?? 0
+        }
+    }
+
+    /// Setzt den Play-Count aller Tracks unterhalb `folder` auf 0.
+    /// Vergleicht über das Pfad-Präfix, damit auch Unterordner-Tracks
+    /// erfasst werden.
+    public func resetPlayCounts(inFolder folder: URL) async throws {
+        let prefix = folder.standardizedFileURL.path + "/"
+        try await dbQueue.write { db in
+            try db.execute(
+                sql: "UPDATE tracks SET play_count = 0 WHERE url LIKE ?",
+                arguments: ["\(prefix)%"]
+            )
         }
     }
 

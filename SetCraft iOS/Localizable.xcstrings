@@ -14,6 +14,9 @@
         }
       }
     },
+    "%lld" : {
+
+    },
     "addFolder failed (scope=%@): %@" : {
       "localizations" : {
         "en" : {
@@ -44,6 +47,9 @@
           }
         }
       }
+    },
+    "All tracks in “%@” will have their play count set back to 0." : {
+
     },
     "Analysis failed: %@" : {
       "localizations" : {
@@ -381,6 +387,15 @@
         }
       }
     },
+    "Reset" : {
+
+    },
+    "Reset play counts" : {
+
+    },
+    "Reset play counts for this source?" : {
+
+    },
     "Reset to 100 %" : {
       "localizations" : {
         "de" : {
@@ -516,6 +531,9 @@
           }
         }
       }
+    },
+    "WAV-Tags werden von Serato und Rekordbox unzuverlässig gelesen — Änderungen können in DJ-Apps unsichtbar bleiben." : {
+
     },
     "Year" : {
       "localizations" : {
