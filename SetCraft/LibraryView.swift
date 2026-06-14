@@ -254,6 +254,11 @@ struct LibraryView: View {
                 scaleBPM(ids, factor: 2.0 / 3.0)
             }
             .disabled(ids.isEmpty)
+            Divider()
+            Button("Move to Folder…") {
+                moveToFolder(ids)
+            }
+            .disabled(ids.isEmpty)
         } primaryAction: { ids in
             loadFirst(ids)
         }
@@ -487,6 +492,28 @@ struct LibraryView: View {
             guard let track = library.tracks.first(where: { $0.id == id }) else { continue }
             library.scaleBPM(track, factor: factor)
         }
+    }
+
+    /// Verschiebt die selektierten Tracks per NSOpenPanel-Folder-Pick. Ersatz
+    /// für „echtes Move beim Drag-OUT", das SwiftUI nicht unterstützt — hier
+    /// haben wir volle Kontrolle: same-volume = atomic move, cross-volume =
+    /// copy+remove, Konflikte werden klar gemeldet (siehe `moveTracks(_:to:)`).
+    private func moveToFolder(_ ids: Set<Track.ID>) {
+        let tracks = library.tracks.filter { ids.contains($0.id) }
+        guard !tracks.isEmpty else { return }
+
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.title = String(localized: "Move Tracks")
+        panel.prompt = String(localized: "Move Here")
+        panel.message = tracks.count == 1
+            ? String(localized: "Choose a folder to move 1 track into.")
+            : String(localized: "Choose a folder to move \(tracks.count) tracks into.")
+
+        guard panel.runModal() == .OK, let folder = panel.url else { return }
+        library.moveTracks(tracks, to: folder)
     }
 
     private func formatTime(_ secs: TimeInterval) -> String {

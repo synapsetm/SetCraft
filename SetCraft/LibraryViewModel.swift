@@ -434,6 +434,62 @@ final class LibraryViewModel {
         }
     }
 
+    /// Bewegt eine Auswahl von Tracks in einen Zielordner. Wird vom
+    /// Library-Kontextmenü „Move to Folder…" aufgerufen, weil echtes Move
+    /// beim SwiftUI-Drag-OUT auf macOS nicht möglich ist (kein Bridge zu
+    /// `NSFilePromiseProvider`). Hier haben wir volle Kontrolle und können
+    /// pro Datei entscheiden: same-volume = atomic `moveItem`, cross-volume
+    /// = `copyItem` + anschliessendes `removeItem` auf der Quelle.
+    /// Konflikte (`fileExists` am Ziel) werden geskippt mit Eintrag in den
+    /// Sammel-Fehler — der ErrorChip macht ihn voll lesbar.
+    @MainActor
+    func moveTracks(_ tracks: [Track], to folder: URL) {
+        let fm = FileManager.default
+        Task { [weak self, tracks, folder] in
+            var failures: [String] = []
+            var movedCount = 0
+            for track in tracks {
+                let src = track.url.standardizedFileURL
+                let dst = folder.appendingPathComponent(src.lastPathComponent)
+                if src == dst.standardizedFileURL { continue }
+                if src.deletingLastPathComponent().standardizedFileURL == folder.standardizedFileURL {
+                    continue // schon im Zielordner
+                }
+                if fm.fileExists(atPath: dst.path) {
+                    failures.append("‘\(src.lastPathComponent)’: already exists at destination")
+                    continue
+                }
+                let sameVolume = (try? src.resourceValues(forKeys: [.volumeURLKey]).volume)
+                    == (try? folder.resourceValues(forKeys: [.volumeURLKey]).volume)
+                do {
+                    if sameVolume {
+                        try fm.moveItem(at: src, to: dst)
+                    } else {
+                        try fm.copyItem(at: src, to: dst)
+                        // Cross-Volume-Move = Copy + Delete. Wenn Delete
+                        // scheitert (z. B. Sandbox / read-only NAS-Mount),
+                        // surfacen wir das, aber lassen die Kopie stehen.
+                        try fm.removeItem(at: src)
+                    }
+                    movedCount += 1
+                } catch {
+                    failures.append("‘\(src.lastPathComponent)’: \(error.localizedDescription)")
+                }
+            }
+            await MainActor.run { [weak self] in
+                if !failures.isEmpty {
+                    let header = movedCount > 0
+                        ? "Moved \(movedCount); failed for \(failures.count):"
+                        : "Move failed for \(failures.count):"
+                    self?.lastWriteError = ([header] + failures).joined(separator: "\n")
+                }
+                if movedCount > 0 {
+                    self?.scheduleRefresh()
+                }
+            }
+        }
+    }
+
     /// Plant einen debouncten `refresh()` ein (Default 250 ms). Sinnvoll,
     /// wenn mehrere Folder-Mutationen parallel passieren — etwa Drag-OUT
     /// mit Multi-Select, wo jeder erfüllte File-Promise einzeln signalisiert

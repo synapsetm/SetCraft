@@ -7,6 +7,9 @@
     "—" : {
 
     },
+    "‘%@’ already exists in this folder — skipped." : {
+
+    },
     "%@ / -%@" : {
       "localizations" : {
         "en" : {
@@ -240,6 +243,9 @@
         }
       }
     },
+    "Close" : {
+
+    },
     "Comment" : {
       "localizations" : {
         "de" : {
@@ -249,6 +255,9 @@
           }
         }
       }
+    },
+    "Copy" : {
+
     },
     "Could not import %@: %@" : {
       "localizations" : {
