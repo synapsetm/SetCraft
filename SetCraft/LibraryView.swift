@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import SetCraftCore
 
@@ -99,25 +100,13 @@ struct LibraryView: View {
             }
 
             if let error = library.lastWriteError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(1)
-                    .help(error)
+                ErrorChip(text: error, tint: .red)
             }
             if let error = library.lastAnalysisError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .lineLimit(1)
-                    .help(error)
+                ErrorChip(text: error, tint: .orange)
             }
             if let error = library.lastLibraryError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(1)
-                    .help(error)
+                ErrorChip(text: error, tint: .red)
             }
 
             Button {
@@ -210,13 +199,14 @@ struct LibraryView: View {
             fileInfoColumns
             tailColumns
         } rows: {
-            // Explizite Rows-Builder statt der `Table(data, …)`-Overload,
-            // damit jede Zeile via `.draggable(track.url)` mitsamt Multi-
-            // Selection in den Finder gezogen werden kann. URL ist
-            // Transferable und erzeugt einen `public.file-url`-Drag;
-            // Finder entscheidet beim Drop selber zwischen Move (gleiches
-            // Volume) und Copy (cross-volume) — genau das gewünschte
-            // System-Standard-Verhalten.
+            // Eigene Rows-Builder, damit jede Zeile via `.draggable(URL)`
+            // mitsamt Multi-Selection in den Finder gezogen werden kann.
+            // Achtung: Finder macht daraus immer einen **Copy** — SwiftUIs
+            // `.itemProvider` kann keinen `NSFilePromiseProvider` liefern
+            // (kein Bridge zwischen NSPasteboardWriting und NSItemProvider-
+            // Writing), und echte Move-Semantik bräuchte eine AppKit-Tabelle
+            // mit `beginDraggingSession`. Drop-IN behandelt den daraus
+            // entstehenden „File exists"-Fall (siehe `importDroppedFiles`).
             ForEach(library.tracks) { track in
                 TableRow(track)
                     .draggable(track.url)
@@ -547,6 +537,54 @@ struct LibraryView: View {
               let restored = try? JSONDecoder().decode(TableColumnCustomization<Track>.self, from: data)
         else { return }
         columnCustomization = restored
+    }
+
+}
+
+/// Klickbarer Toolbar-Chip für Fehlermeldungen. Standardmässig einzeilig
+/// abgeschnitten, mit OS-Tooltip auf Hover (`.help`) und Popover auf Klick
+/// mit voll-scrollbarer Meldung + Copy-Button. Damit bleiben lange Diagnose-
+/// Texte (z. B. NSError mit Underlying + POSIX-Errno) sichtbar, ohne die
+/// Toolbar zu sprengen.
+private struct ErrorChip: View {
+    let text: String
+    let tint: Color
+    @State private var showDetail = false
+
+    var body: some View {
+        Button {
+            showDetail = true
+        } label: {
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(tint)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .buttonStyle(.plain)
+        .help(text)
+        .popover(isPresented: $showDetail, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 12) {
+                ScrollView {
+                    Text(text)
+                        .font(.callout)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 280)
+                HStack {
+                    Button("Copy") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(text, forType: .string)
+                    }
+                    Spacer()
+                    Button("Close") { showDetail = false }
+                        .keyboardShortcut(.cancelAction)
+                }
+            }
+            .padding(14)
+            .frame(width: 460)
+        }
     }
 }
 

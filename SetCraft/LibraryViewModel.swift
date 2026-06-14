@@ -397,6 +397,20 @@ final class LibraryViewModel {
                 if src.deletingLastPathComponent().standardizedFileURL == target.standardizedFileURL {
                     continue // schon im Ziel-Ordner
                 }
+                // Konflikt-Fall: gleicher Dateiname existiert bereits im
+                // Library-Ordner. Wir überschreiben bewusst nicht — das
+                // wäre datenzerstörend ohne Rückfrage. Stattdessen klare
+                // Meldung. Tritt seit dem Move-Drag-OUT seltener auf, kann
+                // aber bei Drop aus dem Finder von einer anderen Quelle
+                // weiterhin passieren.
+                if fm.fileExists(atPath: dst.path) {
+                    await MainActor.run {
+                        self?.lastWriteError = String(
+                            localized: "‘\(src.lastPathComponent)’ already exists in this folder — skipped."
+                        )
+                    }
+                    continue
+                }
                 let sameVolume = (try? src.resourceValues(forKeys: [.volumeURLKey]).volume)
                     == (try? target.resourceValues(forKeys: [.volumeURLKey]).volume)
                 do {
@@ -415,8 +429,24 @@ final class LibraryViewModel {
                 }
             }
             if anyImported {
-                await MainActor.run { self?.refresh() }
+                await MainActor.run { self?.scheduleRefresh() }
             }
+        }
+    }
+
+    /// Plant einen debouncten `refresh()` ein (Default 250 ms). Sinnvoll,
+    /// wenn mehrere Folder-Mutationen parallel passieren — etwa Drag-OUT
+    /// mit Multi-Select, wo jeder erfüllte File-Promise einzeln signalisiert
+    /// "Folder hat sich geändert". Ohne Debounce würde scan() N-mal laufen.
+    private var refreshDebounceTask: Task<Void, Never>?
+
+    @MainActor
+    func scheduleRefresh() {
+        refreshDebounceTask?.cancel()
+        refreshDebounceTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { self?.refresh() }
         }
     }
 

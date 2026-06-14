@@ -250,6 +250,16 @@
         }
       }
     },
+    "Could not import %@: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Could not import %1$@: %2$@"
+          }
+        }
+      }
+    },
     "Dark" : {
       "localizations" : {
         "de" : {
