@@ -133,6 +133,13 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
   braucht `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - Sparkle-CLI (`generate_keys`, `generate_appcast`) liegt in DerivedData; für
   `release.sh` ggf. `SPARKLE_BIN_DIR` explizit setzen.
+- Nach jedem Build/Release-Lauf registriert LaunchServices die Kopien aus
+  `build/release/` und DerivedData unter derselben Bundle-ID — ein Doppelklick
+  im Finder kann dann eine Artefakt-Kopie statt `/Applications/SetCraft.app`
+  starten. Prüfen mit `lsregister -dump | grep SetCraft.app`, aufräumen mit
+  `lsregister -u <pfad>` und `lsregister -f -R /Applications/SetCraft.app`.
+  Welche Version wirklich läuft: About-Panel bzw.
+  `ps -p $(pgrep -x SetCraft) -o comm=`.
 - iOS-TestFlight: `exportArchive` bricht am Cloud-Signing-Stolperstein ab
   („No signing certificate iOS Distribution found") — Workaround: Upload
   manuell über Xcode Organizer. Verhält sich nicht reproduzierbar.
