@@ -98,7 +98,13 @@ struct SetCraftApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        // `Window` statt `WindowGroup`: SetCraft ist eine Ein-Fenster-App —
+        // ein Player, eine Library, ein Satz ViewModels. Eine `WindowGroup`
+        // legt für jede vom Finder gereichte Datei ein WEITERES Fenster an;
+        // `Window` kann per Definition nur eine Instanz haben, das Open-Event
+        // landet damit immer im bestehenden Fenster. Dass ⌘W/Fenster-Schliessen
+        // hier die App beendet, ist erwünscht (siehe AppDelegate).
+        Window("SetCraft", id: "main") {
             ContentView(player: player, library: library, transport: transport, waveform: waveform)
                 // Datei-Open-Events kommen NICHT über `.onOpenURL`, sondern
                 // über `AppDelegate.application(_:open:)` — sonst öffnet
@@ -113,16 +119,6 @@ struct SetCraftApp: App {
                 .onAppear { applyAppearance(appearance) }
                 .onChange(of: appearanceRaw) { _, _ in applyAppearance(appearance) }
         }
-        // KRITISCH fürs Ein-Fenster-Verhalten: ohne diese Zeile behandelt die
-        // WindowGroup jede vom Finder gereichte Datei als „externes Ereignis"
-        // und öffnet dafür ein ZUSÄTZLICHES Fenster — auch dann, wenn der
-        // AppDelegate das Open-Event bereits selbst verarbeitet. Mit leerem
-        // Matching-Set fühlt sich die Gruppe für nichts davon zuständig; das
-        // Öffnen läuft ausschliesslich über `AppDelegate.application(_:open:)`
-        // und landet damit immer im bestehenden Fenster.
-        // (`Window` statt `WindowGroup` wäre die Alternative gewesen, ändert
-        // aber ⌘W zu „App beenden" — bewusst nicht gewollt.)
-        .handlesExternalEvents(matching: [])
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button("About SetCraft") {

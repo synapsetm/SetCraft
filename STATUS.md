@@ -102,10 +102,12 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
 - **Seek-Bug:** `scheduleSegment`-Completion feuert auch bei abgebrochenem
   Segment → `scheduleGeneration`-Zähler ignoriert überholte Callbacks.
 - **Ein-Fenster-Verhalten (Mac):** Datei-Open-Events laufen über
-  `AppDelegate.application(_:open:)` (nicht `.onOpenURL`) **plus**
-  `.handlesExternalEvents(matching: [])` auf der WindowGroup — ohne beides
-  öffnet SwiftUI pro Datei ein zusätzliches Fenster. URLs vor dem Scene-Start
-  werden gepuffert. Fenster schliessen beendet die App
+  `AppDelegate.application(_:open:)` (nicht `.onOpenURL`), die Scene ist ein
+  `Window` statt einer `WindowGroup` — letztere öffnet pro gereichter Datei ein
+  zusätzliches Fenster. URLs vor dem Scene-Start werden gepuffert.
+  **Sackgasse (v1.0-11):** `.handlesExternalEvents(matching: [])` unterdrückt
+  das Zusatzfenster zwar, lässt aber einen Kaltstart *mit* Datei ganz ohne
+  Fenster enden — die App läuft dann unbedienbar weiter. Fenster schliessen beendet die App
   (`applicationShouldTerminateAfterLastWindowClosed`); wird der Speichern-
   Dialog abgebrochen, holt ein Reopen-Ereignis das Fenster zurück
   (`makeKeyAndOrderFront` auf dem geschlossenen NSWindow liefert nur eine
