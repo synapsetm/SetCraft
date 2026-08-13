@@ -29,10 +29,6 @@ struct ContentView: View {
             player.load(url: url)
             return true
         }
-        .onOpenURL { url in
-            guard url.isFileURL else { return }
-            openExternalFile(url)
-        }
         .onChange(of: player.player.loadedURL, initial: true) { _, newURL in
             // Track-Datei nicht beschreiben, solange AVAudioEngine sie hält.
             library.setActiveTrack(newURL)
@@ -52,6 +48,12 @@ struct ContentView: View {
                 transport.applyMasterToLoadedTrack()
             }
             library.restoreSavedFolders()
+            // Dateien aus dem Finder laufen über den AppDelegate statt über
+            // `.onOpenURL` — sonst öffnet SwiftUI pro Datei ein neues Fenster.
+            // Beim Kaltstart gepufferte URLs werden hier direkt nachgereicht.
+            AppDelegate.setOpenFileHandler { url in
+                openExternalFile(url)
+            }
         }
     }
 

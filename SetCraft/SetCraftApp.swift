@@ -100,9 +100,10 @@ struct SetCraftApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(player: player, library: library, transport: transport, waveform: waveform)
-                // `.onOpenURL` sitzt bewusst in ContentView — das Öffnen von
-                // aussen füllt nicht nur den Player, sondern zieht den Track
-                // auch in die Library nach (siehe `openExternalFile`).
+                // Datei-Open-Events kommen NICHT über `.onOpenURL`, sondern
+                // über `AppDelegate.application(_:open:)` — sonst öffnet
+                // SwiftUI für jede Datei ein zusätzliches Fenster dieser
+                // WindowGroup. ContentView registriert dort seinen Handler.
                 //
                 // Bewusst KEIN `.preferredColorScheme(...)` — der SwiftUI-Modifier
                 // schiebt das Schema in das Environment, hinterlässt aber bei
@@ -112,6 +113,16 @@ struct SetCraftApp: App {
                 .onAppear { applyAppearance(appearance) }
                 .onChange(of: appearanceRaw) { _, _ in applyAppearance(appearance) }
         }
+        // KRITISCH fürs Ein-Fenster-Verhalten: ohne diese Zeile behandelt die
+        // WindowGroup jede vom Finder gereichte Datei als „externes Ereignis"
+        // und öffnet dafür ein ZUSÄTZLICHES Fenster — auch dann, wenn der
+        // AppDelegate das Open-Event bereits selbst verarbeitet. Mit leerem
+        // Matching-Set fühlt sich die Gruppe für nichts davon zuständig; das
+        // Öffnen läuft ausschliesslich über `AppDelegate.application(_:open:)`
+        // und landet damit immer im bestehenden Fenster.
+        // (`Window` statt `WindowGroup` wäre die Alternative gewesen, ändert
+        // aber ⌘W zu „App beenden" — bewusst nicht gewollt.)
+        .handlesExternalEvents(matching: [])
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button("About SetCraft") {
