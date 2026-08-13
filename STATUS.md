@@ -47,8 +47,10 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
 - Auto-Analyse (BPM + Key) beim Track-Load plus Batch „Fehlende analysieren";
   Re-Analyze erzwingt Neuberechnung. Ergebnisse fließen sofort in Datei-Tags.
 - Play-Count (app-lokal, nicht in Datei-Tags) mit Reset pro Ordner.
-- Quellen sind entweder **Ordner** (rekursiver Scan) oder **einzelne Dateien**
-  (`SourceKind`). Einzeldatei-Quellen entstehen auf dem Mac, wenn ein Track von
+- Quellen sind entweder **Ordner** (flacher Scan — nur der Ordner selbst,
+  Unterverzeichnisse kommen bei Bedarf als eigene Quelle dazu) oder
+  **einzelne Dateien** (`SourceKind`).
+  Einzeldatei-Quellen entstehen auf dem Mac, wenn ein Track von
   aussen geöffnet wird (Standard-Player, „Öffnen mit", Drag & Drop) und noch
   keine Quelle ihn abdeckt: aufgenommen wird nur dieser Track, ohne Rückfrage.
   Möglich, weil sich auf eine von aussen gereichte Datei ein Security-Scoped

@@ -21,7 +21,8 @@ public struct ScanReport: Sendable {
     }
 }
 
-/// Rekursiver Ordner-Scan auf Audiodateien. Liest pro Datei die Tags
+/// Flacher Ordner-Scan auf Audiodateien: nur der Ordner selbst, keine
+/// Unterverzeichnisse. Liest pro Datei die Tags
 /// (TagReader) auf einem Hintergrund-Task und liefert die `Track`-Werte als
 /// `AsyncStream`, damit die UI Reihen sofort beim Eintreffen anzeigen kann.
 public enum FolderScanner {
@@ -53,7 +54,8 @@ public enum FolderScanner {
         collect(in: folder).urls
     }
 
-    /// Synchrones Sammeln aller Audio-URLs unter `folder` PLUS Diagnostik.
+    /// Synchrones Sammeln der Audio-URLs **direkt in** `folder` PLUS
+    /// Diagnostik — Unterverzeichnisse bleiben aussen vor.
     /// macOS-Pakete werden übersprungen, iCloud-Platzhalter (`.<name>.icloud`)
     /// erkannt, in die echte URL aufgelöst und Download angestoßen.
     ///
@@ -68,10 +70,15 @@ public enum FolderScanner {
             let fm = FileManager.default
             // KEIN `.skipsHiddenFiles` — sonst übersehen wir iCloud-Platzhalter
             // (sie sind als hidden markiert). Wir filtern non-Audio unten raus.
+            // `.skipsSubdirectoryDescendants`: eine Quelle zeigt genau ihren
+            // eigenen Ordner, keine Unterordner. Sonst zieht ein Sammelordner
+            // hunderte Tracks aus Unterverzeichnissen in die Liste, die dort
+            // niemand erwartet. Unterordner werden bei Bedarf als eigene
+            // Quelle hinzugefügt.
             guard let enumerator = fm.enumerator(
                 at: coordinatedURL,
                 includingPropertiesForKeys: [.isRegularFileKey, .isUbiquitousItemKey],
-                options: [.skipsPackageDescendants]
+                options: [.skipsPackageDescendants, .skipsSubdirectoryDescendants]
             ) else { return }
 
             for case let url as URL in enumerator {

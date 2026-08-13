@@ -173,15 +173,15 @@ final class LibraryViewModel {
     }
 
     /// Erste Quelle, die `file` bereits abdeckt: entweder die Datei selbst als
-    /// Einzel-Quelle oder ein Ordner, der sie enthält (Scan läuft rekursiv,
-    /// deshalb zählt jeder Vorfahre).
+    /// Einzel-Quelle oder **genau** ihr Eltern-Ordner. Vorfahren weiter oben
+    /// zählen nicht — der Scan ist flach, dort würde die Datei nicht auftauchen.
     private func source(covering file: URL) -> FolderRecord? {
-        if let asFile = folders.first(where: { $0.kind == .file && $0.url == file.path }) {
-            return asFile
-        }
+        let parentPath = file.deletingLastPathComponent().path
         return folders.first { record in
-            guard record.kind == .folder else { return false }
-            return file.path.hasPrefix(record.url + "/")
+            switch record.kind {
+            case .file:   return record.url == file.path
+            case .folder: return record.url == parentPath
+            }
         }
     }
 
