@@ -4,19 +4,19 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-08-13.
+Letzte Aktualisierung: 2026-08-14.
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.0-11 (Build 11), notarisiert, Sparkle-Auto-Update live.
-  **Achtung:** v1.0-11 hat einen Kaltstart-Bug (Öffnen aus dem Finder erzeugt
-  kein Fenster, s. u.); der Fix liegt unveröffentlicht im `main` und gehört
-  als Build 12 nachgeschoben.
+- **Mac-Release:** v1.0-12 (Build 12), notarisiert, Sparkle-Auto-Update live.
+  v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
+  Fenster, s. u.) und sollte übersprungen werden.
 - **iOS-Release:** Build 12 auf TestFlight.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün (BPM/Key/Rating/Waveform).
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 39 Tests
+  (BPM/Key/Rating/Waveform/Ordner-Scan).
 - **Build (Mac):** `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
   xcodebuild -project SetCraft.xcodeproj -scheme SetCraft -destination
   'platform=macOS' build` — sauber.
