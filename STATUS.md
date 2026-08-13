@@ -4,14 +4,15 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-06-14.
+Letzte Aktualisierung: 2026-08-13.
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.0-9 (Build 9), notarisiert, Sparkle-Auto-Update live.
+- **Mac-Release:** v1.0-10 (Build 10), notarisiert, Sparkle-Auto-Update live.
+  Seither unveröffentlicht im `main`: Finder-Öffnen + Fensterverhalten (s. u.).
 - **iOS-Release:** Build 12 auf TestFlight.
 - **Tests:** `swift test` im `SetCraftCore`-Paket grün (BPM/Key/Rating/Waveform).
 - **Build (Mac):** `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
@@ -44,6 +45,10 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
 - Auto-Analyse (BPM + Key) beim Track-Load plus Batch „Fehlende analysieren";
   Re-Analyze erzwingt Neuberechnung. Ergebnisse fließen sofort in Datei-Tags.
 - Play-Count (app-lokal, nicht in Datei-Tags) mit Reset pro Ordner.
+- **Mac:** Aus dem Finder geöffnete Dateien (SetCraft als Standard-Player,
+  „Öffnen mit") landen nicht nur im Player, sondern auch in der Library — wie
+  beim Drag & Drop wird der Eltern-Ordner als Quelle übernommen, unbekannte
+  einmalig per Picker (Sandbox verlangt die Freigabe fürs Verzeichnis).
 
 ### Player
 - macOS: fixe Waveform, beweglicher Playhead; iOS: Center-Playhead, Waveform
@@ -93,6 +98,15 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
   in den Entitlements. Kein Bundling der XPCs, kein `--deep`-Resign.
 - **Seek-Bug:** `scheduleSegment`-Completion feuert auch bei abgebrochenem
   Segment → `scheduleGeneration`-Zähler ignoriert überholte Callbacks.
+- **Ein-Fenster-Verhalten (Mac):** Datei-Open-Events laufen über
+  `AppDelegate.application(_:open:)` (nicht `.onOpenURL`) **plus**
+  `.handlesExternalEvents(matching: [])` auf der WindowGroup — ohne beides
+  öffnet SwiftUI pro Datei ein zusätzliches Fenster. URLs vor dem Scene-Start
+  werden gepuffert. Fenster schliessen beendet die App
+  (`applicationShouldTerminateAfterLastWindowClosed`); wird der Speichern-
+  Dialog abgebrochen, holt ein Reopen-Ereignis das Fenster zurück
+  (`makeKeyAndOrderFront` auf dem geschlossenen NSWindow liefert nur eine
+  leere Hülle).
 - **Appearance (Mac):** `NSApplication.shared.appearance` ist einzige
   Wahrheitsquelle (nicht `.preferredColorScheme`), auf jedem Window gesetzt.
 - **BPM-Oktav-/Triolen-Korrektur:** `BPMRangePreset.corrected()` prüft
