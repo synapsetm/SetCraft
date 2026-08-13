@@ -1,9 +1,19 @@
 import Foundation
 import GRDB
 
-/// Eine vom Nutzer ausgewählte Quelle (Ordner). `bookmark_data` ist ein
+/// Art einer Quelle: ein ganzer Ordner (wird rekursiv gescannt) oder eine
+/// einzelne Datei (genau ein Track). Einzeldateien entstehen, wenn ein Track
+/// von aussen geöffnet wird (Finder-Doppelklick, Drag & Drop) und noch keine
+/// Quelle ihn abdeckt — dann wird nur dieser Track aufgenommen, nicht sein
+/// ganzes Verzeichnis.
+public enum SourceKind: String, Codable, Sendable {
+    case folder
+    case file
+}
+
+/// Eine vom Nutzer ausgewählte Quelle. `bookmark_data` ist ein
 /// Security-Scoped Bookmark, das beim nächsten Start aufgelöst wird, um
-/// erneut Zugriff auf den Ordner zu bekommen.
+/// erneut Zugriff auf Ordner bzw. Datei zu bekommen.
 public struct FolderRecord: Codable, FetchableRecord, PersistableRecord, Sendable, Identifiable {
     public static let databaseTableName = "folders"
 
@@ -12,17 +22,20 @@ public struct FolderRecord: Codable, FetchableRecord, PersistableRecord, Sendabl
     public var name: String      // Anzeige-Name (default: lastPathComponent)
     public var bookmark_data: Data
     public var added_at: Double
+    public var kind: SourceKind
 
     public init(id: String = UUID().uuidString,
                 url: URL,
                 name: String,
                 bookmarkData: Data,
-                addedAt: Date = Date()) {
+                addedAt: Date = Date(),
+                kind: SourceKind = .folder) {
         self.id = id
         self.url = url.standardizedFileURL.path
         self.name = name
         self.bookmark_data = bookmarkData
         self.added_at = addedAt.timeIntervalSince1970
+        self.kind = kind
     }
 
     public var displayURL: URL { URL(fileURLWithPath: url) }

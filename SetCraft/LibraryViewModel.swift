@@ -13,7 +13,17 @@ final class LibraryViewModel {
     }
 
     var tracks: [Track] = []
+    /// Verzeichnis der aktiven Quelle — `nil`, wenn eine Einzeldatei-Quelle
+    /// gewählt ist. Ordner-Aktionen (Import-Drop, Play-Count-Reset, Refresh
+    /// über den Scanner) hängen daran.
     var folderURL: URL?
+    /// Datei der aktiven Quelle — `nil` bei Ordner-Quellen. Genau eines von
+    /// beiden ist gesetzt, sobald eine Quelle ausgewählt ist.
+    var fileURL: URL?
+
+    /// Pfad der aktiven Quelle, egal welcher Art — für Anzeige und für die
+    /// Frage, ob überhaupt etwas ausgewählt ist.
+    var sourceURL: URL? { folderURL ?? fileURL }
     var isScanning = false
     /// Mehrfachselektion: `Table` braucht ein `Set<Track.ID>` als Binding,
     /// damit Shift-/Cmd-Klick und Drag-Bulkaktionen funktionieren. Einzel-
@@ -129,99 +139,87 @@ final class LibraryViewModel {
         }
     }
 
-    /// Verarbeitet eine per Drag & Drop hineingezogene Datei: stellt sicher,
-    /// dass der Eltern-Ordner als Quelle bekannt ist (notfalls per
-    /// `NSOpenPanel`, damit der Sandbox-Scope vom Nutzer freigegeben wird),
-    /// schaltet die Sidebar auf diese Quelle und stösst einen Scan an.
-    /// Liefert `true`, wenn die Datei nach Abschluss in der Liste auftauchen
-    /// sollte; `false`, wenn der Nutzer den Picker abgebrochen hat.
-    @discardableResult
-    func handleDroppedFile(_ url: URL) -> Bool {
-        let parent = url.deletingLastPathComponent().standardizedFileURL
-
-        // Bekannte Quelle? Dann ggf. nur umschalten — die Datei kommt durchs
-        // Re-Scannen automatisch in die Liste.
-        if let existing = folders.first(where: { $0.url == parent.path }) {
-            if selectedFolderID != existing.id {
-                Task { await selectFolder(id: existing.id) }
-            }
-            return true
-        }
-
-        return promptForSourceFolder(near: parent)
-    }
-
-    /// Öffnet den Quellen-Picker, vorpositioniert auf `parent`. Sandbox-bedingt
-    /// brauchen wir die explizite Freigabe des Nutzers für den Ordner — der
-    /// Zugriff auf eine einzelne, von aussen gereichte Datei vererbt sich nicht
-    /// auf ihr Verzeichnis. Liefert `true`, wenn eine Quelle angelegt wurde.
-    @discardableResult
-    private func promptForSourceFolder(near parent: URL) -> Bool {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = parent
-        panel.title = String(localized: "Add folder as a source")
-        panel.message = String(localized: "Grant access to this folder so its tracks can appear in the library.")
-        panel.prompt = String(localized: "Add as source")
-        if panel.runModal() == .OK, let folderURL = panel.url {
-            persistAndScan(folderURL)
-            return true
-        }
-        return false
-    }
-
-    // MARK: - Externes Öffnen (Finder / Standard-Player)
-
-    /// Läuft der Quellen-Picker für diesen Eltern-Ordner bereits? Markiert der
-    /// Nutzer im Finder fünf Dateien und wählt „Öffnen mit", feuert das
-    /// Open-Event fünfmal — es darf trotzdem nur ein Panel erscheinen.
-    private var pendingSourcePrompt: [String: Task<Bool, Never>] = [:]
+    // MARK: - Externes Öffnen (Finder / Standard-Player / Drop)
 
     /// Verarbeitet eine Datei, die von aussen hereingereicht wurde (Finder-
-    /// Doppelklick, wenn SetCraft Standard-Player ist, oder „Öffnen mit").
-    /// Stellt sicher, dass der Eltern-Ordner als Quelle bekannt und ausgewählt
-    /// ist, und liefert den fertig gescannten Track zurück — damit der Aufrufer
-    /// Selektion, Analyse und Player-Baseline nachziehen kann.
-    /// `nil` bedeutet: Datei konnte der Library nicht hinzugefügt werden
-    /// (Picker abgebrochen oder Datei taucht im Scan nicht auf).
+    /// Doppelklick, wenn SetCraft Standard-Player ist, „Öffnen mit", Drag &
+    /// Drop). Stellt sicher, dass der Track in der Library sichtbar ist, und
+    /// liefert ihn zurück — damit der Aufrufer Selektion, Analyse und
+    /// Player-Baseline nachziehen kann.
+    ///
+    /// Deckt bereits eine Quelle die Datei ab, wird nur dorthin umgeschaltet.
+    /// Sonst wird **genau dieser Track** als eigene Quelle aufgenommen — ohne
+    /// Rückfrage und ohne sein Verzeichnis mitzunehmen.
     @MainActor
+    @discardableResult
     func handleExternallyOpenedFile(_ url: URL) async -> Track? {
         // Beim Kaltstart kann das Open-Event vor `ContentView.onAppear`
         // eintreffen. Erst die gespeicherten Quellen laden — sonst hielten
-        // wir einen längst bekannten Ordner für neu und fragten unnötig nach.
+        // wir eine längst bekannte Datei für neu und legten sie doppelt an.
         restoreSavedFolders()
         await restoreTask?.value
 
         let file = url.standardizedFileURL
-        let parent = file.deletingLastPathComponent()
 
-        if let existing = folders.first(where: { $0.url == parent.path }) {
+        if let existing = source(covering: file) {
             if selectedFolderID != existing.id {
                 await selectFolder(id: existing.id)
             }
         } else {
-            guard await addSourceIfNeeded(for: parent) else { return nil }
+            guard persistFileSource(file) else { return nil }
         }
 
         return await trackAfterScan(url: file)
     }
 
-    /// Fragt — höchstens einmal pro Ordner gleichzeitig — nach der Freigabe
-    /// für `parent` und legt die Quelle an.
-    @MainActor
-    private func addSourceIfNeeded(for parent: URL) async -> Bool {
-        if folders.contains(where: { $0.url == parent.path }) { return true }
-        if let running = pendingSourcePrompt[parent.path] { return await running.value }
-
-        let task = Task { @MainActor [weak self] in
-            self?.promptForSourceFolder(near: parent) ?? false
+    /// Erste Quelle, die `file` bereits abdeckt: entweder die Datei selbst als
+    /// Einzel-Quelle oder ein Ordner, der sie enthält (Scan läuft rekursiv,
+    /// deshalb zählt jeder Vorfahre).
+    private func source(covering file: URL) -> FolderRecord? {
+        if let asFile = folders.first(where: { $0.kind == .file && $0.url == file.path }) {
+            return asFile
         }
-        pendingSourcePrompt[parent.path] = task
-        let added = await task.value
-        pendingSourcePrompt[parent.path] = nil
-        return added
+        return folders.first { record in
+            guard record.kind == .folder else { return false }
+            return file.path.hasPrefix(record.url + "/")
+        }
+    }
+
+    /// Nimmt eine einzelne Datei als Quelle auf. Der Sandbox-Zugriff auf eine
+    /// von aussen gereichte Datei reicht aus, um ein Security-Scoped Bookmark
+    /// darauf zu erzeugen — damit überlebt der Eintrag den Neustart, ganz ohne
+    /// Dialog. (Für das *Verzeichnis* wäre eine explizite Freigabe nötig —
+    /// genau deshalb wird hier nur der Track selbst aufgenommen.)
+    @discardableResult
+    private func persistFileSource(_ url: URL) -> Bool {
+        guard let bookmark = try? url.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        ) else {
+            lastLibraryError = String(
+                localized: "Could not add ‘\(url.lastPathComponent)’ to the library."
+            )
+            return false
+        }
+
+        let record = FolderRecord(
+            url: url,
+            name: url.lastPathComponent,
+            bookmarkData: bookmark,
+            kind: .file
+        )
+        folders.append(record)
+        Task { [database] in
+            try? await database.saveFolder(record)
+        }
+
+        accessingScopedURL?.stopAccessingSecurityScopedResource()
+        accessingScopedURL = url
+        selectedFolderID = record.id
+        lastLibraryError = nil
+        scan(file: url)
+        return true
     }
 
     /// Wartet auf den laufenden Scan und sucht die Datei in der Liste. Wird sie
@@ -275,6 +273,7 @@ final class LibraryViewModel {
             selectedFolderID = nil
             tracks = []
             folderURL = nil
+            fileURL = nil
             lastLibraryError = nil
             return
         }
@@ -301,6 +300,7 @@ final class LibraryViewModel {
                 selectedFolderID = id
                 tracks = []
                 folderURL = nil
+                fileURL = nil
                 lastLibraryError = String(
                     localized: "Access to ‘\(record.name)’ was lost. Remove the folder and add it again."
                 )
@@ -311,7 +311,10 @@ final class LibraryViewModel {
             accessingScopedURL = url
             selectedFolderID = id
             lastLibraryError = nil
-            scan(folder: url)
+            switch record.kind {
+            case .folder: scan(folder: url)
+            case .file:   scan(file: url)
+            }
 
             if isStale,
                let refreshed = try? url.bookmarkData(
@@ -383,10 +386,32 @@ final class LibraryViewModel {
         scan(folder: url)
     }
 
+    /// Lädt eine Einzeldatei-Quelle: genau ein Track, kein Verzeichnis-Scan.
+    /// `folderURL` bleibt bewusst `nil` — es benennt das Ziel für Ordner-
+    /// Aktionen (Import-Drop, Play-Count-Reset), und die gibt es hier nicht.
+    func scan(file: URL) {
+        scanTask?.cancel()
+        cancelPendingWaveformPrefetches()
+        folderURL = nil
+        fileURL = file
+        tracks = []
+        isScanning = true
+
+        scanTask = Task { [file, repository] in
+            let track = await repository.loadTrack(url: file) ?? Track(url: file)
+            if !Task.isCancelled {
+                tracks = [track]
+                prefetchWaveform(track)
+            }
+            isScanning = false
+        }
+    }
+
     func scan(folder: URL) {
         scanTask?.cancel()
         cancelPendingWaveformPrefetches()
         folderURL = folder
+        fileURL = nil
         tracks = []
         isScanning = true
 
@@ -452,9 +477,15 @@ final class LibraryViewModel {
     /// entfernte Dateien ein und stellt die aktuelle Sortierung am Ende
     /// wieder her (siehe `scan` → `applySortOrder` nach Stream-Ende).
     func refresh() {
-        guard let folderURL else { return }
-        scan(folder: folderURL)
+        if let folderURL {
+            scan(folder: folderURL)
+        } else if let fileURL {
+            scan(file: fileURL)
+        }
     }
+
+    /// Ob die aktive Quelle neu eingelesen werden kann — für beide Quellenarten.
+    var canRefresh: Bool { sourceURL != nil && !isScanning }
 
     /// Verschiebt (gleiches Volume) bzw. kopiert (volume-übergreifend) per
     /// Drag & Drop in die Liste gezogene Dateien in den aktuell angezeigten
@@ -738,7 +769,6 @@ final class LibraryViewModel {
         analysisState[track.id] = .scheduled
         let preset = bpmPreset
         let analyzer = analyzer
-        let repository = repository
 
         Task { [weak self, track, needsBPM, needsKey, preset] in
             do {

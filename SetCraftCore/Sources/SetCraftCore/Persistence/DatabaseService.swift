@@ -80,6 +80,13 @@ public actor DatabaseService {
                 t.add(column: "play_count", .integer).notNull().defaults(to: 0)
             }
         }
+        // v5: Quellen können jetzt auch einzelne Dateien sein (von aussen
+        // geöffnete Tracks). Bestehende Zeilen sind allesamt Ordner.
+        m.registerMigration("v5_folder_kind") { db in
+            try db.alter(table: "folders") { t in
+                t.add(column: "kind", .text).notNull().defaults(to: SourceKind.folder.rawValue)
+            }
+        }
         return m
     }()
 

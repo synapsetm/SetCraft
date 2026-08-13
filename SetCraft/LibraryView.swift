@@ -77,11 +77,11 @@ struct LibraryView: View {
 
     private var toolbar: some View {
         HStack(spacing: 12) {
-            if let folder = library.folderURL {
+            if let source = library.sourceURL {
                 HStack(spacing: 4) {
-                    Text("Folder:")
+                    Text(library.folderURL != nil ? "Folder:" : "File:")
                         .foregroundStyle(.secondary)
-                    Text(folder.path)
+                    Text(source.path)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -95,7 +95,7 @@ struct LibraryView: View {
             } label: {
                 Label("Refresh", systemImage: "arrow.triangle.2.circlepath")
             }
-            .disabled(library.folderURL == nil || library.isScanning)
+            .disabled(!library.canRefresh)
             .help("Re-scan the current source and re-apply the sort order")
 
             Menu {

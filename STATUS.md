@@ -45,10 +45,13 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
 - Auto-Analyse (BPM + Key) beim Track-Load plus Batch „Fehlende analysieren";
   Re-Analyze erzwingt Neuberechnung. Ergebnisse fließen sofort in Datei-Tags.
 - Play-Count (app-lokal, nicht in Datei-Tags) mit Reset pro Ordner.
-- **Mac:** Aus dem Finder geöffnete Dateien (SetCraft als Standard-Player,
-  „Öffnen mit") landen nicht nur im Player, sondern auch in der Library — wie
-  beim Drag & Drop wird der Eltern-Ordner als Quelle übernommen, unbekannte
-  einmalig per Picker (Sandbox verlangt die Freigabe fürs Verzeichnis).
+- Quellen sind entweder **Ordner** (rekursiver Scan) oder **einzelne Dateien**
+  (`SourceKind`). Einzeldatei-Quellen entstehen auf dem Mac, wenn ein Track von
+  aussen geöffnet wird (Standard-Player, „Öffnen mit", Drag & Drop) und noch
+  keine Quelle ihn abdeckt: aufgenommen wird nur dieser Track, ohne Rückfrage.
+  Möglich, weil sich auf eine von aussen gereichte Datei ein Security-Scoped
+  Bookmark erzeugen lässt — auf ihr *Verzeichnis* dagegen nicht, das bräuchte
+  eine explizite Freigabe per Picker.
 
 ### Player
 - macOS: fixe Waveform, beweglicher Playhead; iOS: Center-Playhead, Waveform

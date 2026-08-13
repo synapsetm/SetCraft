@@ -22,11 +22,9 @@ struct ContentView: View {
         .frame(minWidth: 760, minHeight: 520)
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
-            // Track muss im Player landen UND in der Library erscheinen.
-            // Falls der Eltern-Ordner noch nicht als Quelle bekannt ist,
-            // fragt die Library den Nutzer einmalig (sandbox-bedingt).
-            library.handleDroppedFile(url)
-            player.load(url: url)
+            // Gleicher Weg wie beim Öffnen aus dem Finder: abspielen und den
+            // Track in der Library sichtbar machen.
+            openExternalFile(url)
             return true
         }
         .onChange(of: player.player.loadedURL, initial: true) { _, newURL in
