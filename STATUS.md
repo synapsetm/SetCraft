@@ -11,8 +11,10 @@ Letzte Aktualisierung: 2026-08-13.
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.0-10 (Build 10), notarisiert, Sparkle-Auto-Update live.
-  Seither unveröffentlicht im `main`: Finder-Öffnen + Fensterverhalten (s. u.).
+- **Mac-Release:** v1.0-11 (Build 11), notarisiert, Sparkle-Auto-Update live.
+  **Achtung:** v1.0-11 hat einen Kaltstart-Bug (Öffnen aus dem Finder erzeugt
+  kein Fenster, s. u.); der Fix liegt unveröffentlicht im `main` und gehört
+  als Build 12 nachgeschoben.
 - **iOS-Release:** Build 12 auf TestFlight.
 - **Tests:** `swift test` im `SetCraftCore`-Paket grün (BPM/Key/Rating/Waveform).
 - **Build (Mac):** `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
@@ -105,13 +107,15 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
   `AppDelegate.application(_:open:)` (nicht `.onOpenURL`), die Scene ist ein
   `Window` statt einer `WindowGroup` — letztere öffnet pro gereichter Datei ein
   zusätzliches Fenster. URLs vor dem Scene-Start werden gepuffert.
-  **Sackgasse (v1.0-11):** `.handlesExternalEvents(matching: [])` unterdrückt
-  das Zusatzfenster zwar, lässt aber einen Kaltstart *mit* Datei ganz ohne
-  Fenster enden — die App läuft dann unbedienbar weiter. Fenster schliessen beendet die App
+  Fenster schliessen beendet die App
   (`applicationShouldTerminateAfterLastWindowClosed`); wird der Speichern-
   Dialog abgebrochen, holt ein Reopen-Ereignis das Fenster zurück
   (`makeKeyAndOrderFront` auf dem geschlossenen NSWindow liefert nur eine
   leere Hülle).
+  **Sackgasse (in v1.0-11 ausgeliefert, in Build 12 behoben):**
+  `.handlesExternalEvents(matching: [])` auf einer `WindowGroup` unterdrückt
+  das Zusatzfenster zwar, lässt aber einen Kaltstart *mit* Datei ganz ohne
+  Fenster enden — Prozess und Menüleiste da, sonst nichts.
 - **Appearance (Mac):** `NSApplication.shared.appearance` ist einzige
   Wahrheitsquelle (nicht `.preferredColorScheme`), auf jedem Window gesetzt.
 - **BPM-Oktav-/Triolen-Korrektur:** `BPMRangePreset.corrected()` prüft
