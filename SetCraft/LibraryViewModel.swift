@@ -77,6 +77,7 @@ final class LibraryViewModel {
     private let analyzer = AnalysisCoordinator()
     private let waveformCache: WaveformCache
     private var scanTask: Task<Void, Never>?
+    private var restoreTask: Task<Void, Never>?
     private var pendingSaves: [Track.ID: Task<Void, Never>] = [:]
     private var waveformPrefetchInflight: Set<URL> = []
     private var waveformPrefetchQueue: [URL] = []
@@ -137,18 +138,25 @@ final class LibraryViewModel {
     @discardableResult
     func handleDroppedFile(_ url: URL) -> Bool {
         let parent = url.deletingLastPathComponent().standardizedFileURL
-        let parentPath = parent.path
 
         // Bekannte Quelle? Dann ggf. nur umschalten — die Datei kommt durchs
         // Re-Scannen automatisch in die Liste.
-        if let existing = folders.first(where: { $0.url == parentPath }) {
+        if let existing = folders.first(where: { $0.url == parent.path }) {
             if selectedFolderID != existing.id {
                 Task { await selectFolder(id: existing.id) }
             }
             return true
         }
 
-        // Unbekannte Quelle: Picker pre-positioned auf den Eltern-Ordner.
+        return promptForSourceFolder(near: parent)
+    }
+
+    /// Öffnet den Quellen-Picker, vorpositioniert auf `parent`. Sandbox-bedingt
+    /// brauchen wir die explizite Freigabe des Nutzers für den Ordner — der
+    /// Zugriff auf eine einzelne, von aussen gereichte Datei vererbt sich nicht
+    /// auf ihr Verzeichnis. Liefert `true`, wenn eine Quelle angelegt wurde.
+    @discardableResult
+    private func promptForSourceFolder(near parent: URL) -> Bool {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -164,10 +172,79 @@ final class LibraryViewModel {
         return false
     }
 
+    // MARK: - Externes Öffnen (Finder / Standard-Player)
+
+    /// Läuft der Quellen-Picker für diesen Eltern-Ordner bereits? Markiert der
+    /// Nutzer im Finder fünf Dateien und wählt „Öffnen mit", feuert das
+    /// Open-Event fünfmal — es darf trotzdem nur ein Panel erscheinen.
+    private var pendingSourcePrompt: [String: Task<Bool, Never>] = [:]
+
+    /// Verarbeitet eine Datei, die von aussen hereingereicht wurde (Finder-
+    /// Doppelklick, wenn SetCraft Standard-Player ist, oder „Öffnen mit").
+    /// Stellt sicher, dass der Eltern-Ordner als Quelle bekannt und ausgewählt
+    /// ist, und liefert den fertig gescannten Track zurück — damit der Aufrufer
+    /// Selektion, Analyse und Player-Baseline nachziehen kann.
+    /// `nil` bedeutet: Datei konnte der Library nicht hinzugefügt werden
+    /// (Picker abgebrochen oder Datei taucht im Scan nicht auf).
+    @MainActor
+    func handleExternallyOpenedFile(_ url: URL) async -> Track? {
+        // Beim Kaltstart kann das Open-Event vor `ContentView.onAppear`
+        // eintreffen. Erst die gespeicherten Quellen laden — sonst hielten
+        // wir einen längst bekannten Ordner für neu und fragten unnötig nach.
+        restoreSavedFolders()
+        await restoreTask?.value
+
+        let file = url.standardizedFileURL
+        let parent = file.deletingLastPathComponent()
+
+        if let existing = folders.first(where: { $0.url == parent.path }) {
+            if selectedFolderID != existing.id {
+                await selectFolder(id: existing.id)
+            }
+        } else {
+            guard await addSourceIfNeeded(for: parent) else { return nil }
+        }
+
+        return await trackAfterScan(url: file)
+    }
+
+    /// Fragt — höchstens einmal pro Ordner gleichzeitig — nach der Freigabe
+    /// für `parent` und legt die Quelle an.
+    @MainActor
+    private func addSourceIfNeeded(for parent: URL) async -> Bool {
+        if folders.contains(where: { $0.url == parent.path }) { return true }
+        if let running = pendingSourcePrompt[parent.path] { return await running.value }
+
+        let task = Task { @MainActor [weak self] in
+            self?.promptForSourceFolder(near: parent) ?? false
+        }
+        pendingSourcePrompt[parent.path] = task
+        let added = await task.value
+        pendingSourcePrompt[parent.path] = nil
+        return added
+    }
+
+    /// Wartet auf den laufenden Scan und sucht die Datei in der Liste. Wird sie
+    /// nicht gefunden, ist sie vermutlich nach dem letzten Scan dazugekommen —
+    /// dann einmal frisch scannen und erneut nachsehen.
+    @MainActor
+    private func trackAfterScan(url: URL) async -> Track? {
+        await scanTask?.value
+        if let hit = tracks.first(where: { $0.url.standardizedFileURL == url }) { return hit }
+
+        refresh()
+        await scanTask?.value
+        return tracks.first(where: { $0.url.standardizedFileURL == url })
+    }
+
     /// Lädt die gespeicherten Ordner und scannt automatisch den zuletzt
-    /// hinzugefügten. Wird in `ContentView.onAppear` ausgelöst.
+    /// hinzugefügten. Wird in `ContentView.onAppear` ausgelöst — und von
+    /// `handleExternallyOpenedFile`, falls das Open-Event zuerst kommt.
+    /// Idempotent: der zweite Aufruf hängt sich an den laufenden Task.
+    @MainActor
     func restoreSavedFolders() {
-        Task { [weak self, database] in
+        guard restoreTask == nil else { return }
+        restoreTask = Task { [weak self, database] in
             let folders = (try? await database.listFolders()) ?? []
             await MainActor.run {
                 guard let self else { return }

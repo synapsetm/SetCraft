@@ -100,9 +100,10 @@ struct SetCraftApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(player: player, library: library, transport: transport, waveform: waveform)
-                .onOpenURL { url in
-                    player.load(url: url)
-                }
+                // `.onOpenURL` sitzt bewusst in ContentView — das Öffnen von
+                // aussen füllt nicht nur den Player, sondern zieht den Track
+                // auch in die Library nach (siehe `openExternalFile`).
+                //
                 // Bewusst KEIN `.preferredColorScheme(...)` — der SwiftUI-Modifier
                 // schiebt das Schema in das Environment, hinterlässt aber bei
                 // AppKit-Subviews (List, Table, Canvas) hängende Zustände, wenn

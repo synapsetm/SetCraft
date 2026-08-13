@@ -29,6 +29,10 @@ struct ContentView: View {
             player.load(url: url)
             return true
         }
+        .onOpenURL { url in
+            guard url.isFileURL else { return }
+            openExternalFile(url)
+        }
         .onChange(of: player.player.loadedURL, initial: true) { _, newURL in
             // Track-Datei nicht beschreiben, solange AVAudioEngine sie hält.
             library.setActiveTrack(newURL)
@@ -285,6 +289,31 @@ struct ContentView: View {
         library.analyzeIfNeeded(track)
         library.selectedTrackIDs = [track.id]
         library.notePlay(forURL: track.url)
+    }
+
+    /// Datei kommt von aussen: Finder-Doppelklick (SetCraft als Standard-
+    /// Player) oder „Öffnen mit". Zuerst abspielen — das ist es, was der
+    /// Nutzer in diesem Moment erwartet — und parallel den Eltern-Ordner als
+    /// Quelle sicherstellen, damit der Track auch in der Library auftaucht.
+    /// Sobald der Scan ihn kennt, werden Selektion, Analyse, Play-Count und
+    /// die Original-Werte der Chips nachgereicht (`player.load(url:)` allein
+    /// kennt die Tags nicht).
+    private func openExternalFile(_ url: URL) {
+        player.load(url: url)
+        Task {
+            guard let track = await library.handleExternallyOpenedFile(url) else { return }
+            library.selectedTrackIDs = [track.id]
+            library.analyzeIfNeeded(track)
+            library.notePlay(forURL: track.url)
+
+            // Nur nachziehen, wenn zwischenzeitlich kein anderer Track
+            // geladen wurde (Scan grosser Ordner kann dauern).
+            guard player.player.loadedURL?.standardizedFileURL == track.url.standardizedFileURL
+            else { return }
+            player.originalBPM = track.bpm
+            player.originalKey = track.key
+            transport.applyMasterToLoadedTrack()
+        }
     }
 
     /// Nur noch die Zeitanzeige — gesucht wird ab Phase 4 ausschliesslich
