@@ -72,6 +72,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWindow.allowsAutomaticWindowTabbing = false
     }
 
+    /// SetCraft hat genau ein Fenster — ist es zu, gibt es nichts mehr zu
+    /// bedienen (und der Track liefe unsichtbar weiter). Also mit dem Fenster
+    /// auch die App beenden. AppKits Default ist `false`, gedacht für Apps mit
+    /// mehreren/wiederöffenbaren Dokumentfenstern.
+    /// Der Weg führt weiter über `applicationShouldTerminate` — offene
+    /// Tag-Änderungen bekommen ihren Speichern-Dialog also weiterhin.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        true
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard Self.unsavedQuery?() == true else { return .terminateNow }
 
@@ -95,7 +105,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .alertSecondButtonReturn:   // Verwerfen
             return .terminateNow
         default:                          // Abbrechen
+            // Kam die Beendigung vom Schliessen des letzten Fensters, ist das
+            // Fenster an dieser Stelle bereits zu. Ohne das Zurückholen bliebe
+            // eine unsichtbare App zurück — inklusive weiterlaufendem Track.
+            restoreClosedWindow()
             return .terminateCancel
+        }
+    }
+
+    /// Holt das bereits geschlossene Hauptfenster zurück, indem die App sich
+    /// selbst „nochmal öffnet" — dasselbe Reopen-Ereignis wie beim Dock-Klick.
+    /// Nur so entsteht wieder ein echtes SwiftUI-Fenster: das geschlossene
+    /// NSWindow direkt per `makeKeyAndOrderFront` hervorzuholen liefert bloss
+    /// eine leere Hülle ohne Inhalt (getestet).
+    /// Muss aus dem Terminate-Callback heraus verzögert laufen, sonst kommt
+    /// das Reopen an, während AppKit noch im Beenden-Ablauf steckt.
+    private func restoreClosedWindow() {
+        guard !NSApp.windows.contains(where: { $0.canBecomeMain && $0.isVisible }) else { return }
+        DispatchQueue.main.async {
+            NSWorkspace.shared.open(Bundle.main.bundleURL)
         }
     }
 }
