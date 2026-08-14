@@ -16,9 +16,9 @@ Letzte Aktualisierung: 2026-08-14.
   und die vollständige deutsche Lokalisierung.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS:** Archive für 1.1 (13) liegt unter `build/ios/SetCraft-iOS.xcarchive`,
-  der TestFlight-Upload steht noch aus — `exportArchive` scheitert weiterhin
-  am Cloud-Signing (s. u.), der Upload läuft über den Xcode Organizer.
+- **iOS-Release:** 1.1 (Build 13) auf TestFlight. `exportArchive` scheitert
+  weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
+  manuell über den Xcode Organizer.
 - **iOS-Release:** Build 12 auf TestFlight.
 - **Tests:** `swift test` im `SetCraftCore`-Paket grün — 39 Tests
   (BPM/Key/Rating/Waveform/Ordner-Scan).
