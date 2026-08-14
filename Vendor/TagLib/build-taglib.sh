@@ -15,8 +15,8 @@ if ! xcode-select -p 2>/dev/null | grep -q "Xcode.app"; then
   fi
 fi
 
-TAGLIB_VERSION="2.1"
-UTFCPP_VERSION="4.0.6"
+TAGLIB_VERSION="2.3.1"
+UTFCPP_VERSION="4.1.1"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"

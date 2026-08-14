@@ -15,8 +15,8 @@ if ! xcode-select -p 2>/dev/null | grep -q "Xcode.app"; then
   fi
 fi
 
-FFTW_VERSION="3.3.10"
-KEYFINDER_VERSION="2.2.6"
+FFTW_VERSION="3.3.11"
+KEYFINDER_VERSION="2.2.8"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
@@ -39,8 +39,11 @@ fi
 
 if [ ! -d "$KF_SRC" ]; then
   echo "==> Downloading libKeyFinder $KEYFINDER_VERSION"
-  curl -fsSL "https://github.com/mixxxdj/libkeyfinder/archive/refs/tags/v$KEYFINDER_VERSION.tar.gz" \
-    -o "$SRC_DIR/keyfinder.tar.gz"
+  # Bis 2.2.6 hiessen die Tags "vX.Y.Z", ab 2.2.7 nur noch "X.Y.Z" —
+  # beide Varianten probieren, damit ein Versions-Bump nicht 404t.
+  kf_url_base="https://github.com/mixxxdj/libkeyfinder/archive/refs/tags"
+  curl -fsSL "$kf_url_base/$KEYFINDER_VERSION.tar.gz" -o "$SRC_DIR/keyfinder.tar.gz" \
+    || curl -fsSL "$kf_url_base/v$KEYFINDER_VERSION.tar.gz" -o "$SRC_DIR/keyfinder.tar.gz"
   tar -xzf "$SRC_DIR/keyfinder.tar.gz" -C "$SRC_DIR"
   rm "$SRC_DIR/keyfinder.tar.gz"
 fi
