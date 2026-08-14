@@ -5,41 +5,13 @@
       "shouldTranslate" : false
     },
     "%@ / -%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ / -%2$@"
-          }
-        }
-      }
+      "shouldTranslate" : false
     },
     "%lld" : {
-
+      "shouldTranslate" : false
     },
     "~" : {
-
-    },
-    "addFolder failed (scope=%@): %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "addFolder failed (scope=%1$@): %2$@"
-          }
-        }
-      }
-    },
-    "addFolder failed (scope=%1$@): %2$@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "addFolder fehlgeschlagen (scope=%1$@): %2$@"
-          }
-        }
-      }
+      "shouldTranslate" : false
     },
     "Album" : {
       "localizations" : {
@@ -130,6 +102,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kommentar"
+          }
+        }
+      }
+    },
+    "Could not add the folder (scope=%@): %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner konnte nicht hinzugefügt werden (scope=%1$@): %2$@"
           }
         }
       }

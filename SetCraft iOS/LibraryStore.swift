@@ -238,7 +238,9 @@ final class LibraryStore {
             folders.append(record)
             await selectFolder(id: record.id)
         } catch {
-            lastError = String(localized: "addFolder failed (scope=\(String(describing: didAccess))): \(error.localizedDescription)")
+            // Der Scope-Zustand bleibt in der Meldung — bei Sandbox-Problemen
+            // auf externen Quellen ist er die entscheidende Information.
+            lastError = String(localized: "Could not add the folder (scope=\(String(describing: didAccess))): \(error.localizedDescription)")
         }
     }
 

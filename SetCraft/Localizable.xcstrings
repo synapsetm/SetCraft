@@ -2,10 +2,10 @@
   "sourceLanguage" : "en",
   "strings" : {
     "" : {
-
+      "shouldTranslate" : false
     },
     "—" : {
-
+      "shouldTranslate" : false
     },
     "‘%@’ already exists in this folder — skipped." : {
       "localizations" : {
@@ -18,14 +18,7 @@
       }
     },
     "%@ / -%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ / -%2$@"
-          }
-        }
-      }
+      "shouldTranslate" : false
     },
     "%lld found" : {
       "comment" : "Library toolbar: number of tracks found while scanning",
@@ -39,7 +32,7 @@
       }
     },
     "%lld kbps" : {
-
+      "shouldTranslate" : false
     },
     "%lld tracks" : {
       "comment" : "Library toolbar: total track count",
@@ -53,10 +46,10 @@
       }
     },
     "~" : {
-
+      "shouldTranslate" : false
     },
     "●" : {
-
+      "shouldTranslate" : false
     },
     "About SetCraft" : {
       "localizations" : {
@@ -74,28 +67,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Zugriff auf ‘%@’ ist verloren gegangen. Entferne den Ordner und füge ihn neu hinzu."
-          }
-        }
-      }
-    },
-    "Add as source" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Als Quelle hinzufügen"
-          }
-        }
-      }
-    },
-    "Add folder as a source" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ordner als Quelle hinzufügen"
           }
         }
       }
@@ -247,7 +218,7 @@
       }
     },
     "BPM: %@" : {
-
+      "shouldTranslate" : false
     },
     "Cancel" : {
       "localizations" : {
@@ -471,17 +442,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "global"
-          }
-        }
-      }
-    },
-    "Grant access to this folder so its tracks can appear in the library." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erteile Zugriff auf diesen Ordner, damit seine Tracks in der Bibliothek erscheinen."
           }
         }
       }
@@ -732,28 +692,6 @@
         }
       }
     },
-    "Pause" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pause"
-          }
-        }
-      }
-    },
-    "Play" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Play"
-          }
-        }
-      }
-    },
     "Play/Pause" : {
       "localizations" : {
         "de" : {
@@ -920,19 +858,8 @@
         }
       }
     },
-    "Save (%lld)" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Speichern (%lld)"
-          }
-        }
-      }
-    },
     "SetCraft" : {
-
+      "shouldTranslate" : false
     },
     "Size" : {
       "localizations" : {
