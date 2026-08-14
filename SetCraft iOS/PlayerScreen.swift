@@ -39,6 +39,9 @@ struct PlayerScreen: View {
             TempoSheet(
                 originalBPM: store.currentTrack?.bpm,
                 initialRate: store.currentRate,
+                originalKey: store.currentTrack?.key,
+                keyLock: Binding(get: { store.keyLock },
+                                 set: { store.keyLock = $0 }),
                 onRateChange: { store.setRate($0) },
                 onReset: { store.resetTempo() }
             )
@@ -180,7 +183,9 @@ struct PlayerScreen: View {
                 ) {
                     showTempoSheet = true
                 }
-                KeyChipView(key: store.currentTrack?.key, isAnalyzing: store.isAnalyzingCurrentTrack)
+                KeyChipView(key: store.currentTrack?.key,
+                            isAnalyzing: store.isAnalyzingCurrentTrack,
+                            sounding: store.soundingKey)
                 Spacer(minLength: 4)
                 PlayerEditButton { showTagEditSheet = true }
                     .disabled(!hasTrack)

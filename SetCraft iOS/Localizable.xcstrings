@@ -241,6 +241,16 @@
         }
       }
     },
+    "Key lock" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key lock"
+          }
+        }
+      }
+    },
     "Label" : {
       "localizations" : {
         "de" : {
@@ -371,6 +381,16 @@
         }
       }
     },
+    "Pitch stays constant when the tempo changes." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Tonhöhe bleibt beim Tempowechsel konstant."
+          }
+        }
+      }
+    },
     "Player" : {
       "shouldTranslate" : false
     },
@@ -474,6 +494,26 @@
         }
       }
     },
+    "Sounds %@ semitones off — between two keys: %@ → ~%@. The file keeps %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klingt %1$@ Halbtöne verschoben — zwischen zwei Tonarten: %2$@ → ~%3$@. In der Datei bleibt %4$@."
+          }
+        }
+      }
+    },
+    "Sounds %@ semitones off: %@ → %@. The file keeps %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klingt %1$@ Halbtöne verschoben: %2$@ → %3$@. In der Datei bleibt %4$@."
+          }
+        }
+      }
+    },
     "Source cannot be opened." : {
       "localizations" : {
         "de" : {
@@ -523,6 +563,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Der Ordner „%@“ enthält keine erkannten Audio-Dateien."
+          }
+        }
+      }
+    },
+    "The key shifts with the tempo." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Tonart verschiebt sich mit dem Tempo."
           }
         }
       }

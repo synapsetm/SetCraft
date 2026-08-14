@@ -20,6 +20,9 @@ struct TempoSheet: View {
     let initialRate: Double
     let onRateChange: (Double) -> Void
     let onReset: () -> Void
+    /// Originaler Key aus dem Tag — für die Vorschau der klingenden Tonart.
+    let originalKey: CamelotKey?
+    @Binding var keyLock: Bool
 
     @Environment(\.dismiss) private var dismiss
     @State private var rate: Double
@@ -28,11 +31,15 @@ struct TempoSheet: View {
     init(
         originalBPM: Double?,
         initialRate: Double,
+        originalKey: CamelotKey? = nil,
+        keyLock: Binding<Bool>,
         onRateChange: @escaping (Double) -> Void,
         onReset: @escaping () -> Void
     ) {
         self.originalBPM = originalBPM
         self.initialRate = initialRate
+        self.originalKey = originalKey
+        self._keyLock = keyLock
         self.onRateChange = onRateChange
         self.onReset = onReset
         _rate = State(initialValue: initialRate)
@@ -84,6 +91,21 @@ struct TempoSheet: View {
                 }
 
                 Section {
+                    Toggle("Key lock", isOn: $keyLock)
+                } footer: {
+                    if keyLock {
+                        Text("Pitch stays constant when the tempo changes.")
+                    } else if let shifted = soundingPreview {
+                        Text(shiftedFooter(for: shifted))
+                            .foregroundStyle(shifted.isAmbiguous
+                                             ? Color(red: 1.0, green: 0.624, blue: 0.271)
+                                             : Color.secondary)
+                    } else {
+                        Text("The key shifts with the tempo.")
+                    }
+                }
+
+                Section {
                     Button("Reset to 100 %") {
                         rate = 1.0
                         onReset()
@@ -118,6 +140,21 @@ struct TempoSheet: View {
     private var percentLabel: String {
         let pct = (rate - 1.0) * 100
         return String(format: "%+0.1f %%", pct)
+    }
+
+    /// Klingende Tonart bei der gerade eingestellten Rate — Vorschau im
+    /// Footer, damit der Effekt des Schalters sofort sichtbar ist.
+    private var soundingPreview: SoundingKey? {
+        guard let originalKey, rate != 1.0 else { return nil }
+        return SoundingKey(original: originalKey, rate: rate)
+    }
+
+    private func shiftedFooter(for shifted: SoundingKey) -> String {
+        let semitones = String(format: "%+.2f", shifted.exactSemitones)
+        if shifted.isAmbiguous {
+            return String(localized: "Sounds \(semitones) semitones off — between two keys: \(shifted.original.description) → ~\(shifted.sounding.description). The file keeps \(shifted.original.description).")
+        }
+        return String(localized: "Sounds \(semitones) semitones off: \(shifted.original.description) → \(shifted.sounding.description). The file keeps \(shifted.original.description).")
     }
 
     private func syncBPMText() {

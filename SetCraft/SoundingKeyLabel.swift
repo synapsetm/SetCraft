@@ -45,9 +45,9 @@ struct SoundingKeyLabel: View {
     private func helpText(for sounding: SoundingKey) -> String {
         let shift = String(format: "%+.2f", sounding.exactSemitones)
         if sounding.isAmbiguous {
-            return "Klingt \(shift) Halbtöne höher — zwischen zwei Tonarten, die Rundung auf \(sounding.sounding) ist willkürlich. In der Datei steht weiterhin \(sounding.original)."
+            return String(localized: "Sounds \(shift) semitones off — between two keys, so rounding to \(sounding.sounding.description) is arbitrary. The file still says \(sounding.original.description).")
         }
-        return "Klingt \(shift) Halbtöne höher: \(sounding.sounding). In der Datei steht weiterhin \(sounding.original)."
+        return String(localized: "Sounds \(shift) semitones off: \(sounding.sounding.description). The file still says \(sounding.original.description).")
     }
 }
 
@@ -57,7 +57,7 @@ struct KeyShiftBanner: View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .imageScale(.small)
-            Text("Key lock aus — die Tonarten verschieben sich mit dem Tempo. Sortierung nach klingendem Key.")
+            Text("Key lock off — keys shift with the tempo. Sorted by sounding key.")
                 .font(.caption)
             Spacer()
         }

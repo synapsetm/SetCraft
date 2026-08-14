@@ -22,6 +22,10 @@ struct TrackRowView: View {
     /// Engine spielt aktuell ab. Steuert nur das Icon (play vs. pause).
     let isPlaying: Bool
     let isAnalyzing: Bool
+    /// Klingende Tonart — nur für den geladenen Track gesetzt und nur, wenn
+    /// der Key-Lock aus ist. Auf iOS gilt die Rate immer bloss für den
+    /// laufenden Track, deshalb verschiebt sich nie die ganze Liste.
+    var sounding: SoundingKey? = nil
 
     var body: some View {
         HStack(spacing: 0) {
@@ -94,7 +98,22 @@ struct TrackRowView: View {
             } else {
                 Text(formattedBPM)
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
-                KeyBadgeView(key: track.key)
+                if let sounding, sounding.isShifted {
+                    HStack(spacing: 2) {
+                        KeyBadgeView(key: sounding.original, dimmed: true)
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 8))
+                            .foregroundStyle(.secondary)
+                        if sounding.isAmbiguous {
+                            Text("~")
+                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundStyle(Color(red: 1.0, green: 0.624, blue: 0.271))
+                        }
+                        KeyBadgeView(key: sounding.sounding)
+                    }
+                } else {
+                    KeyBadgeView(key: track.key)
+                }
             }
         }
     }
@@ -121,11 +140,13 @@ struct StarStripView: View {
 
 struct KeyBadgeView: View {
     let key: CamelotKey?
+    /// Ausgegraut für den Original-Key, wenn daneben der klingende steht.
+    var dimmed: Bool = false
 
     var body: some View {
         Text(key?.description ?? "—")
             .font(.system(size: 11, weight: .medium, design: .monospaced))
-            .foregroundStyle(key?.color ?? .secondary)
+            .foregroundStyle((key?.color ?? .secondary).opacity(dimmed ? 0.4 : 1.0))
             .padding(.horizontal, 5)
             .padding(.vertical, 2)
             .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 4))

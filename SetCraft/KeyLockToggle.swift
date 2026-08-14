@@ -29,7 +29,7 @@ struct KeyLockToggle: View {
         .buttonStyle(.plain)
         .opacity(hasLoadedTrack ? 1.0 : 0.55)
         .help(keyLock
-              ? "Key lock an — die Tonhöhe bleibt beim Tempowechsel konstant"
-              : "Key lock aus — die Tonart verschiebt sich mit dem Tempo")
+              ? "Key lock on — pitch stays constant when the tempo changes"
+              : "Key lock off — the key shifts with the tempo")
     }
 }

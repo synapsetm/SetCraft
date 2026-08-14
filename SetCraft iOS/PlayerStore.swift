@@ -89,6 +89,30 @@ final class PlayerStore {
         return bpm * engine.rate
     }
 
+    /// Hält die Tonhöhe beim Tempowechsel konstant. Aus = die Tonart wandert
+    /// mit dem Tempo. Siehe `SPEC.md` §5b.
+    var keyLock: Bool {
+        get { engine.keyLock }
+        set { engine.keyLock = newValue }
+    }
+
+    /// Klingende Tonart des laufenden Tracks — nur belegt, wenn der Key-Lock
+    /// aus ist und die Rate tatsächlich von 1.0 abweicht.
+    ///
+    /// Anders als auf dem Mac gibt es auf iOS kein Master-Tempo: die Rate
+    /// gilt immer nur für den geladenen Track und wird beim Laden des
+    /// nächsten zurückgesetzt. Verschoben ist deshalb höchstens die Tonart
+    /// des aktuellen Tracks, nie die der ganzen Bibliothek.
+    ///
+    /// **Reiner Anzeigewert** — in die Datei geht immer `track.key`.
+    var soundingKey: SoundingKey? {
+        guard !engine.keyLock,
+              let key = currentTrack?.key,
+              engine.rate != 1.0
+        else { return nil }
+        return SoundingKey(original: key, rate: engine.rate)
+    }
+
     /// CDJ-Span: ±8 % rund um 1.0 — sowohl Slider als auch BPM-Manual-Eingabe
     /// werden auf dieses Fenster geklemmt.
     static let tempoSpan: Double = 0.08

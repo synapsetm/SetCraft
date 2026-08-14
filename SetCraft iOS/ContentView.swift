@@ -177,7 +177,10 @@ private struct LibraryScreen: View {
                         track: track,
                         isCurrent: isCurrent,
                         isPlaying: isCurrent && playerStore.isPlaying,
-                        isAnalyzing: libraryStore.isAnalyzing(trackID: track.id)
+                        isAnalyzing: libraryStore.isAnalyzing(trackID: track.id),
+                        // Nur der laufende Track hat eine Rate — alle anderen
+                        // starten bei 1.0, ihre Tonart verschiebt sich nicht.
+                        sounding: isCurrent ? playerStore.soundingKey : nil
                     )
                     .contentShape(Rectangle())
                     .onTapGesture {

@@ -87,6 +87,12 @@ struct PlayerEditButton: View {
 struct KeyChipView: View {
     let key: CamelotKey?
     let isAnalyzing: Bool
+    /// Bei ausgeschaltetem Key-Lock die tatsächlich klingende Tonart —
+    /// dann zeigt der Chip `8A → 9A`. Reiner Anzeigewert.
+    var sounding: SoundingKey? = nil
+
+    /// Warnfarbe für Grenzfälle, wie im Mockup (`#FF9F45`).
+    private static let ambiguousColor = Color(red: 1.0, green: 0.624, blue: 0.271)
 
     var body: some View {
         HStack(spacing: 6) {
@@ -97,6 +103,20 @@ struct KeyChipView: View {
                 ProgressView()
                     .controlSize(.small)
                     .tint(.secondary)
+            } else if let sounding, sounding.isShifted {
+                HStack(spacing: 3) {
+                    Text(sounding.original.description)
+                        .foregroundStyle(sounding.original.color.opacity(0.4))
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    if sounding.isAmbiguous {
+                        Text("~").foregroundStyle(Self.ambiguousColor)
+                    }
+                    Text(sounding.sounding.description)
+                        .foregroundStyle(sounding.sounding.color)
+                }
+                .font(.system(size: 16, weight: .medium, design: .monospaced))
             } else {
                 Text(key?.description ?? "—")
                     .font(.system(size: 16, weight: .medium, design: .monospaced))

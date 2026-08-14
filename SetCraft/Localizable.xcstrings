@@ -4,6 +4,16 @@
     "" : {
 
     },
+    "key lock" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "key lock"
+          }
+        }
+      }
+    },
     "—" : {
 
     },
@@ -516,6 +526,36 @@
         }
       }
     },
+    "Key lock off — keys shift with the tempo. Sorted by sounding key." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key lock aus — die Tonarten verschieben sich mit dem Tempo. Sortierung nach klingendem Key."
+          }
+        }
+      }
+    },
+    "Key lock off — the key shifts with the tempo" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key lock aus — die Tonart verschiebt sich mit dem Tempo"
+          }
+        }
+      }
+    },
+    "Key lock on — pitch stays constant when the tempo changes" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key lock an — die Tonhöhe bleibt beim Tempowechsel konstant"
+          }
+        }
+      }
+    },
     "Label" : {
       "localizations" : {
         "de" : {
@@ -921,6 +961,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Grösse"
+          }
+        }
+      }
+    },
+    "Sounds %@ semitones off — between two keys, so rounding to %@ is arbitrary. The file still says %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klingt %1$@ Halbtöne verschoben — zwischen zwei Tonarten, die Rundung auf %2$@ ist willkürlich. In der Datei steht weiterhin %3$@."
+          }
+        }
+      }
+    },
+    "Sounds %@ semitones off: %@. The file still says %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klingt %1$@ Halbtöne verschoben: %2$@. In der Datei steht weiterhin %3$@."
           }
         }
       }
