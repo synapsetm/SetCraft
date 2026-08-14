@@ -209,6 +209,73 @@ Pitch-Shifts erzeugen. Zwei mögliche Modi (zunächst Modus A bauen, B als spät
 
 ---
 
+## 5b. Verschobene Tonarten bei Tempoänderung (Anzeige-Feature)
+
+> Nicht zu verwechseln mit **Phase 5b (iOS-Target)** in `STATUS.md` — hier ist der
+> Spezifikationsabschnitt gemeint, nicht die Umsetzungsphase.
+
+### Physikalischer Hintergrund
+Ohne Key-Lock verschiebt eine Tempoänderung zwangsläufig die Tonhöhe (schnelleres Abspielen =
+höhere Frequenzen). Faustregel: ~6 % Tempoänderung ≈ 1 Halbton.
+
+### Formeln
+```swift
+/// Halbtonverschiebung aus dem Geschwindigkeitsverhältnis (rate = zielBPM / originalBPM)
+func semitoneShift(forRate rate: Double) -> Double { 12 * log2(rate) }
+
+/// Cents (für AVAudioUnitTimePitch.pitch)
+func cents(forRate rate: Double) -> Double { 1200 * log2(rate) }
+
+/// Umkehrung: nötige Rate für n Halbtöne
+func rate(forSemitones n: Double) -> Double { pow(2, n / 12) }
+```
+Ablauf pro Track: `rate = masterBPM / trackBPM` → `st = 12·log2(rate)` → `n = round(st)` →
+Pitch-Class des Original-Keys um `n` verschieben → zurück auf Camelot mappen.
+
+### Voraussetzung: Key-Lock-Schalter
+`AVAudioUnitTimePitch` entkoppelt Rate und Pitch konstruktionsbedingt — die App verhielt sich
+daher bis zu diesem Feature **immer** wie „Key-Lock an". Das Anzeige-Feature setzt einen echten
+Key-Lock-Schalter voraus: ist er **aus**, folgt die Tonhöhe der Rate
+(`pitch = userPitch + 1200·log2(rate)`), ist er **an**, bleibt sie unangetastet.
+
+### Anzeige in der Bibliothek (Variante A — inline in der Key-Spalte)
+Nur aktiv, wenn **Master-BPM gesetzt UND Key-Lock AUS** ist:
+- Format: `<Original ausgegraut> → <klingender Key farbig>`, z. B. `8A → 9A`.
+- Keine Verschiebung (`n == 0`) → nur der Original-Key plus dezentes `—`.
+- **Tilde-Markierung** `~9A` bei Grenzfällen: wenn `abs(st - round(st)) > 0.40`, klingt der Track
+  „zwischen" zwei Tonarten; die Rundung ist dann willkürlich. Tilde in Warnfarbe (`#FF9F45`).
+  Schwellwert 0.40 ist ein Startwert und mit echter Library nachzujustieren.
+- Über der Liste ein Hinweisbanner: „Key lock aus — Tonarten verschieben sich mit dem Tempo."
+- Bei Key-Lock AN: Banner und Pfeile verschwinden, es wird nur der Original-Key gezeigt.
+
+### Sortierung
+Beim Sortieren nach Key wird der **berechnete, klingende Key** als Sortierschlüssel verwendet,
+nicht der Wert aus dem Tag. Sortierreihenfolge nach Camelot-Zahl (1A, 2A, 3A …), damit harmonisch
+benachbarte Tracks in der Liste beieinanderstehen. Bei Key-Lock AN wird wieder nach dem Original
+sortiert. Ändert sich die Master-BPM, ordnet sich die Liste entsprechend neu.
+
+### KRITISCH: berechnete Werte werden NIEMALS persistiert
+Die verschobenen Keys sind eine reine **Laufzeit-Darstellung** des aktuellen Wiedergabezustands.
+
+- **Nicht in die Datei-Tags schreiben** — weder `TKEY`/`INITIALKEY` noch das Kommentarfeld.
+  In den Tags steht immer und ausschließlich der **analysierte Original-Key** des Materials.
+- **Nicht in den Cache/die DB schreiben** — auch im SQLite-Cache steht nur das Original.
+- Gleiches gilt sinngemäß für die **BPM**: In die Datei geht die Original-BPM des Tracks,
+  niemals die durchs Master-Tempo angepasste Wiedergabe-BPM.
+- Ein „Save"/„Write tags"-Vorgang muss die Werte also immer aus dem Original-Modellfeld nehmen,
+  nie aus dem für die Anzeige berechneten Feld.
+
+**Konsequenz fürs Datenmodell:** Original- und Anzeigewert strikt trennen, z. B.
+`track.key` (persistiert, aus Analyse/Tag) vs. `track.playingKey` (berechnet, nie gespeichert).
+Analog `track.bpm` vs. `track.playingBPM`. Nur die erstgenannten Felder sind je Ziel eines Tag-Writes.
+
+Da die Berechnung den Wiedergabezustand (Master-BPM, Key-Lock) braucht, den `Track` als reiner
+Wert nicht kennt, sind `playingKey`/`playingBPM` als **Methoden mit Zustandsparameter** umgesetzt
+(`track.playingKey(masterBPM:keyLock:)`), nicht als parameterlose Computed Properties. Der
+entscheidende Punkt bleibt: sie sind nicht Teil des gespeicherten Zustands.
+
+---
+
 ## 6. Projektstruktur
 
 **Aktueller Ist-Zustand** (Xcode-Default, bereits vorhanden):

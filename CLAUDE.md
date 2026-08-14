@@ -66,6 +66,10 @@ Beim Zurückschreiben in die Datei (siehe `SPEC.md` für Details):
      verlässliche gemeinsame Nenner für Serato **und** Rekordbox.
 
 **Pflichtregeln beim Tag-Schreiben:**
+- **NIEMALS berechnete Wiedergabewerte persistieren.** In die Datei geht immer der **Original**-Key und
+  die **Original**-BPM aus Analyse/Tag — nie der durch Master-Tempo/Master-Key verschobene Anzeigewert.
+  Modell strikt trennen: `track.key` / `track.bpm` (persistiert) vs. `track.playingKey` / `track.playingBPM`
+  (berechnet, nur Anzeige). Siehe `SPEC.md` §5b.
 - **Bestehenden Kommentar erhalten.** Nur das eigene Sterne-Token aktualisieren, den Rest unangetastet lassen.
   Beim Lesen das Token sauber herausparsen.
 - **Atomar schreiben**: in temporäre Datei schreiben, dann umbenennen. Niemals direkt in die Originaldatei schreiben.
