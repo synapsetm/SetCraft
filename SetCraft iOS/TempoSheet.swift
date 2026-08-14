@@ -22,7 +22,6 @@ struct TempoSheet: View {
     let onReset: () -> Void
     /// Originaler Key aus dem Tag — für die Vorschau der klingenden Tonart.
     let originalKey: CamelotKey?
-    @Binding var keyLock: Bool
 
     @Environment(\.dismiss) private var dismiss
     @State private var rate: Double
@@ -32,14 +31,12 @@ struct TempoSheet: View {
         originalBPM: Double?,
         initialRate: Double,
         originalKey: CamelotKey? = nil,
-        keyLock: Binding<Bool>,
         onRateChange: @escaping (Double) -> Void,
         onReset: @escaping () -> Void
     ) {
         self.originalBPM = originalBPM
         self.initialRate = initialRate
         self.originalKey = originalKey
-        self._keyLock = keyLock
         self.onRateChange = onRateChange
         self.onReset = onReset
         _rate = State(initialValue: initialRate)
@@ -90,18 +87,13 @@ struct TempoSheet: View {
                     }
                 }
 
-                Section {
-                    Toggle("Key lock", isOn: $keyLock)
-                } footer: {
-                    if keyLock {
-                        Text("Pitch stays constant when the tempo changes.")
-                    } else if let shifted = soundingPreview {
+                if let shifted = soundingPreview {
+                    Section {
                         Text(shiftedFooter(for: shifted))
+                            .font(.footnote)
                             .foregroundStyle(shifted.isAmbiguous
                                              ? Color(red: 1.0, green: 0.624, blue: 0.271)
                                              : Color.secondary)
-                    } else {
-                        Text("The key shifts with the tempo.")
                     }
                 }
 

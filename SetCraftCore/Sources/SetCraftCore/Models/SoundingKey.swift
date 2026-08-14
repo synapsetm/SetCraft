@@ -69,35 +69,33 @@ public struct SoundingKey: Equatable, Sendable {
 /// Der Wiedergabezustand, den die Bibliothek braucht, um klingende Tonarten
 /// anzuzeigen und danach zu sortieren. Wird von der Player-Seite gespiegelt
 /// und ist reiner Anzeige-Zustand.
+///
+/// SetCraft spielt ohne Key-Lock — sobald ein Master-Tempo gesetzt ist,
+/// verschieben sich die Tonarten hörbar.
 public struct SoundingContext: Equatable, Sendable {
     public let masterBPM: Double?
-    public let keyLock: Bool
 
-    public init(masterBPM: Double?, keyLock: Bool) {
+    public init(masterBPM: Double?) {
         self.masterBPM = masterBPM
-        self.keyLock = keyLock
     }
 
-    /// Key-Lock aus und ein Master-Tempo gesetzt — nur dann verschieben sich
-    /// die Tonarten überhaupt.
-    public var isActive: Bool {
-        !keyLock && (masterBPM ?? 0) > 0
-    }
+    /// Ein Master-Tempo ist gesetzt — nur dann verschiebt sich überhaupt etwas.
+    public var isActive: Bool { (masterBPM ?? 0) > 0 }
 
-    /// Ausgangszustand: Key-Lock an, kein Master-Tempo.
-    public static let locked = SoundingContext(masterBPM: nil, keyLock: true)
+    /// Ausgangszustand: kein Master-Tempo, jeder Track läuft im Original.
+    public static let none = SoundingContext(masterBPM: nil)
 }
 
 extension Track {
 
     /// Klingender Key im gegebenen Wiedergabezustand.
     public func playingKey(in context: SoundingContext) -> SoundingKey? {
-        playingKey(masterBPM: context.masterBPM, keyLock: context.keyLock)
+        playingKey(masterBPM: context.masterBPM)
     }
 
     /// Sortierschlüssel im gegebenen Wiedergabezustand.
     public func keySortValue(in context: SoundingContext) -> Int {
-        keySortValue(masterBPM: context.masterBPM, keyLock: context.keyLock)
+        keySortValue(masterBPM: context.masterBPM)
     }
 
     /// Rate, mit der dieser Track bei gesetzter Master-BPM abgespielt wird.
@@ -121,23 +119,22 @@ extension Track {
 
     /// Der Key, mit dem der Track gerade klingt.
     ///
-    /// Gibt `nil` zurück, wenn die Verschiebung nicht greift: bei aktivem
-    /// Key-Lock (Tonhöhe bleibt konstant), ohne Master-BPM oder ohne
-    /// analysierten Key. Der Aufrufer zeigt dann den Original-Key.
+    /// Gibt `nil` zurück, wenn nichts zu verschieben ist: ohne Master-BPM
+    /// oder ohne analysierten Key. Der Aufrufer zeigt dann den Original-Key.
     ///
     /// **Nie persistieren** — in die Datei geht immer `key`.
-    public func playingKey(masterBPM: Double?, keyLock: Bool) -> SoundingKey? {
-        guard !keyLock,
-              let key,
-              let rate = playingRate(masterBPM: masterBPM)
-        else { return nil }
+    public func playingKey(masterBPM: Double?) -> SoundingKey? {
+        guard let key, let rate = playingRate(masterBPM: masterBPM) else {
+            return nil
+        }
         return SoundingKey(original: key, rate: rate)
     }
 
-    /// Sortierschlüssel für die Key-Spalte: bei ausgeschaltetem Key-Lock der
-    /// klingende, sonst der getaggte Key. Tracks ohne Key sortieren ans Ende.
-    public func keySortValue(masterBPM: Double?, keyLock: Bool) -> Int {
-        let effective = playingKey(masterBPM: masterBPM, keyLock: keyLock)?.sounding ?? key
+    /// Sortierschlüssel für die Key-Spalte: der klingende Key, sobald ein
+    /// Master-Tempo gesetzt ist, sonst der getaggte. Tracks ohne Key
+    /// sortieren ans Ende.
+    public func keySortValue(masterBPM: Double?) -> Int {
+        let effective = playingKey(masterBPM: masterBPM)?.sounding ?? key
         guard let effective else { return Int.max }
         // Nach Camelot-Zahl gruppieren, Mode als Nebenschlüssel — so stehen
         // harmonisch benachbarte Tracks beieinander.

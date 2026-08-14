@@ -82,18 +82,16 @@ public final class AVAudioEnginePlayer: AudioEngine {
         }
     }
 
-    /// Standardmässig an — bis zur Einführung dieses Schalters verhielt sich
-    /// die App implizit so, weil `AVAudioUnitTimePitch` Rate und Pitch
-    /// entkoppelt.
-    public var keyLock: Bool = true {
-        didSet { syncPitch() }
-    }
-
-    /// Schreibt den effektiven Pitch auf den Knoten: der vom Nutzer bzw. vom
-    /// Master-Key gesetzte Wert, bei ausgeschaltetem Key-Lock zuzüglich der
-    /// Verschiebung, die sich aus der Rate ergibt.
+    /// Schreibt den effektiven Pitch auf den Knoten: der vom Master-Key
+    /// gesetzte Offset plus die Verschiebung, die sich aus der Rate ergibt.
+    ///
+    /// `AVAudioUnitTimePitch` würde die Tonhöhe beim Tempowechsel von sich aus
+    /// konstant halten. Das kompensieren wir hier bewusst — SetCraft spielt
+    /// ohne Key-Lock, damit sich die Tonart wie beim Plattenspieler mit dem
+    /// Tempo verschiebt und die Anzeige in der Bibliothek dem Gehörten
+    /// entspricht (siehe `SPEC.md` §5b).
     private func syncPitch() {
-        let varispeed = keyLock ? 0 : PitchMath.cents(forRate: rate)
+        let varispeed = PitchMath.cents(forRate: rate)
         timePitch.pitch = Float(max(-2400, min(2400, pitchCents + varispeed)))
     }
 

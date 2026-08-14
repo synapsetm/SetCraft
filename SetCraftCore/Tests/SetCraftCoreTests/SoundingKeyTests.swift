@@ -111,49 +111,56 @@ final class SoundingKeyTests: XCTestCase {
         XCTAssertEqual(t.playingBPM(masterBPM: nil)!, 140, accuracy: 1e-9)
     }
 
-    func test_playingKey_nilWhenKeyLockOn() {
-        let t = track(bpm: 140, key: "8A")
-        XCTAssertNil(t.playingKey(masterBPM: 175, keyLock: true))
-    }
-
     func test_playingKey_nilWithoutMasterBPM() {
         let t = track(bpm: 140, key: "8A")
-        XCTAssertNil(t.playingKey(masterBPM: nil, keyLock: false))
+        XCTAssertNil(t.playingKey(masterBPM: nil))
     }
 
     func test_playingKey_nilWithoutAnalyzedKey() {
         let t = track(bpm: 140, key: nil)
-        XCTAssertNil(t.playingKey(masterBPM: 175, keyLock: false))
+        XCTAssertNil(t.playingKey(masterBPM: 175))
     }
 
-    func test_playingKey_shiftsWhenKeyLockOff() {
+    func test_playingKey_shiftsWithMasterTempo() {
         // 140 → 148.4 BPM entspricht ziemlich genau einem Halbton.
         let t = track(bpm: 140, key: "8A")
-        let sk = t.playingKey(masterBPM: 140 * PitchMath.rate(forSemitones: 1),
-                              keyLock: false)
+        let sk = t.playingKey(masterBPM: 140 * PitchMath.rate(forSemitones: 1))
         XCTAssertEqual(sk?.semitones, 1)
         XCTAssertEqual(sk?.sounding, CamelotKey("3A")!)
     }
 
     // MARK: - Sortierung
 
-    func test_keySortValue_usesSoundingKeyWhenUnlocked() {
+    func test_keySortValue_usesSoundingKeyWithMasterTempo() {
         let t = track(bpm: 140, key: "8A")
         let master = 140 * PitchMath.rate(forSemitones: 1)   // → 3A
-        let unlocked = t.keySortValue(masterBPM: master, keyLock: false)
-        let locked = t.keySortValue(masterBPM: master, keyLock: true)
-        XCTAssertEqual(unlocked, CamelotKey("3A")!.number * 2)
-        XCTAssertEqual(locked, CamelotKey("8A")!.number * 2)
-        XCTAssertNotEqual(unlocked, locked)
+        let shifted = t.keySortValue(masterBPM: master)
+        let original = t.keySortValue(masterBPM: nil)
+        XCTAssertEqual(shifted, CamelotKey("3A")!.number * 2)
+        XCTAssertEqual(original, CamelotKey("8A")!.number * 2)
+        XCTAssertNotEqual(shifted, original)
+    }
+
+    /// Die Sortierung muss der Anzeige folgen: was als klingender Key in der
+    /// Zeile steht, ist auch der Sortierwert.
+    func test_keySortValue_matchesDisplayedSoundingKey() {
+        let master = 148.0
+        for bpm in [128.0, 135.7, 140.0, 143.9, 151.3] {
+            let t = track(bpm: bpm, key: "8A")
+            let displayed = t.playingKey(masterBPM: master)!.sounding
+            XCTAssertEqual(t.keySortValue(masterBPM: master),
+                           displayed.number * 2 + (displayed.mode == .major ? 1 : 0),
+                           "Sortierwert weicht bei \(bpm) BPM von der Anzeige ab")
+        }
     }
 
     func test_keySortValue_groupsByCamelotNumber() {
         let a = track(bpm: 140, key: "3A")
         let b = track(bpm: 140, key: "3B")
         let c = track(bpm: 140, key: "4A")
-        let sortA = a.keySortValue(masterBPM: nil, keyLock: true)
-        let sortB = b.keySortValue(masterBPM: nil, keyLock: true)
-        let sortC = c.keySortValue(masterBPM: nil, keyLock: true)
+        let sortA = a.keySortValue(masterBPM: nil)
+        let sortB = b.keySortValue(masterBPM: nil)
+        let sortC = c.keySortValue(masterBPM: nil)
         XCTAssertLessThan(sortA, sortB)   // 3A vor 3B
         XCTAssertLessThan(sortB, sortC)   // 3B vor 4A
     }
@@ -161,8 +168,8 @@ final class SoundingKeyTests: XCTestCase {
     func test_keySortValue_tracksWithoutKeySortLast() {
         let none = track(bpm: 140, key: nil)
         let some = track(bpm: 140, key: "12B")
-        XCTAssertGreaterThan(none.keySortValue(masterBPM: nil, keyLock: true),
-                             some.keySortValue(masterBPM: nil, keyLock: true))
+        XCTAssertGreaterThan(none.keySortValue(masterBPM: nil),
+                             some.keySortValue(masterBPM: nil))
     }
 
     // MARK: - Persistenz-Schutz (CLAUDE.md-Pflichtregel)
@@ -170,8 +177,8 @@ final class SoundingKeyTests: XCTestCase {
     func test_playingValues_doNotMutateStoredFields() {
         let t = track(bpm: 140, key: "8A")
         _ = t.playingBPM(masterBPM: 175)
-        _ = t.playingKey(masterBPM: 175, keyLock: false)
-        _ = t.keySortValue(masterBPM: 175, keyLock: false)
+        _ = t.playingKey(masterBPM: 175)
+        _ = t.keySortValue(masterBPM: 175)
         // Die persistierten Felder sind unangetastet — nur sie gehen je in
         // einen Tag-Write.
         XCTAssertEqual(t.bpm, 140)

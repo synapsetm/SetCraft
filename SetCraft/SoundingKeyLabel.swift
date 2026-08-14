@@ -57,7 +57,7 @@ struct KeyShiftBanner: View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .imageScale(.small)
-            Text("Key lock off — keys shift with the tempo. Sorted by sounding key.")
+            Text("Master tempo active — keys shift with the tempo. Sorted by sounding key.")
                 .font(.caption)
             Spacer()
         }

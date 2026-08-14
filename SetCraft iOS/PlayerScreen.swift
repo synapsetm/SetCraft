@@ -40,8 +40,6 @@ struct PlayerScreen: View {
                 originalBPM: store.currentTrack?.bpm,
                 initialRate: store.currentRate,
                 originalKey: store.currentTrack?.key,
-                keyLock: Binding(get: { store.keyLock },
-                                 set: { store.keyLock = $0 }),
                 onRateChange: { store.setRate($0) },
                 onReset: { store.resetTempo() }
             )

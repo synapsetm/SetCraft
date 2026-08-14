@@ -22,9 +22,8 @@ struct TrackRowView: View {
     /// Engine spielt aktuell ab. Steuert nur das Icon (play vs. pause).
     let isPlaying: Bool
     let isAnalyzing: Bool
-    /// Klingende Tonart — nur für den geladenen Track gesetzt und nur, wenn
-    /// der Key-Lock aus ist. Auf iOS gilt die Rate immer bloss für den
-    /// laufenden Track, deshalb verschiebt sich nie die ganze Liste.
+    /// Klingende Tonart bei gesetztem Master-Tempo. Reiner Anzeigewert —
+    /// in die Datei geht immer `track.key`.
     var sounding: SoundingKey? = nil
 
     var body: some View {

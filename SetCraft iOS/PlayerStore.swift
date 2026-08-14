@@ -55,6 +55,7 @@ final class PlayerStore {
         self.session = session
         self.waveformCache = waveformCache
 
+
         // Audio-Session-Callbacks verdrahten: Interruption pausiert,
         // resume bei .shouldResume, Headphones-Abzug pausiert.
         session.onInterruptionBegan = { [weak self] in self?.pause() }
@@ -70,6 +71,14 @@ final class PlayerStore {
         engine.onPlaybackEnded = { [weak self] in
             self?.next()
             self?.nowPlaying?.update()
+        }
+
+        // Master-Tempo der letzten Session wiederherstellen. Kein Track
+        // geladen — `applyMasterToCurrentTrack` im didSet läuft ins Leere,
+        // die Bibliothek bekommt aber sofort den richtigen Anzeige-Zustand.
+        if let saved = UserDefaults.standard.object(forKey: "masterBPM") as? Double,
+           saved > 0 {
+            masterBPM = saved
         }
     }
 
@@ -89,28 +98,40 @@ final class PlayerStore {
         return bpm * engine.rate
     }
 
-    /// Hält die Tonhöhe beim Tempowechsel konstant. Aus = die Tonart wandert
-    /// mit dem Tempo. Siehe `SPEC.md` §5b.
-    var keyLock: Bool {
-        get { engine.keyLock }
-        set { engine.keyLock = newValue }
+    /// Master-Tempo: jeder geöffnete Track wird auf diese Geschwindigkeit
+    /// gezogen. `nil` = aus, dann läuft jeder Track im Original.
+    /// Persistiert über App-Sessions, damit ein eingestelltes Set-Tempo den
+    /// App-Wechsel überlebt.
+    var masterBPM: Double? {
+        didSet {
+            guard masterBPM != oldValue else { return }
+            if let masterBPM {
+                UserDefaults.standard.set(masterBPM, forKey: "masterBPM")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "masterBPM")
+            }
+            applyMasterToCurrentTrack()
+            library.soundingContext = soundingContext
+        }
     }
 
-    /// Klingende Tonart des laufenden Tracks — nur belegt, wenn der Key-Lock
-    /// aus ist und die Rate tatsächlich von 1.0 abweicht.
-    ///
-    /// Anders als auf dem Mac gibt es auf iOS kein Master-Tempo: die Rate
-    /// gilt immer nur für den geladenen Track und wird beim Laden des
-    /// nächsten zurückgesetzt. Verschoben ist deshalb höchstens die Tonart
-    /// des aktuellen Tracks, nie die der ganzen Bibliothek.
-    ///
-    /// **Reiner Anzeigewert** — in die Datei geht immer `track.key`.
+    /// Wiedergabezustand für die Anzeige klingender Tonarten in der Liste.
+    var soundingContext: SoundingContext { SoundingContext(masterBPM: masterBPM) }
+
+    /// Klingende Tonart des laufenden Tracks. **Reiner Anzeigewert** — in die
+    /// Datei geht immer `track.key`.
     var soundingKey: SoundingKey? {
-        guard !engine.keyLock,
-              let key = currentTrack?.key,
-              engine.rate != 1.0
-        else { return nil }
+        guard let key = currentTrack?.key, engine.rate != 1.0 else { return nil }
         return SoundingKey(original: key, rate: engine.rate)
+    }
+
+    /// Zieht den geladenen Track auf das Master-Tempo. Ohne Master-Tempo oder
+    /// ohne bekannte Original-BPM bleibt die Rate, wie sie ist.
+    func applyMasterToCurrentTrack() {
+        guard let masterBPM, masterBPM > 0,
+              let original = currentTrack?.bpm, original > 0
+        else { return }
+        setRate(masterBPM / original)
     }
 
     /// CDJ-Span: ±8 % rund um 1.0 — sowohl Slider als auch BPM-Manual-Eingabe
@@ -137,6 +158,8 @@ final class PlayerStore {
             try engine.load(url: track.url)
             engine.rate = 1.0   // frisches Tempo pro Track — Vorgänger-Rate verwerfen
             currentTrack = track
+            // Master-Tempo zieht den neuen Track direkt auf Set-Geschwindigkeit.
+            applyMasterToCurrentTrack()
             lastError = nil
             if snapshotQueue {
                 playbackQueue = library.tracks.map(\.url)

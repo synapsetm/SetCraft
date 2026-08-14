@@ -232,27 +232,35 @@ func rate(forSemitones n: Double) -> Double { pow(2, n / 12) }
 Ablauf pro Track: `rate = masterBPM / trackBPM` → `st = 12·log2(rate)` → `n = round(st)` →
 Pitch-Class des Original-Keys um `n` verschieben → zurück auf Camelot mappen.
 
-### Voraussetzung: Key-Lock-Schalter
+### Kein Key-Lock
 `AVAudioUnitTimePitch` entkoppelt Rate und Pitch konstruktionsbedingt — die App verhielt sich
-daher bis zu diesem Feature **immer** wie „Key-Lock an". Das Anzeige-Feature setzt einen echten
-Key-Lock-Schalter voraus: ist er **aus**, folgt die Tonhöhe der Rate
-(`pitch = userPitch + 1200·log2(rate)`), ist er **an**, bleibt sie unangetastet.
+daher bis zu diesem Feature **immer** wie „Key-Lock an". Das wird bewusst kompensiert:
+der Player addiert `1200·log2(rate)` Cents auf den Master-Key-Offset, die Tonhöhe folgt also
+dem Tempo wie bei einem Plattenspieler.
+
+**Es gibt keinen Key-Lock-Schalter.** Ein solcher wurde gebaut und nach dem Praxistest wieder
+entfernt: SetCraft ist ein Vorbereitungswerkzeug, in dem die verschobenen Tonarten der
+interessante Zustand sind — ein Schalter, der das Feature abschaltet, war nur zusätzliche
+Bedienfläche ohne Nutzen. Damit gilt die Verschiebung immer, sobald ein Master-Tempo gesetzt ist.
 
 ### Anzeige in der Bibliothek (Variante A — inline in der Key-Spalte)
-Nur aktiv, wenn **Master-BPM gesetzt UND Key-Lock AUS** ist:
+Aktiv, sobald **Master-BPM gesetzt** ist:
 - Format: `<Original ausgegraut> → <klingender Key farbig>`, z. B. `8A → 9A`.
 - Keine Verschiebung (`n == 0`) → nur der Original-Key plus dezentes `—`.
 - **Tilde-Markierung** `~9A` bei Grenzfällen: wenn `abs(st - round(st)) > 0.40`, klingt der Track
   „zwischen" zwei Tonarten; die Rundung ist dann willkürlich. Tilde in Warnfarbe (`#FF9F45`).
   Schwellwert 0.40 ist ein Startwert und mit echter Library nachzujustieren.
-- Über der Liste ein Hinweisbanner: „Key lock aus — Tonarten verschieben sich mit dem Tempo."
-- Bei Key-Lock AN: Banner und Pfeile verschwinden, es wird nur der Original-Key gezeigt.
+- Über der Liste ein Hinweisbanner: „Master tempo active — keys shift with the tempo."
+- Ohne Master-Tempo: Banner und Pfeile verschwinden, es wird nur der Original-Key gezeigt.
 
 ### Sortierung
 Beim Sortieren nach Key wird der **berechnete, klingende Key** als Sortierschlüssel verwendet,
 nicht der Wert aus dem Tag. Sortierreihenfolge nach Camelot-Zahl (1A, 2A, 3A …), damit harmonisch
-benachbarte Tracks in der Liste beieinanderstehen. Bei Key-Lock AN wird wieder nach dem Original
+benachbarte Tracks in der Liste beieinanderstehen. Ohne Master-Tempo wird wieder nach dem Original
 sortiert. Ändert sich die Master-BPM, ordnet sich die Liste entsprechend neu.
+
+**Gilt auf beiden Plattformen.** Das Master-Tempo ist auf iOS in der Listenansicht einstellbar
+(`MasterTempoBar` über der Liste), auf macOS über den Tempo-Chip mit „global"-Schalter.
 
 ### KRITISCH: berechnete Werte werden NIEMALS persistiert
 Die verschobenen Keys sind eine reine **Laufzeit-Darstellung** des aktuellen Wiedergabezustands.

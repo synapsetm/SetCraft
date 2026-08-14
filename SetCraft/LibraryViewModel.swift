@@ -57,7 +57,7 @@ final class LibraryViewModel {
     /// `ContentView` aus dem `TransportViewModel` gespiegelt. Reiner
     /// Anzeige-Zustand — er beeinflusst nie, was in die Datei geschrieben
     /// wird (siehe Pflichtregel in `CLAUDE.md`).
-    var soundingContext: SoundingContext = .locked {
+    var soundingContext: SoundingContext = .none {
         didSet {
             guard soundingContext != oldValue, isSortingByKey else { return }
             applySortOrder()
@@ -73,8 +73,8 @@ final class LibraryViewModel {
     /// vom Refresh-Button, beim Wechsel der Sortierspalte und am Ende
     /// eines Scans aufgerufen.
     ///
-    /// Sonderfall Key-Spalte: sind die Tonarten verschoben (Key-Lock aus,
-    /// Master-Tempo gesetzt), wird nach dem **klingenden** Key sortiert.
+    /// Sonderfall Key-Spalte: ist ein Master-Tempo gesetzt, sind die Tonarten
+    /// verschoben und es wird nach dem **klingenden** Key sortiert.
     /// `KeyPathComparator` kann das nicht abbilden, weil der Wert vom
     /// Wiedergabezustand abhängt und nicht am `Track` hängt.
     func applySortOrder() {

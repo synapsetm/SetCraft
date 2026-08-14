@@ -17,6 +17,9 @@
     "%lld" : {
 
     },
+    "~" : {
+
+    },
     "addFolder failed (scope=%@): %@" : {
       "localizations" : {
         "en" : {
@@ -181,6 +184,16 @@
         }
       }
     },
+    "Every track opens at this tempo — keys shift with it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeder Track startet mit diesem Tempo — die Tonarten verschieben sich mit."
+          }
+        }
+      }
+    },
     "Failed to load track: %@" : {
       "localizations" : {
         "de" : {
@@ -241,16 +254,6 @@
         }
       }
     },
-    "Key lock" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Key lock"
-          }
-        }
-      }
-    },
     "Label" : {
       "localizations" : {
         "de" : {
@@ -267,6 +270,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bibliothek"
+          }
+        }
+      }
+    },
+    "Master BPM" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Master-BPM"
           }
         }
       }
@@ -331,6 +344,26 @@
         }
       }
     },
+    "Off" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus"
+          }
+        }
+      }
+    },
+    "On" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein"
+          }
+        }
+      }
+    },
     "Open folder…" : {
       "localizations" : {
         "de" : {
@@ -377,16 +410,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Picker: keine URL zurückgegeben."
-          }
-        }
-      }
-    },
-    "Pitch stays constant when the tempo changes." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Tonhöhe bleibt beim Tempowechsel konstant."
           }
         }
       }
@@ -563,16 +586,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Der Ordner „%@“ enthält keine erkannten Audio-Dateien."
-          }
-        }
-      }
-    },
-    "The key shifts with the tempo." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Tonart verschiebt sich mit dem Tempo."
           }
         }
       }

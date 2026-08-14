@@ -4,16 +4,6 @@
     "" : {
 
     },
-    "key lock" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "key lock"
-          }
-        }
-      }
-    },
     "—" : {
 
     },
@@ -62,6 +52,9 @@
         }
       }
     },
+    "~" : {
+
+    },
     "●" : {
 
     },
@@ -86,6 +79,7 @@
       }
     },
     "Add as source" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -96,6 +90,7 @@
       }
     },
     "Add folder as a source" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -481,6 +476,7 @@
       }
     },
     "Grant access to this folder so its tracks can appear in the library." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -522,36 +518,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Key"
-          }
-        }
-      }
-    },
-    "Key lock off — keys shift with the tempo. Sorted by sounding key." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Key lock aus — die Tonarten verschieben sich mit dem Tempo. Sortierung nach klingendem Key."
-          }
-        }
-      }
-    },
-    "Key lock off — the key shifts with the tempo" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Key lock aus — die Tonart verschiebt sich mit dem Tempo"
-          }
-        }
-      }
-    },
-    "Key lock on — pitch stays constant when the tempo changes" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Key lock an — die Tonhöhe bleibt beim Tempowechsel konstant"
           }
         }
       }
@@ -612,6 +578,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Markierten Track aus der Bibliothek laden"
+          }
+        }
+      }
+    },
+    "Master tempo active — keys shift with the tempo. Sorted by sounding key." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Master-Tempo aktiv — die Tonarten verschieben sich mit dem Tempo. Sortierung nach klingendem Key."
           }
         }
       }
@@ -954,6 +930,9 @@
           }
         }
       }
+    },
+    "SetCraft" : {
+
     },
     "Size" : {
       "localizations" : {

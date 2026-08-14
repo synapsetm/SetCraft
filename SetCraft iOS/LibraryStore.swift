@@ -55,6 +55,17 @@ final class LibraryStore {
         }
     }
 
+    /// Wiedergabezustand für die Anzeige klingender Tonarten. Wird vom
+    /// `PlayerStore` gesetzt, sobald sich das Master-Tempo ändert. Reiner
+    /// Anzeige-Zustand — er beeinflusst nie, was in die Datei geschrieben
+    /// wird (siehe Pflichtregel in `CLAUDE.md`).
+    var soundingContext: SoundingContext = .none {
+        didSet {
+            guard soundingContext != oldValue, sortField == .key else { return }
+            applySortOrder()
+        }
+    }
+
     /// Re-sortiert `tracks` in-place nach `sortField`. Sekundärer Sort nach
     /// Titel hält die Reihenfolge bei Gleichstand stabil. Wird vom
     /// `sortField`-didSet, vom Pull-to-Refresh und am Ende eines Scans
@@ -74,8 +85,13 @@ final class LibraryStore {
                 if av != bv { return av < bv }
                 return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
             case .key:
-                let av = Self.keyOrder(a.key)
-                let bv = Self.keyOrder(b.key)
+                // Bei gesetztem Master-Tempo nach dem klingenden Key sortieren,
+                // sonst nach dem getaggten — die Sortierung muss dem folgen,
+                // was in der Zeile steht.
+                let av = soundingContext.isActive
+                    ? a.keySortValue(in: soundingContext) : Self.keyOrder(a.key)
+                let bv = soundingContext.isActive
+                    ? b.keySortValue(in: soundingContext) : Self.keyOrder(b.key)
                 if av != bv { return av < bv }
                 return a.displayTitle.localizedCaseInsensitiveCompare(b.displayTitle) == .orderedAscending
             case .rating:

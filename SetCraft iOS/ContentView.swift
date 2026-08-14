@@ -81,6 +81,12 @@ private struct LibraryScreen: View {
                         }
                     }
                 }
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    MasterTempoBar(masterBPM: Binding(
+                        get: { playerStore.masterBPM },
+                        set: { playerStore.masterBPM = $0 }
+                    ))
+                }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     if playerStore.currentTrack != nil {
                         MiniPlayerView(store: playerStore) {
@@ -178,9 +184,10 @@ private struct LibraryScreen: View {
                         isCurrent: isCurrent,
                         isPlaying: isCurrent && playerStore.isPlaying,
                         isAnalyzing: libraryStore.isAnalyzing(trackID: track.id),
-                        // Nur der laufende Track hat eine Rate — alle anderen
-                        // starten bei 1.0, ihre Tonart verschiebt sich nicht.
-                        sounding: isCurrent ? playerStore.soundingKey : nil
+                        // Master-Tempo gilt für jeden Track, der geöffnet wird
+                        // — die Liste zeigt also durchgehend, wie die Tonarten
+                        // dann klingen.
+                        sounding: track.playingKey(in: libraryStore.soundingContext)
                     )
                     .contentShape(Rectangle())
                     .onTapGesture {

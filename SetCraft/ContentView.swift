@@ -147,8 +147,6 @@ struct ContentView: View {
         HStack(spacing: 12) {
             TempoChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
             KeyChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
-            KeyLockToggle(keyLock: $transport.keyLock,
-                          hasLoadedTrack: transport.hasLoadedTrack)
             ratingChip
             Spacer()
         }
