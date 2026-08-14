@@ -265,6 +265,16 @@
     "Copy" : {
 
     },
+    "Could not add ‘%@’ to the library." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "‘%@’ konnte nicht zur Bibliothek hinzugefügt werden."
+          }
+        }
+      }
+    },
     "Could not import %@: %@" : {
       "localizations" : {
         "en" : {
@@ -308,6 +318,16 @@
         }
       }
     },
+    "File:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datei:"
+          }
+        }
+      }
+    },
     "Filename" : {
 
     },
@@ -322,7 +342,14 @@
       }
     },
     "Folder:" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner:"
+          }
+        }
+      }
     },
     "Force a fresh BPM/key analysis for the selected track" : {
 
