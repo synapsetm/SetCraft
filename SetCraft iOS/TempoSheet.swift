@@ -22,6 +22,12 @@ struct TempoSheet: View {
     let onReset: () -> Void
     /// Originaler Key aus dem Tag — für die Vorschau der klingenden Tonart.
     let originalKey: CamelotKey?
+    /// Aktuelles Master-Tempo, `nil` = aus. Änderungen am Tempo schreiben
+    /// hier mit, solange das Master aktiv ist.
+    let masterBPM: Double?
+    /// Master ein-/ausschalten. Beim Einschalten wird das gerade eingestellte
+    /// Tempo zum Master für alle folgenden Tracks.
+    let onMasterToggle: (Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var rate: Double
@@ -31,12 +37,16 @@ struct TempoSheet: View {
         originalBPM: Double?,
         initialRate: Double,
         originalKey: CamelotKey? = nil,
+        masterBPM: Double? = nil,
+        onMasterToggle: @escaping (Bool) -> Void = { _ in },
         onRateChange: @escaping (Double) -> Void,
         onReset: @escaping () -> Void
     ) {
         self.originalBPM = originalBPM
         self.initialRate = initialRate
         self.originalKey = originalKey
+        self.masterBPM = masterBPM
+        self.onMasterToggle = onMasterToggle
         self.onRateChange = onRateChange
         self.onReset = onReset
         _rate = State(initialValue: initialRate)
@@ -75,16 +85,30 @@ struct TempoSheet: View {
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
-                        Slider(
-                            value: $rate,
-                            in: (1.0 - PlayerStore.tempoSpan)...(1.0 + PlayerStore.tempoSpan),
-                            step: 0.001
-                        )
-                        .onChange(of: rate) { _, newRate in
-                            onRateChange(newRate)
-                            syncBPMText()
+                        Slider(value: $rate, in: sliderRange, step: 0.001)
+                            .onChange(of: rate) { _, newRate in
+                                onRateChange(newRate)
+                                syncBPMText()
+                            }
+                    }
+                }
+
+                Section {
+                    Toggle("Master tempo", isOn: Binding(
+                        get: { masterBPM != nil },
+                        set: { onMasterToggle($0) }
+                    ))
+                    if let masterBPM {
+                        LabeledContent("Master BPM") {
+                            Text(String(format: "%.1f", masterBPM))
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundStyle(.orange)
                         }
                     }
+                } footer: {
+                    Text(masterBPM == nil
+                         ? "Tempo changes apply to this track only."
+                         : "Tempo changes also set the master — every track opens at this tempo.")
                 }
 
                 if let shifted = soundingPreview {
@@ -134,6 +158,14 @@ struct TempoSheet: View {
         return String(format: "%+0.1f %%", pct)
     }
 
+    /// Normalerweise ±8 % um das Original. Zieht das Master-Tempo den Track
+    /// weiter, wandert das Fenster mit — sonst stünde der Regler am Anschlag
+    /// und die Feinjustage wäre unbrauchbar. 1.0 bleibt immer erreichbar.
+    private var sliderRange: ClosedRange<Double> {
+        let span = PlayerStore.tempoSpan
+        return min(1.0 - span, rate - span)...max(1.0 + span, rate + span)
+    }
+
     /// Klingende Tonart bei der gerade eingestellten Rate — Vorschau im
     /// Footer, damit der Effekt des Schalters sofort sichtbar ist.
     private var soundingPreview: SoundingKey? {
@@ -163,7 +195,12 @@ struct TempoSheet: View {
             syncBPMText()
             return
         }
-        let target = max(1.0 - PlayerStore.tempoSpan, min(1.0 + PlayerStore.tempoSpan, value / original))
+        // Auf die Engine-Grenzen klemmen, nicht auf ±8 %: über dieses Feld
+        // wird auch das Set-Tempo gesetzt, das beliebig weit vom Original des
+        // gerade laufenden Tracks entfernt liegen kann. Der ±8-%-Regler
+        // bleibt die Feinjustage darum herum.
+        let target = max(PlayerStore.engineRateMin,
+                         min(PlayerStore.engineRateMax, value / original))
         rate = target
         onRateChange(target)
         syncBPMText()

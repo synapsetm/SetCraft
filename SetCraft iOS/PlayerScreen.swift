@@ -40,6 +40,8 @@ struct PlayerScreen: View {
                 originalBPM: store.currentTrack?.bpm,
                 initialRate: store.currentRate,
                 originalKey: store.currentTrack?.key,
+                masterBPM: store.masterBPM,
+                onMasterToggle: { store.setMasterEnabled($0) },
                 onRateChange: { store.setRate($0) },
                 onReset: { store.resetTempo() }
             )

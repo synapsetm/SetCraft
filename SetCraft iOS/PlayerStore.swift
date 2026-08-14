@@ -125,18 +125,29 @@ final class PlayerStore {
         return SoundingKey(original: key, rate: engine.rate)
     }
 
+    /// Verhindert, dass die vom Master ausgelöste Ratenänderung das Master
+    /// gleich wieder zurückschreibt.
+    private var isApplyingMaster = false
+
     /// Zieht den geladenen Track auf das Master-Tempo. Ohne Master-Tempo oder
     /// ohne bekannte Original-BPM bleibt die Rate, wie sie ist.
     func applyMasterToCurrentTrack() {
         guard let masterBPM, masterBPM > 0,
               let original = currentTrack?.bpm, original > 0
         else { return }
+        isApplyingMaster = true
         setRate(masterBPM / original)
+        isApplyingMaster = false
     }
 
-    /// CDJ-Span: ±8 % rund um 1.0 — sowohl Slider als auch BPM-Manual-Eingabe
-    /// werden auf dieses Fenster geklemmt.
+    /// CDJ-Span: ±8 % — Fenster der Feinjustage am Slider.
     static let tempoSpan: Double = 0.08
+
+    /// Harte Grenzen des `AVAudioUnitTimePitch`. Die manuelle BPM-Eingabe
+    /// klemmt hierauf, damit sich auch ein Set-Tempo weit weg vom Original
+    /// des laufenden Tracks setzen lässt.
+    static let engineRateMin: Double = 0.5
+    static let engineRateMax: Double = 2.0
 
     /// Lädt einen Track, aktiviert die AVAudioSession (falls noch nicht),
     /// und startet die Wiedergabe direkt — analog zum Autoplay des Macs.
@@ -267,9 +278,28 @@ final class PlayerStore {
     /// Setzt die Wiedergabe-Rate direkt (für den Slider im Tempo-Sheet).
     /// Klemmt auf 0.5…2.0; das Now-Playing-Center bekommt den neuen
     /// `playbackRate`, damit der Lock-Screen-Scrubber synchron läuft.
+    ///
+    /// Ist das Master-Tempo aktiv, wandert es mit: die Tempoänderung im
+    /// Player setzt dann das Set-Tempo für alle folgenden Tracks. Ist es
+    /// aus, gilt die Änderung nur für den laufenden Track.
     func setRate(_ rate: Double) {
-        engine.rate = max(0.5, min(2.0, rate))
+        engine.rate = max(Self.engineRateMin, min(Self.engineRateMax, rate))
+        if !isApplyingMaster, masterBPM != nil,
+           let original = currentTrack?.bpm, original > 0 {
+            masterBPM = original * engine.rate
+        }
         nowPlaying?.update()
+    }
+
+    /// Schaltet das Master-Tempo ein oder aus. Beim Einschalten wird das
+    /// gerade klingende Tempo des laufenden Tracks zum Master — so wie am
+    /// Mac der „global"-Schalter am Tempo-Chip.
+    func setMasterEnabled(_ enabled: Bool) {
+        guard enabled else {
+            masterBPM = nil
+            return
+        }
+        masterBPM = effectiveBPM ?? currentTrack?.bpm
     }
 
     /// Setzt das Tempo so, dass der Track auf das angegebene Ziel-BPM

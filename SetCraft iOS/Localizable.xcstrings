@@ -284,6 +284,16 @@
         }
       }
     },
+    "Master tempo" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Master-Tempo"
+          }
+        }
+      }
+    },
     "Metadata" : {
       "localizations" : {
         "de" : {
@@ -579,6 +589,26 @@
     },
     "Tempo" : {
       "shouldTranslate" : false
+    },
+    "Tempo changes also set the master — every track opens at this tempo." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tempoänderungen setzen auch das Master — jeder Track startet mit diesem Tempo."
+          }
+        }
+      }
+    },
+    "Tempo changes apply to this track only." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tempoänderungen gelten nur für diesen Track."
+          }
+        }
+      }
     },
     "The folder “%@” contains no recognized audio files." : {
       "localizations" : {
