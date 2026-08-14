@@ -11,9 +11,14 @@ Letzte Aktualisierung: 2026-08-14.
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.0-12 (Build 12), notarisiert, Sparkle-Auto-Update live.
+- **Mac-Release:** v1.1-13 (Build 13), notarisiert, Sparkle-Auto-Update live.
+  Bringt die verschobenen Tonarten (SPEC §5b), aktualisierte Vendor-Libraries
+  und die vollständige deutsche Lokalisierung.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
+- **iOS:** Archive für 1.1 (13) liegt unter `build/ios/SetCraft-iOS.xcarchive`,
+  der TestFlight-Upload steht noch aus — `exportArchive` scheitert weiterhin
+  am Cloud-Signing (s. u.), der Upload läuft über den Xcode Organizer.
 - **iOS-Release:** Build 12 auf TestFlight.
 - **Tests:** `swift test` im `SetCraftCore`-Paket grün — 39 Tests
   (BPM/Key/Rating/Waveform/Ordner-Scan).
