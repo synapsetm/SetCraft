@@ -147,7 +147,10 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
   Rekordbox), Round-Trip in `RatingPrefix.parse/format`.
 - WAV ist als Tag-Ziel schwach → UI-Warnung im Edit-Sheet, Write läuft durch.
 - Rekordbox lädt geänderte Tags nicht automatisch neu („reload tags" nötig).
-- Vendor-Binärgrößen: TagLib 13 MB, KeyFinder 8 MB, aubio 5 MB.
+- Vendor-Versionen: TagLib 2.3.1 (utfcpp 4.1.1), libKeyFinder 2.2.8 + fftw
+  3.3.11, aubio 0.4.9 (letztes Release seit 2019 — kein Upgrade-Pfad).
+  Gepinnt jeweils oben in `Vendor/*/build-*.sh`.
+- Vendor-Binärgrößen: TagLib 16 MB, KeyFinder 8 MB, aubio 5 MB.
 - Bundle-IDs: Mac `ch.buehler.beat.SetCraft`, iOS `ch.buehler.beat.SetCraft.iOS`.
   Sparkle-EdDSA-Public-Key + `SUFeedURL` in `SetCraft/Info.plist`.
 - Notarytool-Keychain-Profil: `AC_SETCRAFT` (Team `D75S77JA58`,
