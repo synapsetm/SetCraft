@@ -35,6 +35,11 @@ struct ContentView: View {
             // Waveform für den neuen Track im Hintergrund laden.
             waveform.setActiveURL(newURL)
         }
+        // Anzeige der klingenden Tonarten hängt am Wiedergabezustand — hier
+        // gespiegelt, damit die Bibliothek nicht den Player kennen muss.
+        .onChange(of: transport.soundingContext, initial: true) { _, context in
+            library.soundingContext = context
+        }
         .onAppear {
             // Wird die Library-Analyse für den aktuell geladenen Track
             // fertig, holen wir die frischen Original-Werte ab und legen
@@ -142,6 +147,8 @@ struct ContentView: View {
         HStack(spacing: 12) {
             TempoChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
             KeyChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
+            KeyLockToggle(keyLock: $transport.keyLock,
+                          hasLoadedTrack: transport.hasLoadedTrack)
             ratingChip
             Spacer()
         }

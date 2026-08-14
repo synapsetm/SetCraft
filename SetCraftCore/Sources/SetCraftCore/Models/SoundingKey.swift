@@ -66,7 +66,39 @@ public struct SoundingKey: Equatable, Sendable {
     }
 }
 
+/// Der Wiedergabezustand, den die Bibliothek braucht, um klingende Tonarten
+/// anzuzeigen und danach zu sortieren. Wird von der Player-Seite gespiegelt
+/// und ist reiner Anzeige-Zustand.
+public struct SoundingContext: Equatable, Sendable {
+    public let masterBPM: Double?
+    public let keyLock: Bool
+
+    public init(masterBPM: Double?, keyLock: Bool) {
+        self.masterBPM = masterBPM
+        self.keyLock = keyLock
+    }
+
+    /// Key-Lock aus und ein Master-Tempo gesetzt — nur dann verschieben sich
+    /// die Tonarten überhaupt.
+    public var isActive: Bool {
+        !keyLock && (masterBPM ?? 0) > 0
+    }
+
+    /// Ausgangszustand: Key-Lock an, kein Master-Tempo.
+    public static let locked = SoundingContext(masterBPM: nil, keyLock: true)
+}
+
 extension Track {
+
+    /// Klingender Key im gegebenen Wiedergabezustand.
+    public func playingKey(in context: SoundingContext) -> SoundingKey? {
+        playingKey(masterBPM: context.masterBPM, keyLock: context.keyLock)
+    }
+
+    /// Sortierschlüssel im gegebenen Wiedergabezustand.
+    public func keySortValue(in context: SoundingContext) -> Int {
+        keySortValue(masterBPM: context.masterBPM, keyLock: context.keyLock)
+    }
 
     /// Rate, mit der dieser Track bei gesetzter Master-BPM abgespielt wird.
     /// `nil`, wenn keine Master-BPM aktiv ist oder der Track keine eigene

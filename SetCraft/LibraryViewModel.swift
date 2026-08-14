@@ -53,11 +53,48 @@ final class LibraryViewModel {
         KeyPathComparator(\Track.title, order: .forward)
     ]
 
+    /// Wiedergabezustand für die Anzeige klingender Tonarten. Wird vom
+    /// `ContentView` aus dem `TransportViewModel` gespiegelt. Reiner
+    /// Anzeige-Zustand — er beeinflusst nie, was in die Datei geschrieben
+    /// wird (siehe Pflichtregel in `CLAUDE.md`).
+    var soundingContext: SoundingContext = .locked {
+        didSet {
+            guard soundingContext != oldValue, isSortingByKey else { return }
+            applySortOrder()
+        }
+    }
+
+    /// `true`, wenn aktuell nach der Key-Spalte sortiert wird.
+    private var isSortingByKey: Bool {
+        sortOrder.first?.keyPath == \Track.keySortable
+    }
+
     /// Re-sortiert `tracks` in-place mit der aktuellen `sortOrder`. Wird
     /// vom Refresh-Button, beim Wechsel der Sortierspalte und am Ende
     /// eines Scans aufgerufen.
+    ///
+    /// Sonderfall Key-Spalte: sind die Tonarten verschoben (Key-Lock aus,
+    /// Master-Tempo gesetzt), wird nach dem **klingenden** Key sortiert.
+    /// `KeyPathComparator` kann das nicht abbilden, weil der Wert vom
+    /// Wiedergabezustand abhängt und nicht am `Track` hängt.
     func applySortOrder() {
-        tracks.sort(using: sortOrder)
+        guard isSortingByKey, soundingContext.isActive,
+              let order = sortOrder.first?.order
+        else {
+            tracks.sort(using: sortOrder)
+            return
+        }
+        let context = soundingContext
+        tracks.sort { lhs, rhs in
+            let l = lhs.keySortValue(in: context)
+            let r = rhs.keySortValue(in: context)
+            if l != r {
+                return order == .forward ? l < r : l > r
+            }
+            // Gleicher klingender Key → stabile Zweitsortierung nach Titel,
+            // damit die Liste bei Tempoänderungen nicht zufällig umspringt.
+            return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+        }
     }
 
     /// IDs der Tracks mit Änderungen, die noch nicht auf der Platte sind.

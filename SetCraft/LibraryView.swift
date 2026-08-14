@@ -23,6 +23,11 @@ struct LibraryView: View {
                 toolbar
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
+                if library.soundingContext.isActive {
+                    KeyShiftBanner()
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                }
                 Divider()
                 table
                     .frame(maxHeight: .infinity)
@@ -340,9 +345,7 @@ struct LibraryView: View {
 
         TableColumn("Key", value: \.keySortable) { track in
             HStack(spacing: 4) {
-                Text(track.key?.description ?? "—")
-                    .foregroundStyle(track.key?.color ?? Color.secondary)
-                    .monospacedDigit()
+                SoundingKeyLabel(track: track, context: library.soundingContext)
                 if library.analysisState[track.id] == .scheduled {
                     ProgressView().controlSize(.mini)
                 }

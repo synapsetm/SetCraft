@@ -31,6 +31,21 @@ final class TransportViewModel {
     var masterBPM: Double? = nil
     var isGlobalBPM: Bool = false
 
+    /// Hält die Tonhöhe beim Tempowechsel konstant. Aus = die Tonart wandert
+    /// mit dem Tempo (Plattenspieler-Verhalten), und die Bibliothek zeigt die
+    /// klingenden Tonarten an. Siehe `SPEC.md` §5b.
+    var keyLock: Bool {
+        get { player?.player.keyLock ?? true }
+        set { player?.player.keyLock = newValue }
+    }
+
+    /// Wiedergabezustand, den die Bibliothek für Anzeige und Sortierung des
+    /// klingenden Keys braucht. Nur aktiv, wenn ein Master-BPM gesetzt **und**
+    /// der Key-Lock aus ist.
+    var soundingContext: SoundingContext {
+        SoundingContext(masterBPM: isGlobalBPM ? masterBPM : nil, keyLock: keyLock)
+    }
+
     // MARK: - Effektiv geltende Werte (für UI-Anzeige)
 
     var effectiveBPM: Double? {
@@ -40,10 +55,16 @@ final class TransportViewModel {
         return original * rate
     }
 
+    /// Tonart, die gerade tatsächlich klingt: der Master-Key-Offset aus
+    /// `pitchCents` plus — bei ausgeschaltetem Key-Lock — die Verschiebung,
+    /// die sich aus der Abspielrate ergibt.
     var effectiveKey: CamelotKey? {
         guard let original = player?.originalKey else { return nil }
-        let cents = Int(player?.player.pitchCents ?? 0)
-        let semitones = Int((Double(cents) / 100.0).rounded())
+        var cents = player?.player.pitchCents ?? 0
+        if !keyLock, let rate = currentRate {
+            cents += PitchMath.cents(forRate: rate)
+        }
+        let semitones = Int((cents / 100.0).rounded())
         return original.nudged(bySemitones: semitones)
     }
 
