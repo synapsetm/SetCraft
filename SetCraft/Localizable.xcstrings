@@ -8,7 +8,14 @@
 
     },
     "‘%@’ already exists in this folder — skipped." : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "‘%@’ existiert in diesem Ordner bereits — übersprungen."
+          }
+        }
+      }
     },
     "%@ / -%@" : {
       "localizations" : {
@@ -49,10 +56,24 @@
 
     },
     "About SetCraft" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Über SetCraft"
+          }
+        }
+      }
     },
     "Access to ‘%@’ was lost. Remove the folder and add it again." : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zugriff auf ‘%@’ ist verloren gegangen. Entferne den Ordner und füge ihn neu hinzu."
+          }
+        }
+      }
     },
     "Add as source" : {
       "localizations" : {
@@ -106,6 +127,12 @@
     },
     "All %lld tracks in “%@” will have their play count set back to 0." : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle %1$lld Tracks in „%2$@“ werden auf 0 Wiedergaben zurückgesetzt."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -195,10 +222,24 @@
       }
     },
     "BPM ÷1.5 (triplet fix)" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BPM ÷1,5 (Triolen-Korrektur)"
+          }
+        }
+      }
     },
     "BPM ×1.5 (triplet fix)" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BPM ×1,5 (Triolen-Korrektur)"
+          }
+        }
+      }
     },
     "BPM: %@" : {
 
@@ -224,10 +265,24 @@
       }
     },
     "Choose a folder to move %lld tracks into." : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle einen Ordner, in den %lld Tracks verschoben werden sollen."
+          }
+        }
+      }
     },
     "Choose a folder to move 1 track into." : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle einen Ordner, in den 1 Track verschoben werden soll."
+          }
+        }
+      }
     },
     "Choose folder…" : {
       "localizations" : {
@@ -250,7 +305,14 @@
       }
     },
     "Close" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schliessen"
+          }
+        }
+      }
     },
     "Comment" : {
       "localizations" : {
@@ -263,7 +325,14 @@
       }
     },
     "Copy" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopieren"
+          }
+        }
+      }
     },
     "Could not add ‘%@’ to the library." : {
       "localizations" : {
@@ -277,6 +346,12 @@
     },
     "Could not import %@: %@" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import von %1$@ fehlgeschlagen: %2$@"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -306,7 +381,14 @@
       }
     },
     "Double BPM (×2)" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BPM verdoppeln (×2)"
+          }
+        }
+      }
     },
     "Expected BPM range for the octave correction" : {
       "localizations" : {
@@ -329,7 +411,14 @@
       }
     },
     "Filename" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dateiname"
+          }
+        }
+      }
     },
     "Fine adjust" : {
       "localizations" : {
@@ -352,7 +441,14 @@
       }
     },
     "Force a fresh BPM/key analysis for the selected track" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue BPM-/Key-Analyse für den markierten Track erzwingen"
+          }
+        }
+      }
     },
     "Genre" : {
       "localizations" : {
@@ -385,10 +481,23 @@
       }
     },
     "Halve BPM (÷2)" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BPM halbieren (÷2)"
+          }
+        }
+      }
     },
     "Imported, but could not remove source ‘%@’: %@" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importiert, aber Quelle ‘%1$@’ konnte nicht entfernt werden: %2$@"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -468,22 +577,64 @@
       }
     },
     "Modified" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geändert"
+          }
+        }
+      }
     },
     "Move Here" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hierher verschieben"
+          }
+        }
+      }
     },
     "Move to Folder…" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Ordner verschieben…"
+          }
+        }
+      }
     },
     "Move Tracks" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracks verschieben"
+          }
+        }
+      }
     },
     "Next" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weiter"
+          }
+        }
+      }
     },
     "Next track in the library (→)" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nächster Track in der Bibliothek (→)"
+          }
+        }
+      }
     },
     "No BPM and no key detected: %@" : {
       "localizations" : {
@@ -598,13 +749,34 @@
       }
     },
     "Plays" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiedergaben"
+          }
+        }
+      }
     },
     "Previous" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurück"
+          }
+        }
+      }
     },
     "Previous track in the library (←)" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorheriger Track in der Bibliothek (←)"
+          }
+        }
+      }
     },
     "Rating" : {
       "localizations" : {
@@ -617,7 +789,14 @@
       }
     },
     "Re-analyze" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu analysieren"
+          }
+        }
+      }
     },
     "Re-scan the current source and re-apply the sort order" : {
       "localizations" : {
@@ -661,6 +840,12 @@
     },
     "Removed ‘%@’: bookmark unreadable (%@)." : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernt: ‘%1$@’ — Bookmark nicht lesbar (%2$@)."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -680,13 +865,34 @@
       }
     },
     "Reset play counts for this source?" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiedergaben für diese Quelle zurücksetzen?"
+          }
+        }
+      }
     },
     "Reset plays" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiedergaben zurücksetzen"
+          }
+        }
+      }
     },
     "Reset the play counter for every track in this source" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiedergabezähler für jeden Track dieser Quelle zurücksetzen"
+          }
+        }
+      }
     },
     "Save" : {
       "localizations" : {
@@ -780,7 +986,14 @@
       }
     },
     "Track is not in the library — rating can't be saved" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Track ist nicht in der Bibliothek — Bewertung kann nicht gespeichert werden"
+          }
+        }
+      }
     },
     "Type" : {
       "localizations" : {
