@@ -57,7 +57,7 @@ struct TagEditSheet: View {
                 if isWAVFile {
                     Section {
                         Label {
-                            Text("WAV-Tags werden von Serato und Rekordbox unzuverlässig gelesen — Änderungen können in DJ-Apps unsichtbar bleiben.")
+                            Text("WAV tags are read unreliably by Serato and Rekordbox — changes may stay invisible in DJ apps.")
                                 .font(.footnote)
                         } icon: {
                             Image(systemName: "exclamationmark.triangle.fill")

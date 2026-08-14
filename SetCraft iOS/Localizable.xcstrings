@@ -49,7 +49,14 @@
       }
     },
     "All tracks in “%@” will have their play count set back to 0." : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle Tracks in „%@“ werden auf 0 Wiedergaben zurückgesetzt."
+          }
+        }
+      }
     },
     "Analysis failed: %@" : {
       "localizations" : {
@@ -388,13 +395,34 @@
       }
     },
     "Reset" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurücksetzen"
+          }
+        }
+      }
     },
     "Reset play counts" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiedergaben zurücksetzen"
+          }
+        }
+      }
     },
     "Reset play counts for this source?" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiedergaben für diese Quelle zurücksetzen?"
+          }
+        }
+      }
     },
     "Reset to 100 %" : {
       "localizations" : {
@@ -532,8 +560,15 @@
         }
       }
     },
-    "WAV-Tags werden von Serato und Rekordbox unzuverlässig gelesen — Änderungen können in DJ-Apps unsichtbar bleiben." : {
-
+    "WAV tags are read unreliably by Serato and Rekordbox — changes may stay invisible in DJ apps." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WAV-Tags werden von Serato und Rekordbox unzuverlässig gelesen — Änderungen können in DJ-Apps unsichtbar bleiben."
+          }
+        }
+      }
     },
     "Year" : {
       "localizations" : {

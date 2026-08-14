@@ -88,6 +88,48 @@ Beim Zurückschreiben in die Datei (siehe `SPEC.md` für Details):
 8. Halte dich an die **Phasenreihenfolge** in `SPEC.md`, sofern nicht anders abgesprochen.
 9. **Respektiere die bestehende Projektstruktur** — lege nicht ungefragt eine zweite, parallele Struktur an.
    Wenn eine Umstrukturierung sinnvoll ist, schlage sie vor und warte auf Zustimmung.
+10. **Bei GUI-Änderungen die Übersetzungen im selben Schritt nachziehen** — siehe unten.
+
+---
+
+## Lokalisierung (bei jeder GUI-Änderung mitziehen)
+
+Beide Targets haben einen eigenen String-Katalog, Quellsprache ist **Englisch**:
+`SetCraft/Localizable.xcstrings` (macOS) und `SetCraft iOS/Localizable.xcstrings` (iOS).
+
+**Regel:** Wer einen benutzersichtbaren String hinzufügt, ändert oder entfernt, ergänzt im
+**selben Commit** die deutsche Übersetzung. Ein Feature gilt erst als fertig, wenn im
+betroffenen Katalog kein Eintrag ohne `de`-Localization steht — ausgenommen reine Symbol-
+und Formatstrings (`—`, `●`, `%lld kbps`, `BPM: %@`), die im Deutschen identisch sind.
+
+- **Neue Strings immer auf Englisch in den Code schreiben.** Die Quellsprache ist `en`;
+  ein deutscher Literal im Code wird zum Katalog-Key und erscheint dann auch bei
+  englischer Systemsprache.
+- **Betrifft es beide Plattformen, beide Kataloge pflegen** — sie sind getrennt und
+  driften sonst auseinander.
+- Der Build extrahiert neue Keys automatisch (Clean-Build nötig, inkrementell reicht nicht);
+  **Übersetzungen fügt er nicht hinzu**, das ist Handarbeit.
+- **Kataloge nie mit einem JSON-Dumper umschreiben** — das normalisiert Xcodes Formatierung
+  und bläht den Diff auf hunderte Zeilen. Einträge direkt im Text einfügen.
+- **Mehrfach-Platzhalter positionsbasiert** schreiben (`%1$@`, `%2$@`), weil sich die
+  Wortstellung im Deutschen verschiebt.
+
+**Stil im Deutschen** (am Bestand ausgerichtet): geduzt („Was möchtest du tun?"),
+Tooltips im Infinitiv („Markierten Track aus der Bibliothek laden"), Schweizer **„ss"
+statt „ß"** („Grösse", „Schliessen"). Fachbegriffe bleiben englisch: Track, Player,
+Tempo, BPM, Key.
+
+**Prüfen**, ob noch Lücken offen sind:
+
+```sh
+python3 -c "
+import json,sys
+for p in ['SetCraft/Localizable.xcstrings','SetCraft iOS/Localizable.xcstrings']:
+    s=json.load(open(p))['strings']
+    miss=[k for k,v in s.items() if 'de' not in v.get('localizations',{})]
+    print(p, '->', len(miss), 'ohne de:', miss)
+"
+```
 
 ---
 
