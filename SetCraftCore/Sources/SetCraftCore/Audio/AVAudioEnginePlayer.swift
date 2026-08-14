@@ -70,15 +70,31 @@ public final class AVAudioEnginePlayer: AudioEngine {
             let clamped = max(0.5, min(2.0, rate))
             timePitch.rate = Float(clamped)
             if rate != clamped { rate = clamped }
+            syncPitch()
         }
     }
 
     public var pitchCents: Double = 0 {
         didSet {
             let clamped = max(-2400, min(2400, pitchCents))
-            timePitch.pitch = Float(clamped)
             if pitchCents != clamped { pitchCents = clamped }
+            syncPitch()
         }
+    }
+
+    /// Standardmässig an — bis zur Einführung dieses Schalters verhielt sich
+    /// die App implizit so, weil `AVAudioUnitTimePitch` Rate und Pitch
+    /// entkoppelt.
+    public var keyLock: Bool = true {
+        didSet { syncPitch() }
+    }
+
+    /// Schreibt den effektiven Pitch auf den Knoten: der vom Nutzer bzw. vom
+    /// Master-Key gesetzte Wert, bei ausgeschaltetem Key-Lock zuzüglich der
+    /// Verschiebung, die sich aus der Rate ergibt.
+    private func syncPitch() {
+        let varispeed = keyLock ? 0 : PitchMath.cents(forRate: rate)
+        timePitch.pitch = Float(max(-2400, min(2400, pitchCents + varispeed)))
     }
 
     // MARK: - Private audio graph

@@ -10,6 +10,10 @@ public protocol AudioEngine: AnyObject {
 
     var rate: Double { get set }
     var pitchCents: Double { get set }
+    /// Hält die Tonhöhe beim Ändern der Rate konstant. Ist der Key-Lock aus,
+    /// folgt die Tonhöhe dem Tempo wie bei einem Plattenspieler
+    /// (`1200·log2(rate)` Cents zusätzlich zu `pitchCents`).
+    var keyLock: Bool { get set }
 
     var isPlaying: Bool { get }
     var position: TimeInterval { get }
