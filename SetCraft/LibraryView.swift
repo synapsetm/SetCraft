@@ -133,7 +133,7 @@ struct LibraryView: View {
             Button {
                 library.analyzeAllMissing()
             } label: {
-                let missing = library.tracks.filter { $0.bpm == nil || $0.key == nil }.count
+                let missing = library.missingAnalysisCount
                 if library.pendingAnalysisCount > 0 {
                     Label("Analyzing (\(library.pendingAnalysisCount))", systemImage: "wand.and.stars")
                 } else {
@@ -143,7 +143,7 @@ struct LibraryView: View {
                     )
                 }
             }
-            .disabled(library.tracks.allSatisfy { $0.bpm != nil && $0.key != nil })
+            .disabled(library.missingAnalysisCount == 0)
 
             Button {
                 if let track = library.selectedTrack {
@@ -405,6 +405,13 @@ struct LibraryView: View {
                 // sichtbar, bis die neue Berechnung fertig ist.
                 if library.analysisState[track.id] == .scheduled {
                     ProgressView().controlSize(.mini)
+                } else if track.bpm == nil, track.isLikelyDJMix {
+                    // Erklärt die leere Zelle: hier wurde bewusst nicht
+                    // analysiert, es hängt nichts.
+                    Text("Mix")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .help(djMixHint)
                 }
             }
         }
@@ -616,6 +623,12 @@ struct LibraryView: View {
         guard !selected.isEmpty else { return }
         pendingTrashTracks = selected
         showTrashConfirm = true
+    }
+
+    /// Erklärt den „Mix"-Hinweis in der BPM-Spalte.
+    private var djMixHint: String {
+        let minutes = Int(Track.djMixThresholdSeconds / 60)
+        return String(localized: "Longer than \(minutes) minutes — treated as a DJ mix, so BPM, key and waveform are not computed automatically. Re-analyze runs anyway.")
     }
 
     private func formatTime(_ secs: TimeInterval) -> String {

@@ -113,6 +113,13 @@ final class LibraryViewModel {
         analysisState.values.lazy.filter { $0 == .scheduled }.count
     }
 
+    /// Wie viele Tracks der automatischen Analyse noch offenstehen. DJ-Mixes
+    /// zählen nicht mit — sie werden bewusst übersprungen, also darf der
+    /// „Analyze missing"-Knopf sie auch nicht versprechen.
+    var missingAnalysisCount: Int {
+        tracks.lazy.filter { !$0.isLikelyDJMix && ($0.bpm == nil || $0.key == nil) }.count
+    }
+
     /// Wird nach jeder abgeschlossenen Analyse mit dem aktualisierten Track
     /// gerufen. ContentView verdrahtet das so, dass der PlayerViewModel
     /// seine originalBPM/originalKey nachzieht, wenn der Analysetrack gerade
@@ -880,6 +887,12 @@ final class LibraryViewModel {
     func analyzeIfNeeded(_ track: Track) {
         prefetchWaveform(track)
 
+        // DJ-Mix: BPM und Key ergeben über einen ganzen Mix keinen Sinn, und
+        // die Analyse würde Minuten und über ein Gigabyte Speicher kosten.
+        // Ein ausdrücklicher `reanalyze` läuft weiterhin durch — wer es
+        // trotzdem anstösst, hat sich dafür entschieden.
+        guard !track.isLikelyDJMix else { return }
+
         let needsBPM = track.bpm == nil
         let needsKey = track.key == nil
         guard needsBPM || needsKey else { return }
@@ -966,7 +979,7 @@ final class LibraryViewModel {
     /// bereits Werte vorhanden sind. Wird vom Re-Analyze-Befehl in der Library
     /// verwendet, wenn man den Auto-Werten nicht traut.
     func reanalyze(_ track: Track) {
-        prefetchWaveform(track)
+        prefetchWaveform(track, force: true)
         if analysisState[track.id] == .scheduled { return }
 
         analysisState[track.id] = .scheduled
@@ -1020,7 +1033,13 @@ final class LibraryViewModel {
     /// wird nicht verbraucht; `WaveformViewModel.setActiveURL` greift später
     /// auf dieselbe Cache-Instanz zu. Drosselt auf `maxConcurrentPrefetches`,
     /// überzählige Anfragen werden in einer FIFO-Queue abgearbeitet.
-    private func prefetchWaveform(_ track: Track) {
+    private func prefetchWaveform(_ track: Track, force: Bool = false) {
+        // DJ-Mixes nicht im Hintergrund vorrechnen: `PCMLoader` hält die
+        // ganze Datei dekodiert im RAM (~1,3 GB bei zwei Stunden), und bis
+        // zu drei Prefetches laufen parallel. Die Welle entsteht stattdessen
+        // erst, wenn der Track wirklich in den Player geladen wird.
+        guard force || !track.isLikelyDJMix else { return }
+
         let url = track.url
         guard !waveformPrefetchInflight.contains(url),
               !waveformPrefetchQueued.contains(url) else { return }

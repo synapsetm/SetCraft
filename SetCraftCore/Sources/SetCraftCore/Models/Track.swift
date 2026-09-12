@@ -69,6 +69,27 @@ public struct Track: Identifiable, Hashable, Sendable {
         self.playCount = playCount
     }
 
+    /// Ab dieser Länge behandeln wir eine Datei als DJ-Mix. Club-Tracks
+    /// liegen bei 4–8 Minuten, Extended Mixes bei bis zu 12, Longform-/
+    /// Live-Fassungen bei ~15 — DJ-Mixes, Podcasts und Radioshows fangen
+    /// bei 30 Minuten an. 20 Minuten trennt das praktisch ohne Falsch-
+    /// Positive.
+    public static let djMixThresholdSeconds: TimeInterval = 20 * 60
+
+    /// Heuristik allein aus der Dauer (kommt beim Scan gratis aus TagLibs
+    /// `AudioProperties`, kostet also kein Dekodieren und wird nirgends
+    /// persistiert).
+    ///
+    /// Für einen Mix sind BPM und Key sinnlos — er läuft über viele Tempi
+    /// und Tonarten, herauskäme der Wert des ersten Abschnitts. Die Analyse
+    /// kostet dafür Minuten und über ein Gigabyte Speicher, weil der
+    /// `PCMLoader` die ganze Datei dekodiert im RAM hält. Der automatische
+    /// Pfad überspringt solche Dateien deshalb; ein ausdrücklicher
+    /// Re-Analyze läuft weiterhin durch.
+    public var isLikelyDJMix: Bool {
+        durationSeconds >= Self.djMixThresholdSeconds
+    }
+
     public var displayTitle: String {
         title.isEmpty ? url.deletingPathExtension().lastPathComponent : title
     }

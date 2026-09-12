@@ -602,12 +602,32 @@
         }
       }
     },
+    "Longer than %lld minutes — treated as a DJ mix, so BPM, key and waveform are not computed automatically. Re-analyze runs anyway." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Länger als %lld Minuten — wird als DJ-Mix behandelt, darum werden BPM, Key und Welle nicht automatisch berechnet. Re-Analyze läuft trotzdem."
+          }
+        }
+      }
+    },
     "Master tempo active — keys shift with the tempo. Sorted by sounding key." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Master-Tempo aktiv — die Tonarten verschieben sich mit dem Tempo. Sortierung nach klingendem Key."
+          }
+        }
+      }
+    },
+    "Mix" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mix"
           }
         }
       }
