@@ -151,14 +151,16 @@ struct LibraryView: View {
             .disabled(library.missingAnalysisCount == 0)
 
             Button {
-                if let track = library.selectedTrack {
-                    requestReanalyze([track])
-                }
+                // Ganze Selektion, nicht nur ein Track: `selectedTrack`
+                // liefert ein beliebiges Element aus dem Auswahl-Set — bei
+                // Mehrfachselektion wurde also eine zufällige Datei
+                // analysiert und die anderen fünf blieben liegen.
+                requestReanalyze(library.selectedTracks)
             } label: {
                 Label("Re-analyze", systemImage: "arrow.clockwise")
             }
-            .disabled(library.selectedTrack == nil)
-            .help("Force a fresh BPM/key analysis for the selected track")
+            .disabled(library.selectedTracks.isEmpty)
+            .help("Force a fresh BPM/key analysis for the selected tracks")
 
             Button {
                 showResetConfirm = true

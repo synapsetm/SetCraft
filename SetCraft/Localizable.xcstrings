@@ -486,12 +486,12 @@
         }
       }
     },
-    "Force a fresh BPM/key analysis for the selected track" : {
+    "Force a fresh BPM/key analysis for the selected tracks" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Neue BPM-/Key-Analyse für den markierten Track erzwingen"
+            "value" : "Neue BPM-/Key-Analyse für die markierten Tracks erzwingen"
           }
         }
       }
