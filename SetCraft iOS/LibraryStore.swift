@@ -120,7 +120,13 @@ final class LibraryStore {
     private let repository: LibraryRepository
     private let analyzer = AnalysisCoordinator()
     private var scanTask: Task<Void, Never>?
-    private var accessingScopedURL: URL?
+    /// Hält den Security-Scoped Zugriff auf die aktive Quelle offen und zählt
+    /// die laufenden Zugriffe mit. Beim Quellenwechsel wird der alte Scope nur
+    /// abgemeldet — geschlossen wird er erst, wenn die letzte noch laufende
+    /// Analyse bzw. der letzte Tag-Write sein Token zurückgibt. Ohne diese
+    /// Zählung verliert ein Schreibvorgang mitten in der Operation den
+    /// Dateizugriff (EPERM beim Rename, siehe `SecurityScope`).
+    private let scopes = SecurityScopeRegistry()
     /// `restoreSavedFolders` ist als `.task`-Aufruf aus der Library-View
     /// verdrahtet. SwiftUI-TabView feuert `.task` bei jedem Tab-Wechsel
     /// neu — ohne diesen Guard würde jedes Wechsel zurück zur Library-Tab
@@ -190,12 +196,11 @@ final class LibraryStore {
         }
     }
 
-    /// URL des aktuell ausgewählten Folders über die Bookmark-Resolution
-    /// des `accessingScopedURL`-Handles — der ist die einzige Stelle, an
-    /// der die echte Filesystem-URL der Quelle vorliegt (FolderRecord.url
-    /// ist nur ein Anzeige-Pfad-String).
+    /// URL des aktuell ausgewählten Folders über die Bookmark-Resolution in
+    /// `scopes` — das ist die einzige Stelle, an der die echte Filesystem-URL
+    /// der Quelle vorliegt (FolderRecord.url ist nur ein Anzeige-Pfad-String).
     private var selectedFolderURL: URL? {
-        accessingScopedURL
+        scopes.activeURL
     }
 
     /// Lädt alle gespeicherten Quellen beim App-Start. Wenn welche vorhanden
@@ -263,8 +268,7 @@ final class LibraryStore {
             scanTask?.cancel()
             scanTask = nil
             isScanning = false
-            accessingScopedURL?.stopAccessingSecurityScopedResource()
-            accessingScopedURL = nil
+            scopes.deactivate()
             selectedFolderID = nil
             tracks = []
             return
@@ -278,13 +282,11 @@ final class LibraryStore {
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
             )
-            guard url.startAccessingSecurityScopedResource() else {
+            guard scopes.activate(url) else {
                 lastError = String(localized: "Source cannot be opened.")
                 return
             }
 
-            accessingScopedURL?.stopAccessingSecurityScopedResource()
-            accessingScopedURL = url
             selectedFolderID = id
             tracks = []
             lastError = nil
@@ -323,6 +325,8 @@ final class LibraryStore {
         if let idx = tracks.firstIndex(where: { $0.id == track.id }) {
             tracks[idx] = track
         }
+        let token = scopes.token(for: track.url)
+        defer { token?.release() }
         do {
             try await repository.save(track)
             pendingSaves.removeValue(forKey: track.id)
@@ -347,7 +351,9 @@ final class LibraryStore {
         let saves = Array(pendingSaves.values)
         pendingSaves.removeAll()
         for track in saves {
+            let token = scopes.token(for: track.url)
             try? await repository.save(track, force: true)
+            token?.release()
         }
     }
 
@@ -364,7 +370,9 @@ final class LibraryStore {
             pendingSaves.removeValue(forKey: track.id)
         }
         for track in drainable {
+            let token = scopes.token(for: track.url)
             try? await repository.save(track)
+            token?.release()
         }
     }
 
@@ -388,6 +396,12 @@ final class LibraryStore {
 
         analyzing.insert(trackID)
         defer { analyzing.remove(trackID) }
+
+        // Analyse liest die Datei und schreibt danach Tags — beides braucht
+        // den Scope der Quelle, aus der der Track stammt. Wechselt der Nutzer
+        // zwischendurch die Quelle, hält dieses Token ihn offen.
+        let token = scopes.token(for: track.url)
+        defer { token?.release() }
 
         do {
             // User-getriggert (Swipe oder Menü) → IMMER vollständig analysieren,

@@ -137,9 +137,13 @@ final class LibraryViewModel {
     /// Semaphor hängen.
     private static let maxConcurrentPrefetches = 3
 
-    /// Hält den Security-Scoped Resource Access offen, solange die Library
-    /// aktiv ist. Wird beim Wechsel/Schliessen freigegeben.
-    private var accessingScopedURL: URL?
+    /// Hält den Security-Scoped Zugriff auf die aktive Quelle offen und zählt
+    /// die laufenden Zugriffe mit. Beim Quellenwechsel wird der alte Scope nur
+    /// abgemeldet — geschlossen wird er erst, wenn die letzte noch laufende
+    /// Analyse bzw. der letzte Tag-Write sein Token zurückgibt. Ohne diese
+    /// Zählung verliert ein Schreibvorgang mitten in der Operation den
+    /// Dateizugriff (EPERM beim Rename, siehe `SecurityScope`).
+    private let scopes = SecurityScopeRegistry()
 
     init(
         repository: LibraryRepository,
@@ -152,7 +156,7 @@ final class LibraryViewModel {
     }
 
     deinit {
-        accessingScopedURL?.stopAccessingSecurityScopedResource()
+        scopes.releaseAll()
     }
 
     /// Tracks, deren Schreibvorgang abgelehnt wurde, weil die Datei im Player
@@ -251,8 +255,9 @@ final class LibraryViewModel {
             try? await database.saveFolder(record)
         }
 
-        accessingScopedURL?.stopAccessingSecurityScopedResource()
-        accessingScopedURL = url
+        // Panel-URLs sind nicht security-scoped — sie bleiben auch ohne
+        // Scope zugreifbar, deshalb `requireScope: false`.
+        scopes.activate(url, requireScope: false)
         selectedFolderID = record.id
         lastLibraryError = nil
         scan(file: url)
@@ -305,8 +310,7 @@ final class LibraryViewModel {
             scanTask?.cancel()
             scanTask = nil
             isScanning = false
-            accessingScopedURL?.stopAccessingSecurityScopedResource()
-            accessingScopedURL = nil
+            scopes.deactivate()
             selectedFolderID = nil
             tracks = []
             folderURL = nil
@@ -323,7 +327,7 @@ final class LibraryViewModel {
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
             )
-            guard url.startAccessingSecurityScopedResource() else {
+            guard scopes.activate(url) else {
                 // TCC-Zugriff verloren (typisch nach App-Neuinstallation oder
                 // Signaturwechsel). Pfad und Bookmark sind formal intakt,
                 // aber das System verweigert den Scope. Eintrag behalten,
@@ -332,8 +336,7 @@ final class LibraryViewModel {
                 scanTask?.cancel()
                 scanTask = nil
                 isScanning = false
-                accessingScopedURL?.stopAccessingSecurityScopedResource()
-                accessingScopedURL = nil
+                scopes.deactivate()
                 selectedFolderID = id
                 tracks = []
                 folderURL = nil
@@ -344,8 +347,6 @@ final class LibraryViewModel {
                 return
             }
 
-            accessingScopedURL?.stopAccessingSecurityScopedResource()
-            accessingScopedURL = url
             selectedFolderID = id
             lastLibraryError = nil
             switch record.kind {
@@ -406,8 +407,7 @@ final class LibraryViewModel {
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )
-        accessingScopedURL?.stopAccessingSecurityScopedResource()
-        accessingScopedURL = url
+        scopes.activate(url, requireScope: false)
         if let bookmark {
             let record = FolderRecord(
                 url: url,
@@ -533,7 +533,9 @@ final class LibraryViewModel {
     func importDroppedFiles(_ urls: [URL]) {
         guard let target = folderURL else { return }
         let fm = FileManager.default
-        Task { [weak self, target, urls] in
+        let token = scopes.token(for: target)
+        Task { [weak self, target, urls, token] in
+            defer { token?.release() }
             var anyImported = false
             for src in urls {
                 let src = src.standardizedFileURL
@@ -605,7 +607,11 @@ final class LibraryViewModel {
     @MainActor
     func moveTracks(_ tracks: [Track], to folder: URL) {
         let fm = FileManager.default
-        Task { [weak self, tracks, folder] in
+        // Quell-Dateien liegen in der aktiven Quelle — deren Scope muss über
+        // den ganzen Move-Lauf offen bleiben.
+        let token = scopes.tokenForActiveSource()
+        Task { [weak self, tracks, folder, token] in
+            defer { token?.release() }
             var failures: [String] = []
             var movedCount = 0
             for track in tracks {
@@ -685,7 +691,11 @@ final class LibraryViewModel {
         unsavedTrackIDs.insert(track.id)
         pendingSaves[track.id]?.cancel()
         let debounce = saveDebounce
-        pendingSaves[track.id] = Task { [weak self, track] in
+        // Token schon jetzt nehmen, nicht erst nach dem Debounce: der Edit
+        // gehört zu der Quelle, die beim Tippen sichtbar war.
+        let token = scopes.token(for: track.url)
+        pendingSaves[track.id] = Task { [weak self, track, token] in
+            defer { token?.release() }
             try? await Task.sleep(for: debounce)
             if Task.isCancelled { return }
             await self?.performSave(track)
@@ -700,13 +710,19 @@ final class LibraryViewModel {
         let dirty = unsavedTrackIDs
         for id in dirty {
             guard let track = tracks.first(where: { $0.id == id }) else { continue }
-            Task { [weak self, track] in
+            let token = scopes.token(for: track.url)
+            Task { [weak self, track, token] in
+                defer { token?.release() }
                 await self?.performSave(track)
             }
         }
     }
 
     private func performSave(_ track: Track) async {
+        // Safety-Net: hält den Scope mindestens für die Dauer des
+        // Schreibvorgangs fest, auch wenn der Aufrufer keinen Token hielt.
+        let token = scopes.token(for: track.url)
+        defer { token?.release() }
         do {
             try await repository.save(track)
             unsavedTrackIDs.remove(track.id)
@@ -750,7 +766,9 @@ final class LibraryViewModel {
         for id in ids {
             guard let track = tracks.first(where: { $0.id == id }) else { continue }
             blockedByActivePlayer.remove(id)
-            Task { [weak self, track] in
+            let token = scopes.token(for: track.url)
+            Task { [weak self, track, token] in
+                defer { token?.release() }
                 await self?.performSave(track)
             }
         }
@@ -806,8 +824,13 @@ final class LibraryViewModel {
         analysisState[track.id] = .scheduled
         let preset = bpmPreset
         let analyzer = analyzer
+        // Analyse liest die Datei und schreibt danach Tags — beides braucht
+        // den Scope der Quelle, aus der der Track stammt. Wechselt der Nutzer
+        // zwischendurch den Ordner, hält dieses Token ihn offen.
+        let token = scopes.token(for: track.url)
 
-        Task { [weak self, track, needsBPM, needsKey, preset] in
+        Task { [weak self, track, needsBPM, needsKey, preset, token] in
+            defer { token?.release() }
             do {
                 let result = try await analyzer.analyze(
                     url: track.url,
@@ -885,8 +908,10 @@ final class LibraryViewModel {
         analysisState[track.id] = .scheduled
         let preset = bpmPreset
         let analyzer = analyzer
+        let token = scopes.token(for: track.url)
 
-        Task { [weak self, track, preset] in
+        Task { [weak self, track, preset, token] in
+            defer { token?.release() }
             do {
                 let result = try await analyzer.analyze(
                     url: track.url,
@@ -947,7 +972,9 @@ final class LibraryViewModel {
             waveformPrefetchQueued.remove(url)
             waveformPrefetchInflight.insert(url)
             let cache = waveformCache
-            Task.detached(priority: .utility) { [weak self] in
+            let token = scopes.token(for: url)
+            Task.detached(priority: .utility) { [weak self, token] in
+                defer { token?.release() }
                 _ = try? await cache.waveform(for: url)
                 await MainActor.run {
                     guard let self else { return }
@@ -975,7 +1002,9 @@ final class LibraryViewModel {
         unsavedTrackIDs.insert(track.id)
         pendingSaves[track.id]?.cancel()
         pendingSaves[track.id] = nil
-        Task { [weak self, track] in
+        let token = scopes.token(for: track.url)
+        Task { [weak self, track, token] in
+            defer { token?.release() }
             await self?.performSave(track)
         }
     }
