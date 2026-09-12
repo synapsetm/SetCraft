@@ -61,6 +61,14 @@ private struct LibraryScreen: View {
     @State private var showFolderImporter = false
     @State private var activeSheet: LibrarySheet?
     @State private var showResetConfirm = false
+    /// Tracks, die auf die Papierkorb-Bestätigung warten.
+    @State private var pendingTrashTracks: [Track] = []
+    @State private var showTrashConfirm = false
+    /// Tracks, für die es hier keinen Papierkorb gibt — warten auf die
+    /// zweite, ausdrückliche Bestätigung „endgültig löschen".
+    @State private var pendingPermanentTracks: [Track] = []
+    @State private var permanentReason: String?
+    @State private var showPermanentConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -209,6 +217,16 @@ private struct LibraryScreen: View {
                         .tint(.indigo)
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        // Kein Full-Swipe fürs Löschen: die Rückfrage kommt
+                        // ohnehin, aber ein versehentlicher Vollswipe soll
+                        // sie gar nicht erst auslösen.
+                        Button(role: .destructive) {
+                            pendingTrashTracks = [track]
+                            showTrashConfirm = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+
                         Button {
                             Task { await libraryStore.analyze(trackID: track.id) }
                         } label: {
@@ -222,7 +240,54 @@ private struct LibraryScreen: View {
             .refreshable {
                 await libraryStore.refresh()
             }
+            .confirmationDialog(
+                trashConfirmTitle,
+                isPresented: $showTrashConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    let victims = pendingTrashTracks
+                    pendingTrashTracks = []
+                    Task {
+                        // Quellen ohne Papierkorb (NAS/SMB über die Files-App)
+                        // melden sich hier zurück — dann fragen wir ein zweites
+                        // Mal, statt stillschweigend endgültig zu löschen.
+                        let (needsConfirmation, reason) = await libraryStore.moveTracksToTrash(victims)
+                        guard !needsConfirmation.isEmpty else { return }
+                        pendingPermanentTracks = needsConfirmation
+                        permanentReason = reason
+                        showPermanentConfirm = true
+                    }
+                }
+                Button("Cancel", role: .cancel) { pendingTrashTracks = [] }
+            } message: {
+                Text("Removed from disk, not just from the library.")
+            }
+            .confirmationDialog(
+                "Delete this file permanently?",
+                isPresented: $showPermanentConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Permanently", role: .destructive) {
+                    let victims = pendingPermanentTracks
+                    pendingPermanentTracks = []
+                    Task { await libraryStore.deleteTracksPermanently(victims) }
+                }
+                Button("Cancel", role: .cancel) { pendingPermanentTracks = [] }
+            } message: {
+                Text(permanentConfirmMessage)
+            }
         }
+    }
+
+    private var trashConfirmTitle: String {
+        guard let track = pendingTrashTracks.first else { return "" }
+        return String(localized: "Move “\(track.displayTitle)” to the Trash?")
+    }
+
+    private var permanentConfirmMessage: String {
+        let reason = permanentReason ?? String(localized: "The Trash is not available on this volume.")
+        return reason + "\n\n" + String(localized: "Permanent deletion cannot be undone.")
     }
 
     private func statusLine(for folder: FolderRecord) -> String {

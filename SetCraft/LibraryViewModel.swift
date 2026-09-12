@@ -656,6 +656,70 @@ final class LibraryViewModel {
         }
     }
 
+    // MARK: - Löschen
+
+    /// Verschiebt die Tracks in den Papierkorb und nimmt sie aus der Liste.
+    /// Liefert die Tracks zurück, für die es hier keinen Papierkorb gibt —
+    /// typisch auf SMB-/NAS-Mounts. Der Aufrufer muss dafür „endgültig
+    /// löschen?" bestätigen lassen und dann `deleteTracksPermanently(_:)`
+    /// rufen; stillschweigend endgültig gelöscht wird nie.
+    @MainActor
+    func moveTracksToTrash(_ tracks: [Track]) async -> (needsConfirmation: [Track], reason: String?) {
+        guard !tracks.isEmpty else { return ([], nil) }
+        // Die Dateien liegen in der aktiven Quelle — deren Scope muss über den
+        // ganzen Lauf offen bleiben, auch wenn zwischendurch gewechselt wird.
+        let token = scopes.tokenForActiveSource()
+        defer { token?.release() }
+
+        let report = await repository.moveToTrash(tracks)
+        applyDeletion(report)
+        return (report.trashUnavailable, report.trashFailureReason)
+    }
+
+    /// Löscht endgültig. Nur nach ausdrücklicher Bestätigung aufrufen.
+    @MainActor
+    func deleteTracksPermanently(_ tracks: [Track]) async {
+        guard !tracks.isEmpty else { return }
+        let token = scopes.tokenForActiveSource()
+        defer { token?.release() }
+
+        let report = await repository.deletePermanently(tracks)
+        applyDeletion(report)
+    }
+
+    /// Zieht die Liste und alle Nebenregister auf den Stand nach dem Löschen
+    /// nach: geplante Saves für verschwundene Dateien werden abgebrochen,
+    /// sonst schreibt der Debounce gleich noch in eine Datei, die es nicht
+    /// mehr gibt.
+    @MainActor
+    private func applyDeletion(_ report: LibraryRepository.DeletionReport) {
+        let removedIDs = Set(report.removed.map(\.id))
+        if !removedIDs.isEmpty {
+            for track in report.removed {
+                pendingSaves[track.id]?.cancel()
+                pendingSaves.removeValue(forKey: track.id)
+                analysisState.removeValue(forKey: track.id)
+                blockedByActivePlayer.remove(track.id)
+                let cache = waveformCache
+                let url = track.url
+                Task { await cache.invalidate(url) }
+            }
+            unsavedTrackIDs.subtract(removedIDs)
+            selectedTrackIDs.subtract(removedIDs)
+            tracks.removeAll { removedIDs.contains($0.id) }
+        }
+
+        guard !report.failures.isEmpty else {
+            if !removedIDs.isEmpty { lastWriteError = nil }
+            return
+        }
+        let header = removedIDs.isEmpty
+            ? String(localized: "Delete failed for \(report.failures.count):")
+            : String(localized: "Removed \(removedIDs.count); \(report.failures.count) failed:")
+        let lines = report.failures.map { "‘\($0.track.url.lastPathComponent)’: \($0.message)" }
+        lastWriteError = ([header] + lines).joined(separator: "\n")
+    }
+
     /// Plant einen debouncten `refresh()` ein (Default 250 ms). Sinnvoll,
     /// wenn mehrere Folder-Mutationen parallel passieren — etwa Drag-OUT
     /// mit Multi-Select, wo jeder erfüllte File-Promise einzeln signalisiert

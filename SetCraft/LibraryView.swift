@@ -13,6 +13,14 @@ struct LibraryView: View {
     @AppStorage("librarytable.columns") private var columnsRaw: String = ""
     @State private var columnCustomization = TableColumnCustomization<Track>()
     @State private var showResetConfirm = false
+    /// Tracks, die auf die Papierkorb-Bestätigung warten.
+    @State private var pendingTrashTracks: [Track] = []
+    @State private var showTrashConfirm = false
+    /// Tracks, für die es hier keinen Papierkorb gibt — warten auf die
+    /// zweite, ausdrückliche Bestätigung „endgültig löschen".
+    @State private var pendingPermanentTracks: [Track] = []
+    @State private var permanentReason: String?
+    @State private var showPermanentConfirm = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -286,9 +294,69 @@ struct LibraryView: View {
                 moveToFolder(ids)
             }
             .disabled(ids.isEmpty)
+            Divider()
+            Button("Delete…", role: .destructive) {
+                requestDelete(ids)
+            }
+            .disabled(ids.isEmpty)
         } primaryAction: { ids in
             loadFirst(ids)
         }
+        .confirmationDialog(
+            trashConfirmTitle,
+            isPresented: $showTrashConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                let victims = pendingTrashTracks
+                pendingTrashTracks = []
+                Task {
+                    // Volumes ohne Papierkorb (SMB/NAS) melden sich hier
+                    // zurück — dann fragen wir ein zweites Mal, statt
+                    // stillschweigend endgültig zu löschen.
+                    let (needsConfirmation, reason) = await library.moveTracksToTrash(victims)
+                    guard !needsConfirmation.isEmpty else { return }
+                    pendingPermanentTracks = needsConfirmation
+                    permanentReason = reason
+                    showPermanentConfirm = true
+                }
+            }
+            Button("Cancel", role: .cancel) { pendingTrashTracks = [] }
+        } message: {
+            Text("Removed from disk, not just from the library.")
+        }
+        .confirmationDialog(
+            permanentConfirmTitle,
+            isPresented: $showPermanentConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Permanently", role: .destructive) {
+                let victims = pendingPermanentTracks
+                pendingPermanentTracks = []
+                Task { await library.deleteTracksPermanently(victims) }
+            }
+            Button("Cancel", role: .cancel) { pendingPermanentTracks = [] }
+        } message: {
+            Text(permanentConfirmMessage)
+        }
+    }
+
+    private var trashConfirmTitle: String {
+        if pendingTrashTracks.count == 1, let track = pendingTrashTracks.first {
+            return String(localized: "Move “\(track.displayTitle)” to the Trash?")
+        }
+        return String(localized: "Move \(pendingTrashTracks.count) tracks to the Trash?")
+    }
+
+    private var permanentConfirmTitle: String {
+        pendingPermanentTracks.count == 1
+            ? String(localized: "Delete this file permanently?")
+            : String(localized: "Delete \(pendingPermanentTracks.count) files permanently?")
+    }
+
+    private var permanentConfirmMessage: String {
+        let reason = permanentReason ?? String(localized: "The Trash is not available on this volume.")
+        return reason + "\n\n" + String(localized: "Permanent deletion cannot be undone.")
     }
 
     // MARK: - Spaltengruppen
@@ -539,6 +607,15 @@ struct LibraryView: View {
 
         guard panel.runModal() == .OK, let folder = panel.url else { return }
         library.moveTracks(tracks, to: folder)
+    }
+
+    /// Sammelt die Selektion ein und öffnet die Papierkorb-Rückfrage. Gelöscht
+    /// wird erst im Dialog — siehe `moveTracksToTrash(_:)`.
+    private func requestDelete(_ ids: Set<Track.ID>) {
+        let selected = library.tracks.filter { ids.contains($0.id) }
+        guard !selected.isEmpty else { return }
+        pendingTrashTracks = selected
+        showTrashConfirm = true
     }
 
     private func formatTime(_ secs: TimeInterval) -> String {

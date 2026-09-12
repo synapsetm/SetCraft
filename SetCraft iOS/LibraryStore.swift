@@ -376,6 +376,65 @@ final class LibraryStore {
         }
     }
 
+    // MARK: - Löschen
+
+    /// Verschiebt die Tracks in den Papierkorb und nimmt sie aus der Liste.
+    /// Liefert die Tracks zurück, für die es hier keinen Papierkorb gibt —
+    /// typisch auf SMB-/NAS-Quellen aus der Files-App. Der Aufrufer muss
+    /// dafür „endgültig löschen?" bestätigen lassen und dann
+    /// `deleteTracksPermanently(_:)` rufen; stillschweigend endgültig
+    /// gelöscht wird nie.
+    func moveTracksToTrash(_ tracks: [Track]) async -> (needsConfirmation: [Track], reason: String?) {
+        guard !tracks.isEmpty else { return ([], nil) }
+        // Die Dateien liegen in der aktiven Quelle — deren Scope muss über den
+        // ganzen Lauf offen bleiben, auch wenn zwischendurch gewechselt wird.
+        let token = scopes.tokenForActiveSource()
+        defer { token?.release() }
+
+        let report = await repository.moveToTrash(tracks)
+        applyDeletion(report)
+        return (report.trashUnavailable, report.trashFailureReason)
+    }
+
+    /// Löscht endgültig. Nur nach ausdrücklicher Bestätigung aufrufen.
+    func deleteTracksPermanently(_ tracks: [Track]) async {
+        guard !tracks.isEmpty else { return }
+        let token = scopes.tokenForActiveSource()
+        defer { token?.release() }
+
+        let report = await repository.deletePermanently(tracks)
+        applyDeletion(report)
+    }
+
+    /// Zieht die Liste und alle Nebenregister auf den Stand nach dem Löschen
+    /// nach: geparkte Saves für verschwundene Dateien werden verworfen, sonst
+    /// schreibt der nächste Player-Wechsel noch in eine Datei, die es nicht
+    /// mehr gibt.
+    private func applyDeletion(_ report: LibraryRepository.DeletionReport) {
+        let removedIDs = Set(report.removed.map(\.id))
+        if !removedIDs.isEmpty {
+            for id in removedIDs {
+                pendingSaves.removeValue(forKey: id)
+                analyzing.remove(id)
+            }
+            tracks.removeAll { removedIDs.contains($0.id) }
+        }
+
+        guard !report.failures.isEmpty else {
+            if !removedIDs.isEmpty {
+                lastError = nil
+                scanDiagnosticActive = false
+            }
+            return
+        }
+        let header = removedIDs.isEmpty
+            ? String(localized: "Delete failed for \(report.failures.count):")
+            : String(localized: "Removed \(removedIDs.count); \(report.failures.count) failed:")
+        let lines = report.failures.map { "‘\($0.track.url.lastPathComponent)’: \($0.message)" }
+        lastError = ([header] + lines).joined(separator: "\n")
+        scanDiagnosticActive = false
+    }
+
     /// Vergisst die Quelle. Dateien selbst bleiben unangetastet.
     func removeFolder(id: String) async {
         try? await database.deleteFolder(id: id)

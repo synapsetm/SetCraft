@@ -86,6 +86,84 @@ public actor LibraryRepository: TrackStore {
         await tagStore.setActiveTrack(url)
     }
 
+    // MARK: - Löschen
+
+    /// Ergebnis eines Löschlaufs. `trashUnavailable` ist kein Fehler, sondern
+    /// eine Rückfrage: auf dem Volume gibt es keinen Papierkorb (typisch für
+    /// SMB-/NAS-Mounts), der Aufrufer muss „endgültig löschen?" bestätigen
+    /// lassen und dann `deletePermanently(_:)` rufen.
+    public struct DeletionReport: Sendable {
+        public struct Failure: Sendable {
+            public let track: Track
+            public let message: String
+        }
+
+        public var removed: [Track] = []
+        public var trashUnavailable: [Track] = []
+        public var failures: [Failure] = []
+        /// Warum der Papierkorb nicht ging — für den Rückfrage-Dialog.
+        public var trashFailureReason: String?
+
+        public init() {}
+    }
+
+    /// Verschiebt die Dateien in den Papierkorb und räumt ihre Cache-Zeilen
+    /// weg. Läuft auf demselben Actor wie `save(_:)`, kann sich also nicht mit
+    /// einem laufenden Tag-Write derselben Datei überschneiden.
+    public func moveToTrash(_ tracks: [Track]) async -> DeletionReport {
+        var report = DeletionReport()
+        let fm = FileManager.default
+
+        for track in tracks {
+            guard fm.fileExists(atPath: track.url.path) else {
+                // Extern schon gelöscht — nur noch die Cache-Zeile aufräumen.
+                try? await database.deleteTrack(url: track.url)
+                report.removed.append(track)
+                continue
+            }
+            do {
+                try fm.trashItem(at: track.url, resultingItemURL: nil)
+                try? await database.deleteTrack(url: track.url)
+                report.removed.append(track)
+            } catch {
+                // Wir raten nicht am Fehlercode herum, welche Volumes einen
+                // Papierkorb haben: jeder Fehlschlag wird zur Rückfrage. Der
+                // endgültige Löschversuch meldet dann seinen eigenen Fehler,
+                // falls es auch daran scheitert.
+                Self.log.notice("trashItem failed for \(track.url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                report.trashUnavailable.append(track)
+                if report.trashFailureReason == nil {
+                    report.trashFailureReason = error.localizedDescription
+                }
+            }
+        }
+        return report
+    }
+
+    /// Löscht die Dateien endgültig. Nur aufrufen, nachdem der Nutzer das
+    /// ausdrücklich bestätigt hat — hier ist nichts wiederherstellbar.
+    public func deletePermanently(_ tracks: [Track]) async -> DeletionReport {
+        var report = DeletionReport()
+        let fm = FileManager.default
+
+        for track in tracks {
+            guard fm.fileExists(atPath: track.url.path) else {
+                try? await database.deleteTrack(url: track.url)
+                report.removed.append(track)
+                continue
+            }
+            do {
+                try fm.removeItem(at: track.url)
+                try? await database.deleteTrack(url: track.url)
+                report.removed.append(track)
+            } catch {
+                Self.log.error("removeItem failed for \(track.url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                report.failures.append(.init(track: track, message: error.localizedDescription))
+            }
+        }
+        return report
+    }
+
     // MARK: - Helpers
 
     private func fileModifiedDate(url: URL) throws -> Date {

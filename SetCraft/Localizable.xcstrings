@@ -346,6 +346,66 @@
         }
       }
     },
+    "Delete" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Löschen"
+          }
+        }
+      }
+    },
+    "Delete %lld files permanently?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Dateien endgültig löschen?"
+          }
+        }
+      }
+    },
+    "Delete failed for %lld:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Löschen fehlgeschlagen für %lld:"
+          }
+        }
+      }
+    },
+    "Delete Permanently" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endgültig löschen"
+          }
+        }
+      }
+    },
+    "Delete this file permanently?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Datei endgültig löschen?"
+          }
+        }
+      }
+    },
+    "Delete…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Löschen…"
+          }
+        }
+      }
+    },
     "Discard" : {
       "localizations" : {
         "de" : {
@@ -562,6 +622,16 @@
         }
       }
     },
+    "Move %lld tracks to the Trash?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Tracks in den Papierkorb legen?"
+          }
+        }
+      }
+    },
     "Move Here" : {
       "localizations" : {
         "de" : {
@@ -588,6 +658,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tracks verschieben"
+          }
+        }
+      }
+    },
+    "Move “%@” to the Trash?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ in den Papierkorb legen?"
           }
         }
       }
@@ -688,6 +768,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Datei öffnen…"
+          }
+        }
+      }
+    },
+    "Permanent deletion cannot be undone." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endgültiges Löschen lässt sich nicht rückgängig machen."
           }
         }
       }
@@ -808,6 +898,26 @@
         }
       }
     },
+    "Removed %lld; %lld failed:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld entfernt; %2$lld fehlgeschlagen:"
+          }
+        }
+      }
+    },
+    "Removed from disk, not just from the library." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird von der Platte entfernt, nicht nur aus der Bibliothek."
+          }
+        }
+      }
+    },
     "Reset" : {
       "localizations" : {
         "de" : {
@@ -917,6 +1027,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tempo"
+          }
+        }
+      }
+    },
+    "The Trash is not available on this volume." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf diesem Volume gibt es keinen Papierkorb."
           }
         }
       }
