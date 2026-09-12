@@ -4,24 +4,25 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-08-14.
+Letzte Aktualisierung: 2026-09-12.
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.1-13 (Build 13), notarisiert, Sparkle-Auto-Update live.
-  Bringt die verschobenen Tonarten (SPEC §5b), aktualisierte Vendor-Libraries
-  und die vollständige deutsche Lokalisierung.
+- **Mac-Release:** v1.2-14 (Build 14), notarisiert, Sparkle-Auto-Update live.
+  Bringt Löschen aus der Library, die DJ-Mix-Erkennung, die mitwachsende
+  Waveform und die Scope-/Beenden-Korrekturen (s. u.).
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.1 (Build 13) auf TestFlight. `exportArchive` scheitert
-  weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
-  manuell über den Xcode Organizer.
-- **iOS-Release:** Build 12 auf TestFlight.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 39 Tests
-  (BPM/Key/Rating/Waveform/Ordner-Scan).
+- **iOS-Release:** 1.1 (Build 13) auf TestFlight; 1.2 (Build 14) ist
+  archiviert (`build/ios/SetCraft-iOS.xcarchive`), der Upload steht noch aus.
+  `exportArchive` scheitert weiterhin am Cloud-Signing (s. u.), der Upload
+  läuft deshalb manuell über den Xcode Organizer.
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 91 Tests
+  (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
+  Mix-Heuristik).
 - **Build (Mac):** `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
   xcodebuild -project SetCraft.xcodeproj -scheme SetCraft -destination
   'platform=macOS' build` — sauber.
@@ -50,7 +51,16 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
   wird bei Tag-Edits eingefroren (Eintrag springt nicht), `applySortOrder()`
   läuft nur bei Scan-Ende, Header-Klick und Refresh.
 - Auto-Analyse (BPM + Key) beim Track-Load plus Batch „Fehlende analysieren";
-  Re-Analyze erzwingt Neuberechnung. Ergebnisse fließen sofort in Datei-Tags.
+  Re-Analyze erzwingt Neuberechnung. Ergebnisse fließen sofort in Datei-Tags —
+  auch dann, wenn die Quelle inzwischen gewechselt wurde (Zuordnung über die
+  URL, nicht über die pro Scan neu vergebene `Track.id`).
+- **DJ-Mix-Erkennung:** Dateien ab 20 Minuten (`Track.isLikelyDJMix`, allein
+  aus der Dauer) nimmt der automatische Pfad von BPM/Key-Analyse **und**
+  Waveform-Prefetch aus — über einen ganzen Mix sind beide Werte wenig wert,
+  kosten aber Minuten und viel Speicher. Ausdrückliches Re-Analyze fragt nach.
+- **Löschen** (macOS-Kontextmenü, iOS-Swipe): in den Papierkorb, nach
+  Rückfrage. Wo es keinen Papierkorb gibt (SMB/NAS), kommt eine zweite,
+  ausdrückliche Rückfrage fürs endgültige Löschen.
 - Play-Count (app-lokal, nicht in Datei-Tags) mit Reset pro Ordner.
 - Quellen sind entweder **Ordner** (flacher Scan — nur der Ordner selbst,
   Unterverzeichnisse kommen bei Bedarf als eigene Quelle dazu) oder
@@ -67,6 +77,10 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
   scrollt darunter (CDJ-Stil), horizontal + vertikal (Landscape).
 - RGB-Waveform: vDSP-FFT, drei Bänder (Bass < 200 Hz / Mitten / Höhen > 2 kHz),
   additiv, `pow(0.4)`-Gamma. SwiftUI-Canvas auf beiden Plattformen.
+- Die Welle entsteht **blockweise mit dem Decoder** und wächst von links nach
+  rechts, statt erst am Ende zu erscheinen (`PCMLoader.stream`,
+  `WaveformCache.stream(for:)`). Nichts von der Datei liegt dabei am Stück im
+  Speicher — ein zweistündiger Mix kostete vorher ~1,3 GB.
 - Tempo-Chip mit Master-BPM-Logik (±8 %), Key-Chip read-only mit
   Camelot-Farben. Key-Lock ist immer an (`AVAudioUnitTimePitch` entkoppelt
   Rate/Pitch); Master-Key = Modus A (exakter Shift, bei Dur/Moll-Mismatch
