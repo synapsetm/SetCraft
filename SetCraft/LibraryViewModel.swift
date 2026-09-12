@@ -183,6 +183,11 @@ final class LibraryViewModel {
     private var blockedByActivePlayer: Set<Track.ID> = []
     private var previousActiveURL: URL?
 
+    /// Analyse-Ergebnisse für Tracks, die nicht mehr in der Liste stehen und
+    /// deren Datei gerade im Player läuft. Über die URL statt die Scan-ID
+    /// gehalten — siehe `persistOrphanedAnalysis`.
+    private var orphanedSaves: [URL: Track] = [:]
+
     /// Debounce-Fenster für Inline-Edits: spätestens danach landet das letzte
     /// Setzen auf der Platte. Kürzere Eingaben kollabieren in einen Schreibvorgang.
     private let saveDebounce: Duration = .milliseconds(600)
@@ -834,6 +839,7 @@ final class LibraryViewModel {
                 if let previous, previous != url {
                     self.flushBlockedSaves(previousActiveURL: previous)
                 }
+                self.flushOrphanedSaves(activeURL: url)
             }
         }
     }
@@ -926,23 +932,16 @@ final class LibraryViewModel {
                     needsKey: needsKey,
                     bpmRange: preset
                 )
-                await MainActor.run {
-                    guard let self else { return }
-                    guard let idx = self.tracks.firstIndex(where: { $0.id == track.id }) else {
-                        self.analysisState[track.id] = .done
-                        return
-                    }
-                    var updated = self.tracks[idx]
+                let landedInList = await MainActor.run { [weak self] () -> Bool in
+                    guard let self else { return true }
+                    self.analysisState[track.id] = .done
+                    let landed = self.applyAnalysis(result, toRowFor: track.url)
+                    // „Kein BPM gefunden" nur melden, solange der Track auch
+                    // sichtbar ist. Sonst stünde in der Statuszeile eine
+                    // Meldung über eine Datei aus dem verlassenen Ordner.
+                    guard landed else { return false }
                     let gotBPM = result.bpm != nil
                     let gotKey = result.key != nil
-                    if let bpm = result.bpm { updated.bpm = bpm }
-                    if let key = result.key { updated.key = key }
-                    self.tracks[idx] = updated
-                    self.analysisState[track.id] = .done
-                    if gotBPM || gotKey {
-                        self.persistAfterAnalysis(updated)
-                        self.onTrackAnalyzed?(updated)
-                    }
                     if needsBPM && !gotBPM && needsKey && !gotKey {
                         self.lastAnalysisError = String(localized: "No BPM and no key detected: \(track.url.lastPathComponent)")
                     } else if needsBPM && !gotBPM {
@@ -952,6 +951,10 @@ final class LibraryViewModel {
                     } else {
                         self.lastAnalysisError = nil
                     }
+                    return true
+                }
+                if !landedInList {
+                    await self?.persistOrphanedAnalysis(result, forURL: track.url)
                 }
             } catch {
                 await MainActor.run {
@@ -1007,28 +1010,22 @@ final class LibraryViewModel {
                     needsKey: true,
                     bpmRange: preset
                 )
-                await MainActor.run {
-                    guard let self else { return }
-                    guard let idx = self.tracks.firstIndex(where: { $0.id == track.id }) else {
-                        self.analysisState[track.id] = .done
-                        return
-                    }
-                    var updated = self.tracks[idx]
-                    let gotBPM = result.bpm != nil
-                    let gotKey = result.key != nil
-                    if let bpm = result.bpm { updated.bpm = bpm }
-                    if let key = result.key { updated.key = key }
-                    self.tracks[idx] = updated
+                let landedInList = await MainActor.run { [weak self] () -> Bool in
+                    guard let self else { return true }
                     self.analysisState[track.id] = .done
-                    if gotBPM || gotKey {
-                        self.persistAfterAnalysis(updated)
-                        self.onTrackAnalyzed?(updated)
-                    }
-                    if !gotBPM && !gotKey {
+                    let landed = self.applyAnalysis(result, toRowFor: track.url)
+                    // Siehe `analyzeIfNeeded`: keine Meldungen über Dateien,
+                    // die gar nicht mehr angezeigt werden.
+                    guard landed else { return false }
+                    if result.bpm == nil && result.key == nil {
                         self.lastAnalysisError = String(localized: "No BPM and no key detected: \(track.url.lastPathComponent)")
                     } else {
                         self.lastAnalysisError = nil
                     }
+                    return true
+                }
+                if !landedInList {
+                    await self?.persistOrphanedAnalysis(result, forURL: track.url)
                 }
             } catch {
                 await MainActor.run {
@@ -1092,6 +1089,79 @@ final class LibraryViewModel {
     /// damit Auto-Werte beim nächsten Programmstart vorhanden sind. Ist die
     /// Datei gerade im Player aktiv, lehnt der Store ab — `performSave`
     /// markiert sie dann für Nachschreiben beim nächsten Player-Wechsel.
+    /// Trägt ein Analyse-Ergebnis in die sichtbare Zeile ein und schreibt es
+    /// zurück. Gesucht wird über die **URL**: `Track.id` wird bei jedem Scan
+    /// neu vergeben (`Track.init` vergibt eine frische UUID, kein Aufrufer
+    /// übergibt je eine), überlebt also weder Ordnerwechsel noch Refresh.
+    /// Über die URL landet ein spät eintreffendes Ergebnis auch dann richtig,
+    /// wenn der Ordner zwischenzeitlich neu gescannt wurde.
+    ///
+    /// `false`, wenn es die Zeile nicht mehr gibt — dann übernimmt
+    /// `persistOrphanedAnalysis`.
+    @MainActor
+    private func applyAnalysis(_ result: AnalysisCoordinator.Result, toRowFor url: URL) -> Bool {
+        guard let idx = tracks.firstIndex(where: { $0.url == url }) else { return false }
+        var updated = tracks[idx]
+        if let bpm = result.bpm { updated.bpm = bpm }
+        if let key = result.key { updated.key = key }
+        tracks[idx] = updated
+        if result.bpm != nil || result.key != nil {
+            persistAfterAnalysis(updated)
+            onTrackAnalyzed?(updated)
+        }
+        return true
+    }
+
+    /// Sichert ein Ergebnis, dessen Track nicht mehr in der Liste steht —
+    /// der Nutzer hat den Ordner gewechselt, refresht oder importiert,
+    /// während die Analyse lief. Ohne das wäre die ganze Rechenarbeit weg und
+    /// die Datei würde beim nächsten Besuch des Ordners erneut analysiert.
+    ///
+    /// Der aktuelle Stand wird **frisch aus dem Repository** geholt, statt die
+    /// im Task eingefrorene Kopie zu schreiben: sonst überschriebe ein spätes
+    /// Analyse-Ergebnis Tag-Edits, die der Nutzer zwischendurch gemacht hat.
+    /// Aufgesetzt werden nur BPM und Key.
+    private func persistOrphanedAnalysis(_ result: AnalysisCoordinator.Result, forURL url: URL) async {
+        guard result.bpm != nil || result.key != nil else { return }
+        let token = scopes.token(for: url)
+        defer { token?.release() }
+
+        guard var fresh = await repository.loadTrack(url: url) else { return }
+        if let bpm = result.bpm { fresh.bpm = bpm }
+        if let key = result.key { fresh.key = key }
+
+        do {
+            try await repository.save(fresh)
+            lastWriteError = nil
+        } catch let error as TagLibTrackStore.StoreError {
+            if case .fileInUse = error {
+                // Datei läuft gerade im Player. `blockedByActivePlayer` hilft
+                // hier nicht — das geht über die Scan-ID, die es für diesen
+                // Track nicht mehr gibt. Also über die URL parken und beim
+                // nächsten Player-Wechsel nachholen.
+                orphanedSaves[url] = fresh
+            } else {
+                lastWriteError = error.localizedDescription
+            }
+        } catch {
+            lastWriteError = error.localizedDescription
+        }
+    }
+
+    /// Schreibt geparkte Ergebnisse, sobald der Player die jeweilige Datei
+    /// nicht mehr hält.
+    private func flushOrphanedSaves(activeURL: URL?) {
+        let due = orphanedSaves.filter { $0.key != activeURL }
+        for (url, track) in due {
+            orphanedSaves.removeValue(forKey: url)
+            let token = scopes.token(for: url)
+            Task { [weak self, track, token] in
+                defer { token?.release() }
+                try? await self?.repository.save(track)
+            }
+        }
+    }
+
     private func persistAfterAnalysis(_ track: Track) {
         unsavedTrackIDs.insert(track.id)
         pendingSaves[track.id]?.cancel()
