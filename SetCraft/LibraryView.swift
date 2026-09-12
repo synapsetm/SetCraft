@@ -433,7 +433,7 @@ struct LibraryView: View {
                 // Spinner solange die Analyse läuft — auch bei Re-Analyze,
                 // wenn schon ein alter Wert in der Zelle steht. Der bleibt
                 // sichtbar, bis die neue Berechnung fertig ist.
-                if library.analysisState[track.id] == .scheduled {
+                if library.isAnalyzing(track) {
                     ProgressView().controlSize(.mini)
                 } else if track.bpm == nil, track.isLikelyDJMix {
                     // Erklärt die leere Zelle: hier wurde bewusst nicht
@@ -451,7 +451,7 @@ struct LibraryView: View {
         TableColumn("Key", value: \.keySortable) { track in
             HStack(spacing: 4) {
                 SoundingKeyLabel(track: track, context: library.soundingContext)
-                if library.analysisState[track.id] == .scheduled {
+                if library.isAnalyzing(track) {
                     ProgressView().controlSize(.mini)
                 }
             }

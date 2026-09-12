@@ -5,13 +5,6 @@ import SetCraftCore
 
 @Observable
 final class LibraryViewModel {
-    enum AnalysisState: Sendable {
-        case idle
-        case scheduled
-        case done
-        case failed
-    }
-
     var tracks: [Track] = []
     /// Verzeichnis der aktiven Quelle — `nil`, wenn eine Einzeldatei-Quelle
     /// gewählt ist. Ordner-Aktionen (Import-Drop, Play-Count-Reset, Refresh
@@ -103,15 +96,25 @@ final class LibraryViewModel {
 
     var hasUnsavedChanges: Bool { !unsavedTrackIDs.isEmpty }
 
-    /// Welcher Track aktuell analysiert wird (oder bereits analysiert wurde).
-    var analysisState: [Track.ID: AnalysisState] = [:]
+    /// URLs, deren Analyse gerade läuft oder eingeplant ist.
+    ///
+    /// Bewusst über die URL statt über `Track.id`: die ID wird bei jedem Scan
+    /// neu vergeben. Über die ID würde ein Wechsel weg und wieder zurück
+    /// dieselbe Datei ein zweites Mal in die Queue stellen, und die Spinner in
+    /// der Tabelle blieben aus, weil die neu gescannte Zeile die alte ID nicht
+    /// kennt.
+    private(set) var analysesInFlight: Set<URL> = []
+
+    /// Läuft für diesen Track gerade eine Analyse? Steuert die Spinner in der
+    /// BPM- und der Key-Spalte.
+    func isAnalyzing(_ track: Track) -> Bool {
+        analysesInFlight.contains(track.url)
+    }
 
     /// Wahl des erwarteten BPM-Bereichs für die Oktav-Korrektur.
     var bpmPreset: BPMRangePreset = .universal
 
-    var pendingAnalysisCount: Int {
-        analysisState.values.lazy.filter { $0 == .scheduled }.count
-    }
+    var pendingAnalysisCount: Int { analysesInFlight.count }
 
     /// Wie viele Tracks des **aktuellen Ordners** der Analyse noch offenstehen
     /// — die Zahl hinter „Analyze missing". Zwei Ausnahmen:
@@ -123,11 +126,11 @@ final class LibraryViewModel {
     ///   Knopf lüde zum wirkungslosen Nachklicken ein. Wie viel gerade
     ///   gerechnet wird, sagt `pendingAnalysisCount` in der Statuszeile.
     var missingAnalysisCount: Int {
-        let state = analysisState
+        let inFlight = analysesInFlight
         return tracks.lazy.filter {
             !$0.isLikelyDJMix
                 && ($0.bpm == nil || $0.key == nil)
-                && state[$0.id] != .scheduled
+                && !inFlight.contains($0.url)
         }.count
     }
 
@@ -721,7 +724,6 @@ final class LibraryViewModel {
             for track in report.removed {
                 pendingSaves[track.id]?.cancel()
                 pendingSaves.removeValue(forKey: track.id)
-                analysisState.removeValue(forKey: track.id)
                 blockedByActivePlayer.remove(track.id)
                 let cache = waveformCache
                 let url = track.url
@@ -913,9 +915,9 @@ final class LibraryViewModel {
         let needsBPM = track.bpm == nil
         let needsKey = track.key == nil
         guard needsBPM || needsKey else { return }
-        if analysisState[track.id] == .scheduled { return }
+        if analysesInFlight.contains(track.url) { return }
 
-        analysisState[track.id] = .scheduled
+        analysesInFlight.insert(track.url)
         let preset = bpmPreset
         let analyzer = analyzer
         // Analyse liest die Datei und schreibt danach Tags — beides braucht
@@ -924,7 +926,10 @@ final class LibraryViewModel {
         let token = scopes.token(for: track.url)
 
         Task { [weak self, track, needsBPM, needsKey, preset, token] in
-            defer { token?.release() }
+            defer {
+                token?.release()
+                self?.analysesInFlight.remove(track.url)
+            }
             do {
                 let result = try await analyzer.analyze(
                     url: track.url,
@@ -934,7 +939,6 @@ final class LibraryViewModel {
                 )
                 let landedInList = await MainActor.run { [weak self] () -> Bool in
                     guard let self else { return true }
-                    self.analysisState[track.id] = .done
                     let landed = self.applyAnalysis(result, toRowFor: track.url)
                     // „Kein BPM gefunden" nur melden, solange der Track auch
                     // sichtbar ist. Sonst stünde in der Statuszeile eine
@@ -958,7 +962,6 @@ final class LibraryViewModel {
                 }
             } catch {
                 await MainActor.run {
-                    self?.analysisState[track.id] = .failed
                     self?.lastAnalysisError = error.localizedDescription
                 }
             }
@@ -994,15 +997,18 @@ final class LibraryViewModel {
     /// verwendet, wenn man den Auto-Werten nicht traut.
     func reanalyze(_ track: Track) {
         prefetchWaveform(track, force: true)
-        if analysisState[track.id] == .scheduled { return }
+        if analysesInFlight.contains(track.url) { return }
 
-        analysisState[track.id] = .scheduled
+        analysesInFlight.insert(track.url)
         let preset = bpmPreset
         let analyzer = analyzer
         let token = scopes.token(for: track.url)
 
         Task { [weak self, track, preset, token] in
-            defer { token?.release() }
+            defer {
+                token?.release()
+                self?.analysesInFlight.remove(track.url)
+            }
             do {
                 let result = try await analyzer.analyze(
                     url: track.url,
@@ -1012,7 +1018,6 @@ final class LibraryViewModel {
                 )
                 let landedInList = await MainActor.run { [weak self] () -> Bool in
                     guard let self else { return true }
-                    self.analysisState[track.id] = .done
                     let landed = self.applyAnalysis(result, toRowFor: track.url)
                     // Siehe `analyzeIfNeeded`: keine Meldungen über Dateien,
                     // die gar nicht mehr angezeigt werden.
@@ -1029,7 +1034,6 @@ final class LibraryViewModel {
                 }
             } catch {
                 await MainActor.run {
-                    self?.analysisState[track.id] = .failed
                     self?.lastAnalysisError = error.localizedDescription
                 }
             }
