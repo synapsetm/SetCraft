@@ -365,8 +365,10 @@ mit `#if os(...)` kapseln (Dateizugriff via Document Picker, `AVAudioSession`).
 
 ## 8. Offene Punkte (bewusst später)
 
-- Code-Organisation Weg A vs. B (Phase 0).
-- Master-Key Modus A vs. B (siehe §5).
+- ~~Code-Organisation Weg A vs. B (Phase 0)~~ — entschieden: **Weg B**
+  (Swift Package `SetCraftCore`), siehe `STATUS.md`.
+- ~~Master-Key Modus A vs. B (siehe §5)~~ — entschieden: **Modus A**
+  (exakter Shift, bei Dur/Moll-Mismatch unangetastet).
 - Crates/Playlists, Suche, Verlauf (kommen mit dem SQLite-Cache).
 - Rekordbox „My Tag"-Feinheiten.
 - WAV-Tagging-Sonderbehandlung.

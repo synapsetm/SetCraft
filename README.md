@@ -13,7 +13,10 @@ beat-matched chops.
 ## Features
 
 - **Frequency-coloured RGB waveform** (vDSP FFT, additive R = bass, G = mids,
-  B = highs; SwiftUI Canvas on iOS, Metal-ready on macOS).
+  B = highs; SwiftUI Canvas on iOS, Metal-ready on macOS). It is computed
+  block by block alongside the decoder and **grows from left to right while
+  you wait**, instead of appearing only when the whole file is done — and
+  nothing of the file is ever held in memory as a whole.
 - **Tempo control** via `AVAudioUnitTimePitch`: per-track or set globally as
   a "master" value; every newly loaded track snaps to it. Key-lock is always
   on — speed changes don't shift pitch.
@@ -26,6 +29,15 @@ beat-matched chops.
   (Universal / DnB / Psy-Trance / House / HipHop / Disco), plus a ⅔ / 1½
   factor for triplet mis-detections. Re-analyze and manual ×2 / ÷2 / ×1.5 /
   ÷1.5 corrections per track from the context menu / edit sheet.
+- **DJ mixes are left alone.** Anything from 20 minutes up is treated as a
+  mix (derived purely from its duration): BPM/key analysis and waveform
+  prefetch are skipped, because both say little about a whole set while
+  costing minutes of CPU per file. An explicit re-analyze still runs — after
+  asking.
+- **Delete to the Trash** (macOS context menu, iOS swipe), after
+  confirmation. On volumes without a Trash — SMB/NAS shares — a second,
+  explicit confirmation offers permanent deletion; nothing is ever deleted
+  permanently without it.
 - **Camelot key colouring** in the player chip and the library, in the
   colours DJ apps have trained your eyes on (positions 1–12 around the hue
   wheel, minor saturated, major brighter).

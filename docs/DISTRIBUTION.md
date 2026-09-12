@@ -1,9 +1,11 @@
 # Distribution — SetCraft
 
-Anleitung, um SetCraft als notarisiertes, automatisch-updatebares macOS-DMG
-**außerhalb des App Stores** auszuliefern. Das Repo enthält bereits den
-fertigen Build-Pfad in `scripts/release.sh`; diese Doku erklärt, was du einmalig
-einrichten musst, bevor das Skript durchläuft.
+Anleitung, um SetCraft auszuliefern: als notarisiertes,
+automatisch-updatebares macOS-DMG **außerhalb des App Stores** (Abschnitte
+1–7) und als iOS-Build über TestFlight (Abschnitt 8). Das Repo enthält die
+fertigen Build-Pfade in `scripts/release.sh` und `scripts/release-ios.sh`;
+diese Doku erklärt, was du einmalig einrichten musst, bevor die Skripte
+durchlaufen.
 
 > Voraussetzung: Apple Developer Program-Mitgliedschaft (kostenpflichtig), weil
 > nur damit ein „Developer ID Application"-Zertifikat sowie Notarisierung
@@ -132,8 +134,14 @@ Vor jedem Release:
 
 - `MARKETING_VERSION` (z. B. `1.1`) und `CURRENT_PROJECT_VERSION` (Buildnummer,
   monoton steigend, z. B. `4`) in der Xcode-Projektkonfiguration anheben.
+  **Beide Targets gemeinsam** — im pbxproj steht jeder Wert viermal
+  (Mac und iOS, je Debug und Release), damit Mac-DMG und TestFlight-Build
+  dieselbe Version tragen.
 - Das Skript zieht beide Werte automatisch und benennt das DMG entsprechend
   (`SetCraft-1.1-4.dmg`).
+- **Den Versions-Commit vorher pushen.** Der Vorflug-Check in `release.sh`
+  bricht bei ungepushten Commits ab — sonst hinge das GitHub-Release an
+  einem Stand, den sonst niemand sieht.
 
 ---
 
@@ -204,7 +212,73 @@ Stapling-Ticket fehlt oder Notarisierung nicht durchgelaufen — Log über
 
 ---
 
-## 8) Troubleshooting-Häppchen
+## 8) iOS — TestFlight
+
+Der iOS-Weg läuft **nicht** über GitHub-Release-Assets, sondern über
+App Store Connect / TestFlight.
+
+```sh
+./scripts/release-ios.sh
+```
+
+Das Skript archiviert, exportiert das IPA und lädt per `altool` hoch.
+Die Build-Nummer kommt aus dem pbxproj und lässt sich per
+`BUILD_NUMBER=… ./scripts/release-ios.sh` überschreiben.
+
+**Credentials** liegen ausserhalb des Repos und werden automatisch gelesen:
+
+| Datei | Inhalt |
+|---|---|
+| `~/.appstoreconnect/setcraft.env` (0600) | `ASC_API_KEY_ID`, `ASC_API_ISSUER_ID` |
+| `~/.appstoreconnect/private_keys/AuthKey_<KEY>.p8` (0600) | der API-Key selbst |
+
+ENV-Variablen überschreiben die Datei, falls nötig.
+
+### 8.1) Cloud-Signing-Stolperstein — tritt bei jedem Build auf
+
+`xcodebuild -exportArchive -allowProvisioningUpdates` bricht mit dem
+API-Key (Rolle *App Manager*) reproduzierbar ab:
+
+```
+error: exportArchive Cloud signing permission error
+error: exportArchive No signing certificate "iOS Distribution" found
+```
+
+Das Archive selbst ist zu diesem Zeitpunkt **fertig und gültig** — es
+scheitert nur der Export. Der Weg drumherum:
+
+```sh
+open build/ios/SetCraft-iOS.xcarchive
+```
+
+Im Xcode Organizer „Distribute App" → „App Store Connect" → „Upload",
+Signing automatisch verwalten lassen. Dort klappt es, weil Xcode die
+Distribution-Cert über den angemeldeten Account zieht statt über den
+API-Key.
+
+Verifiziert über mehrere Releases hinweg (zuletzt 1.2-14): der „danach
+klappt es automatisch"-Pfad funktioniert **nicht** — die Cert landet aus
+dem Organizer-Upload nicht dauerhaft in der lokalen Keychain.
+
+Zwei mögliche Dauerlösungen, bisher nicht ausprobiert:
+
+1. API-Key-Rolle in App Store Connect auf **Admin** hochstufen
+   (Users & Access → Integrations → Team Keys → Edit).
+2. Distribution-Cert manuell in die Keychain installieren und in
+   `ExportOptions-iOS.plist` / pbxproj auf manuelles Signieren wechseln.
+
+### 8.2) Was Apple sonst erwartet
+
+- `ITSAppUsesNonExemptEncryption=false` im `SetCraft-iOS-Info.plist` —
+  spart den Compliance-Dialog vor jedem Build.
+- AppIcon 1024×1024 **ohne** Alpha-Kanal. Der Mac-Icon-Master ist RGBA und
+  muss vor der Übernahme auf RGB geflattet werden.
+- `CURRENT_PROJECT_VERSION` muss pro Upload eindeutig sein — Apple zählt
+  auch abgelehnte Builds mit.
+
+---
+
+## 9) Troubleshooting-Häppchen
 
 - **„Developer-ID-Identity nicht auflösbar"**: Zertifikat nicht im Login-
   Keychain oder noch nicht verifiziert. Login-Keychain entsperren, Cert neu

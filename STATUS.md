@@ -16,10 +16,9 @@ Letzte Aktualisierung: 2026-09-12.
   Waveform und die Scope-/Beenden-Korrekturen (s. u.).
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.1 (Build 13) auf TestFlight; 1.2 (Build 14) ist
-  archiviert (`build/ios/SetCraft-iOS.xcarchive`), der Upload steht noch aus.
-  `exportArchive` scheitert weiterhin am Cloud-Signing (s. u.), der Upload
-  läuft deshalb manuell über den Xcode Organizer.
+- **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
+  weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
+  manuell über den Xcode Organizer.
 - **Tests:** `swift test` im `SetCraftCore`-Paket grün — 91 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik).
@@ -107,6 +106,34 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
   `TagLibTrackStore.save`: Sibling-Temp im selben Verzeichnis, `replaceItemAt`
   als erster Versuch, Fallback auf Rename-über-Backup mit Wiederherstellung.
   `StoreError.fileSystem` trägt `stage` + NSError-Domain/Code.
+- **Security-Scope beim Quellenwechsel:** `selectFolder` schloss den Scope der
+  alten Quelle sofort, während Analysen und Tag-Writes noch liefen. Der
+  Schreibvorgang verlor mitten in der Operation den Zugriff — `copyItem` ging
+  noch durch, der Rename scheiterte Millisekunden später mit `EPERM`.
+  `SecurityScope`/`SecurityScopeRegistry` (Core) zählen die Nutzer mit:
+  abgemeldet wird sofort, geschlossen erst, wenn das letzte Token zurück ist.
+  `token(for:)` findet auch einen bereits abgemeldeten, noch offenen Scope.
+- **`Track.id` ist die Identität des Scans, nicht der Datei.** `Track.init`
+  vergibt eine frische UUID, kein Aufrufer übergibt je eine — jedes
+  Neuaufbauen der Liste (Ordnerwechsel, Refresh, Import, Löschen) vergibt neue
+  IDs. Wer eine laufende Operation über die ID zuordnet, verliert sie: die
+  fertige Analyse fand ihre Zeile nicht mehr und wurde samt Tag-Write
+  verworfen. Zuordnung deshalb über die **URL**; existiert die Zeile nicht
+  mehr, schreibt `persistOrphanedAnalysis` das Ergebnis trotzdem (Basis frisch
+  aus dem Repository, damit zwischenzeitliche Tag-Edits erhalten bleiben).
+- **`AVAudioFile.read(into:)` wirft am Dateiende**, statt 0 Frames zu liefern
+  (`nilError` aus dem ExtAudioFile-Pfad). Das wurde als Decoder-Fehler
+  gewertet, worauf der AVAssetReader-Fallback die bereits vollständig gelesene
+  Datei ein zweites Mal dekodierte — jede Analyse und jede Waveform lief
+  doppelt. Ein Wurf nach bereits gelieferten Frames gilt jetzt als Dateiende
+  (`PCMLoader.streamViaAVAudioFile`).
+- **Beenden-Dialog-Schleife:** `applicationShouldTerminateAfterLastWindowClosed`
+  wird von AppKit bei **jedem** schliessenden Fenster geprüft — auch beim
+  eigenen modalen Dialog. War das Hauptfenster schon zu, löste das Schliessen
+  des Dialogs den nächsten Beenden-Versuch aus: „Abbrechen" führte in eine
+  Endlosschleife ohne Weg zurück in die App. `isHandlingTerminationPrompt`
+  unterbricht das, gelöst wird die Sperre beim `didBecomeMainNotification`
+  des wiederhergestellten Fensters.
 - **Playhead-Sync (Mac):** korrekt über `playerNode.outputPresentationLatency`
   (nicht outputNode-only), Waveform-Progress auf Wave-Zeitachse statt
   `player.duration`, Spalten-Aggregation per Float-Division. Ergebnis:
