@@ -3,12 +3,12 @@
     <channel>
         <title>SetCraft</title>
         <item>
-            <title>1.1</title>
-            <pubDate>Fri, 14 Aug 2026 15:22:42 +0200</pubDate>
-            <sparkle:version>13</sparkle:version>
-            <sparkle:shortVersionString>1.1</sparkle:shortVersionString>
+            <title>1.2</title>
+            <pubDate>Sat, 12 Sep 2026 23:41:22 +0200</pubDate>
+            <sparkle:version>14</sparkle:version>
+            <sparkle:shortVersionString>1.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/synapsetm/SetCraft/releases/download/v1.1-13/SetCraft-1.1-13.dmg" length="7233158" type="application/octet-stream" sparkle:edSignature="MhUwJi6OwGHOv3k5ZIx4U8Nu6L6QN/PAdXgfCSIKHKN99A3ZrY378rWIOFPaaIAasWVEOgPB/ayiUI6cK8hQAg=="/>
+            <enclosure url="https://github.com/synapsetm/SetCraft/releases/download/v1.2-14/SetCraft-1.2-14.dmg" length="6266188" type="application/octet-stream" sparkle:edSignature="EHZT7B8bEUPfdYoOBtBsOo3eXT9LkdPDz32IcKFqB4UBPeQz/mnFuYbi6/uwpCp+Leeo2tcNcegsx/JZ3HauAg=="/>
         </item>
     </channel>
 </rss>
