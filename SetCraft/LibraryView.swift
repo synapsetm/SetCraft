@@ -190,7 +190,8 @@ struct LibraryView: View {
     /// Scan-Ende von ~32pt auf ~27pt zusammenschrumpft (caption-Text ist
     /// kleiner als die scan-zeitige ProgressView).
     private var statusBar: some View {
-        HStack(spacing: 8) {
+        let hasTrackCount = library.isScanning || !library.tracks.isEmpty
+        return HStack(spacing: 8) {
             if library.isScanning {
                 ProgressView()
                     .controlSize(.small)
@@ -205,8 +206,10 @@ struct LibraryView: View {
 
             // Laufende Analysen — bewusst über alle Quellen hinweg gezählt:
             // die Warteschlange ist global und arbeitet nach einem
-            // Ordnerwechsel weiter.
+            // Ordnerwechsel weiter. Deshalb durch einen Trenner von der
+            // Track-Zahl abgesetzt: die beiden Angaben meinen nicht dasselbe.
             if library.pendingAnalysisCount > 0 {
+                if hasTrackCount { statusSeparator }
                 ProgressView()
                     .controlSize(.small)
                 Text("In analysis: \(library.pendingAnalysisCount)")
@@ -228,6 +231,13 @@ struct LibraryView: View {
         }
         .padding(.horizontal, 12)
         .frame(height: Self.bottomBarHeight)
+    }
+
+    /// Senkrechter Trenner zwischen zwei Angaben der Statuszeile. Kurz
+    /// gehalten, damit er die Zeile gliedert, ohne sie zu zerschneiden.
+    private var statusSeparator: some View {
+        Divider()
+            .frame(height: 12)
     }
 
     /// Gemeinsame Höhe für die beiden unteren Bars: „Add folder…" links
