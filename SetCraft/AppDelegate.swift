@@ -28,6 +28,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// (Schreiben fertig, oder Sicherheitsventil).
     private var didReplyToTerminate = false
 
+    /// `true`, solange der Beenden-Dialog läuft oder der Nutzer ihn gerade
+    /// abgebrochen hat und das Hauptfenster noch nicht zurück ist.
+    ///
+    /// Hintergrund: `applicationShouldTerminateAfterLastWindowClosed` wird
+    /// von AppKit **bei jedem** schliessenden Fenster geprüft — auch bei
+    /// unserem eigenen modalen Dialog. Ist das Hauptfenster bereits zu, ist
+    /// der Dialog das letzte Fenster: sein Schliessen löste sofort den
+    /// nächsten Beenden-Versuch aus, der wieder den Dialog zeigte. Genau die
+    /// Schleife, aus der man nicht mehr in die App zurückkam.
+    private var isHandlingTerminationPrompt = false
+    private var windowReturnObserver: NSObjectProtocol?
+
     // MARK: - Datei-Open-Events (Finder / Standard-Player)
 
     /// Wird von `ContentView.onAppear` gesetzt. Solange er `nil` ist, werden
@@ -93,13 +105,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Der Weg führt weiter über `applicationShouldTerminate` — offene
     /// Tag-Änderungen bekommen ihren Speichern-Dialog also weiterhin.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        // Nicht, während unser eigener Beenden-Dialog im Spiel ist — siehe
+        // `isHandlingTerminationPrompt`. ⌘Q bleibt davon unberührt, das geht
+        // direkt über `applicationShouldTerminate`.
+        !isHandlingTerminationPrompt
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let hasUnsaved = Self.unsavedQuery?() == true
         let runningAnalyses = Self.runningAnalysesQuery?() ?? 0
         guard hasUnsaved || runningAnalyses > 0 else { return .terminateNow }
+        isHandlingTerminationPrompt = true
 
         // Laufende Analysen sterben mit dem Prozess, und ihr Ergebnis ist
         // dann weg — die Datei wird ja erst am Ende geschrieben. Also
@@ -178,9 +194,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Muss aus dem Terminate-Callback heraus verzögert laufen, sonst kommt
     /// das Reopen an, während AppKit noch im Beenden-Ablauf steckt.
     private func restoreClosedWindow() {
-        guard !NSApp.windows.contains(where: { $0.canBecomeMain && $0.isVisible }) else { return }
+        guard !NSApp.windows.contains(where: { $0.canBecomeMain && $0.isVisible }) else {
+            // Fenster war die ganze Zeit da (⌘Q-Weg) — nichts zu tun.
+            isHandlingTerminationPrompt = false
+            return
+        }
+        clearTerminationGuardWhenWindowReturns()
         DispatchQueue.main.async {
             NSWorkspace.shared.open(Bundle.main.bundleURL)
+        }
+    }
+
+    /// Löst die Sperre, sobald wieder ein Hauptfenster da ist. Bleibt sie
+    /// hängen (Fenster kommt nicht zurück), beendet höchstens ⌘Q die App —
+    /// besser als eine Schleife, aus der es keinen Ausweg gibt.
+    private func clearTerminationGuardWhenWindowReturns() {
+        if let existing = windowReturnObserver {
+            NotificationCenter.default.removeObserver(existing)
+        }
+        windowReturnObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeMainNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.isHandlingTerminationPrompt = false
+                if let token = self.windowReturnObserver {
+                    NotificationCenter.default.removeObserver(token)
+                    self.windowReturnObserver = nil
+                }
+            }
         }
     }
 }
