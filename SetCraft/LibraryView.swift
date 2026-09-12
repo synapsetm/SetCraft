@@ -212,7 +212,7 @@ struct LibraryView: View {
                 if hasTrackCount { statusSeparator }
                 ProgressView()
                     .controlSize(.small)
-                Text("In analysis: \(library.pendingAnalysisCount)")
+                Text("in analysis: \(library.pendingAnalysisCount)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

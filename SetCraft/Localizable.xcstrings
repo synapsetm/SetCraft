@@ -542,12 +542,12 @@
         }
       }
     },
-    "In analysis: %lld" : {
+    "in analysis: %lld" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In Analyse: %lld"
+            "value" : "in Analyse: %lld"
           }
         }
       }
