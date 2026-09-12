@@ -21,6 +21,10 @@ struct LibraryView: View {
     @State private var pendingPermanentTracks: [Track] = []
     @State private var permanentReason: String?
     @State private var showPermanentConfirm = false
+    /// Als DJ-Mix erkannte Tracks, für die eine ausdrückliche Analyse
+    /// angefordert wurde und die auf die Rückfrage warten.
+    @State private var pendingMixAnalysis: [Track] = []
+    @State private var showMixAnalysisConfirm = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -147,7 +151,7 @@ struct LibraryView: View {
 
             Button {
                 if let track = library.selectedTrack {
-                    library.reanalyze(track)
+                    requestReanalyze([track])
                 }
             } label: {
                 Label("Re-analyze", systemImage: "arrow.clockwise")
@@ -338,6 +342,20 @@ struct LibraryView: View {
             Button("Cancel", role: .cancel) { pendingPermanentTracks = [] }
         } message: {
             Text(permanentConfirmMessage)
+        }
+        .confirmationDialog(
+            mixAnalysisTitle,
+            isPresented: $showMixAnalysisConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Analyze") {
+                let tracks = pendingMixAnalysis
+                pendingMixAnalysis = []
+                for track in tracks { library.reanalyze(track) }
+            }
+            Button("Cancel", role: .cancel) { pendingMixAnalysis = [] }
+        } message: {
+            Text("BPM and key say little about a whole mix, and the analysis takes several minutes per file.")
         }
     }
 
@@ -581,10 +599,29 @@ struct LibraryView: View {
     }
 
     private func reanalyzeAll(_ ids: Set<Track.ID>) {
-        for id in ids {
-            guard let track = library.tracks.first(where: { $0.id == id }) else { continue }
+        requestReanalyze(library.tracks.filter { ids.contains($0.id) })
+    }
+
+    /// Startet die ausdrückliche Analyse. Tracks, die als DJ-Mix erkannt
+    /// sind, laufen nicht einfach mit: über einen ganzen Mix sagen BPM und
+    /// Key wenig aus, und die Analyse dauert Minuten pro Datei. Der Notausgang
+    /// bleibt — aber als bewusste Antwort auf eine Rückfrage, nicht als
+    /// stiller Nebeneffekt eines Menüklicks.
+    private func requestReanalyze(_ tracks: [Track]) {
+        for track in tracks where !track.isLikelyDJMix {
             library.reanalyze(track)
         }
+        let mixes = tracks.filter(\.isLikelyDJMix)
+        guard !mixes.isEmpty else { return }
+        pendingMixAnalysis = mixes
+        showMixAnalysisConfirm = true
+    }
+
+    private var mixAnalysisTitle: String {
+        if pendingMixAnalysis.count == 1, let track = pendingMixAnalysis.first {
+            return String(localized: "“\(track.displayTitle)” is a DJ mix — analyze anyway?")
+        }
+        return String(localized: "\(pendingMixAnalysis.count) tracks are DJ mixes — analyze anyway?")
     }
 
     private func scaleBPM(_ ids: Set<Track.ID>, factor: Double) {
@@ -628,7 +665,7 @@ struct LibraryView: View {
     /// Erklärt den „Mix"-Hinweis in der BPM-Spalte.
     private var djMixHint: String {
         let minutes = Int(Track.djMixThresholdSeconds / 60)
-        return String(localized: "Longer than \(minutes) minutes — treated as a DJ mix, so BPM, key and waveform are not computed automatically. Re-analyze runs anyway.")
+        return String(localized: "Longer than \(minutes) minutes — treated as a DJ mix, so BPM, key and waveform are not computed automatically. Re-analyze asks first.")
     }
 
     private func formatTime(_ secs: TimeInterval) -> String {

@@ -20,6 +20,16 @@
     "%@ / -%@" : {
       "shouldTranslate" : false
     },
+    "%lld tracks are DJ mixes — analyze anyway?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Tracks sind DJ-Mixes — trotzdem analysieren?"
+          }
+        }
+      }
+    },
     "%lld found" : {
       "comment" : "Library toolbar: number of tracks found while scanning",
       "localizations" : {
@@ -173,6 +183,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Artist"
+          }
+        }
+      }
+    },
+    "BPM and key say little about a whole mix, and the analysis takes several minutes per file." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BPM und Key sagen über einen ganzen Mix wenig aus, und die Analyse dauert pro Datei mehrere Minuten."
           }
         }
       }
@@ -602,12 +622,12 @@
         }
       }
     },
-    "Longer than %lld minutes — treated as a DJ mix, so BPM, key and waveform are not computed automatically. Re-analyze runs anyway." : {
+    "Longer than %lld minutes — treated as a DJ mix, so BPM, key and waveform are not computed automatically. Re-analyze asks first." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Länger als %lld Minuten — wird als DJ-Mix behandelt, darum werden BPM, Key und Welle nicht automatisch berechnet. Re-Analyze läuft trotzdem."
+            "value" : "Länger als %lld Minuten — wird als DJ-Mix behandelt, darum werden BPM, Key und Welle nicht automatisch berechnet. Re-Analyze fragt vorher nach."
           }
         }
       }
@@ -1147,6 +1167,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ansicht"
+          }
+        }
+      }
+    },
+    "“%@” is a DJ mix — analyze anyway?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ ist ein DJ-Mix — trotzdem analysieren?"
           }
         }
       }

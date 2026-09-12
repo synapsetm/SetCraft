@@ -69,6 +69,10 @@ private struct LibraryScreen: View {
     @State private var pendingPermanentTracks: [Track] = []
     @State private var permanentReason: String?
     @State private var showPermanentConfirm = false
+    /// Als DJ-Mix erkannte Tracks, für die eine Analyse angefordert wurde
+    /// und die auf die Rückfrage warten.
+    @State private var pendingMixAnalysis: [Track] = []
+    @State private var showMixAnalysisConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -228,7 +232,7 @@ private struct LibraryScreen: View {
                         }
 
                         Button {
-                            Task { await libraryStore.analyze(trackID: track.id) }
+                            requestAnalyze([track])
                         } label: {
                             Label("Analyze", systemImage: "wand.and.stars")
                         }
@@ -277,7 +281,44 @@ private struct LibraryScreen: View {
             } message: {
                 Text(permanentConfirmMessage)
             }
+            .confirmationDialog(
+                mixAnalysisTitle,
+                isPresented: $showMixAnalysisConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Analyze") {
+                    let tracks = pendingMixAnalysis
+                    pendingMixAnalysis = []
+                    for track in tracks {
+                        Task { await libraryStore.analyze(trackID: track.id) }
+                    }
+                }
+                Button("Cancel", role: .cancel) { pendingMixAnalysis = [] }
+            } message: {
+                Text("BPM and key say little about a whole mix, and the analysis takes several minutes per file.")
+            }
         }
+    }
+
+    /// Startet die Analyse. Tracks, die als DJ-Mix erkannt sind, laufen nicht
+    /// einfach mit: über einen ganzen Mix sagen BPM und Key wenig aus, und die
+    /// Analyse dauert Minuten pro Datei. Der Weg bleibt offen — aber als
+    /// bewusste Antwort auf eine Rückfrage.
+    private func requestAnalyze(_ tracks: [Track]) {
+        for track in tracks where !track.isLikelyDJMix {
+            Task { await libraryStore.analyze(trackID: track.id) }
+        }
+        let mixes = tracks.filter(\.isLikelyDJMix)
+        guard !mixes.isEmpty else { return }
+        pendingMixAnalysis = mixes
+        showMixAnalysisConfirm = true
+    }
+
+    private var mixAnalysisTitle: String {
+        if pendingMixAnalysis.count == 1, let track = pendingMixAnalysis.first {
+            return String(localized: "“\(track.displayTitle)” is a DJ mix — analyze anyway?")
+        }
+        return String(localized: "\(pendingMixAnalysis.count) tracks are DJ mixes — analyze anyway?")
     }
 
     private var trashConfirmTitle: String {
@@ -344,7 +385,7 @@ private struct LibraryScreen: View {
 
                 if !libraryStore.tracks.isEmpty {
                     Button {
-                        libraryStore.analyzeAll()
+                        requestAnalyze(libraryStore.tracks)
                     } label: {
                         Label("Analyze all", systemImage: "wand.and.stars")
                     }

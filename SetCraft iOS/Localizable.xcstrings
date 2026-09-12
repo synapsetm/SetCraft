@@ -13,6 +13,16 @@
     "~" : {
       "shouldTranslate" : false
     },
+    "%lld tracks are DJ mixes — analyze anyway?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Tracks sind DJ-Mixes — trotzdem analysieren?"
+          }
+        }
+      }
+    },
     "Album" : {
       "localizations" : {
         "de" : {
@@ -69,6 +79,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Artist"
+          }
+        }
+      }
+    },
+    "BPM and key say little about a whole mix, and the analysis takes several minutes per file." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BPM und Key sagen über einen ganzen Mix wenig aus, und die Analyse dauert pro Datei mehrere Minuten."
           }
         }
       }
@@ -731,6 +751,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "WAV-Tags werden von Serato und Rekordbox unzuverlässig gelesen — Änderungen können in DJ-Apps unsichtbar bleiben."
+          }
+        }
+      }
+    },
+    "“%@” is a DJ mix — analyze anyway?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ ist ein DJ-Mix — trotzdem analysieren?"
           }
         }
       }
