@@ -794,16 +794,25 @@ final class LibraryViewModel {
     /// Manueller Speicher-Befehl (z. B. ⌘S oder Toolbar-Knopf): bricht das
     /// Debouncing ab und schreibt alle aktuell dirty Tracks sofort.
     func saveAllNow() {
+        Task { [weak self] in await self?.saveAllNowAndWait() }
+    }
+
+    /// Wie `saveAllNow()`, kehrt aber erst zurück, wenn alles auf der Platte
+    /// ist. Daran hängt der Beenden-Dialog: „Speichern" darf die App nicht
+    /// beenden, bevor der letzte Tag-Write durch ist.
+    ///
+    /// Sequenziell, weil `TagLibTrackStore` die Schreibvorgänge ohnehin
+    /// serialisiert — parallele Tasks brächten hier nichts ausser
+    /// Unübersichtlichkeit.
+    func saveAllNowAndWait() async {
         for (_, task) in pendingSaves { task.cancel() }
         pendingSaves.removeAll()
         let dirty = unsavedTrackIDs
         for id in dirty {
             guard let track = tracks.first(where: { $0.id == id }) else { continue }
             let token = scopes.token(for: track.url)
-            Task { [weak self, track, token] in
-                defer { token?.release() }
-                await self?.performSave(track)
-            }
+            await performSave(track)
+            token?.release()
         }
     }
 
@@ -1071,13 +1080,17 @@ final class LibraryViewModel {
             Task.detached(priority: .utility) { [weak self, token] in
                 defer { token?.release() }
                 _ = try? await cache.waveform(for: url)
-                await MainActor.run {
-                    guard let self else { return }
-                    self.waveformPrefetchInflight.remove(url)
-                    self.pumpWaveformPrefetchQueue()
-                }
+                await self?.finishWaveformPrefetch(url)
             }
         }
+    }
+
+    /// Gibt den Platz in der Prefetch-Drosselung wieder frei und lässt den
+    /// nächsten Eintrag nachrücken.
+    @MainActor
+    private func finishWaveformPrefetch(_ url: URL) {
+        waveformPrefetchInflight.remove(url)
+        pumpWaveformPrefetchQueue()
     }
 
     /// Wirft die Prefetch-Queue weg (Inflight-Tasks laufen aus, ihre

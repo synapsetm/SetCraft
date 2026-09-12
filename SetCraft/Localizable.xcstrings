@@ -30,6 +30,16 @@
         }
       }
     },
+    "%lld analyses are still running. Quitting now discards their results." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Analysen laufen noch. Beim Beenden gehen ihre Ergebnisse verloren."
+          }
+        }
+      }
+    },
     "%lld found" : {
       "comment" : "Library toolbar: number of tracks found while scanning",
       "localizations" : {
@@ -123,6 +133,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "All %1$lld tracks in “%2$@” will have their play count set back to 0."
+          }
+        }
+      }
+    },
+    "Analyses still running" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analysen laufen noch"
           }
         }
       }
@@ -858,6 +878,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vorheriger Track in der Bibliothek (←)"
+          }
+        }
+      }
+    },
+    "Quit" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beenden"
           }
         }
       }

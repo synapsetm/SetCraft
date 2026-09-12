@@ -94,7 +94,8 @@ struct SetCraftApp: App {
         _transport = State(initialValue: TransportViewModel(player: p))
         _waveform = State(initialValue: WaveformViewModel(cache: waveformCache))
         AppDelegate.unsavedQuery = { [weak lib] in lib?.hasUnsavedChanges ?? false }
-        AppDelegate.saveAllNow  = { [weak lib] in lib?.saveAllNow() }
+        AppDelegate.saveAll = { [weak lib] in await lib?.saveAllNowAndWait() }
+        AppDelegate.runningAnalysesQuery = { [weak lib] in lib?.pendingAnalysisCount ?? 0 }
     }
 
     var body: some Scene {

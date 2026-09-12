@@ -12,7 +12,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// den aktuellen Speicher-Status der Library, ohne dass der Delegate
     /// die View-Modelle selbst kennen muss.
     static var unsavedQuery: (() -> Bool)?
-    static var saveAllNow: (() -> Void)?
+    /// Schreibt alle offenen Änderungen und kehrt erst zurück, wenn sie auf
+    /// der Platte sind — der Beenden-Ablauf wartet darauf.
+    static var saveAll: (() async -> Void)?
+    /// Wie viele Analysen gerade laufen. Sie tauchen in `unsavedQuery` nicht
+    /// auf: dort steht ein Track erst, wenn sein Ergebnis schon vorliegt.
+    static var runningAnalysesQuery: (() -> Int)?
+
+    /// Obergrenze fürs Warten auf die Schreibvorgänge. Sicherheitsventil,
+    /// damit ein hängender NAS-Mount das Beenden nicht dauerhaft blockiert.
+    private static let saveBeforeQuitTimeout: TimeInterval = 15
+
+    /// `NSApp.reply(toApplicationShouldTerminate:)` darf pro Beenden-Ablauf
+    /// nur einmal ankommen — es können aber zwei Wege dorthin führen
+    /// (Schreiben fertig, oder Sicherheitsventil).
+    private var didReplyToTerminate = false
 
     // MARK: - Datei-Open-Events (Finder / Standard-Player)
 
@@ -83,12 +97,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard Self.unsavedQuery?() == true else { return .terminateNow }
+        let hasUnsaved = Self.unsavedQuery?() == true
+        let runningAnalyses = Self.runningAnalysesQuery?() ?? 0
+        guard hasUnsaved || runningAnalyses > 0 else { return .terminateNow }
+
+        // Laufende Analysen sterben mit dem Prozess, und ihr Ergebnis ist
+        // dann weg — die Datei wird ja erst am Ende geschrieben. Also
+        // wenigstens sagen, was verloren geht.
+        let analysisNote = runningAnalyses > 0
+            ? String(localized: "\(runningAnalyses) analyses are still running. Quitting now discards their results.")
+            : nil
 
         let alert = NSAlert()
-        alert.messageText = String(localized: "Unsaved changes")
-        alert.informativeText = String(localized: "There are library changes that haven't been written to the files yet. What would you like to do?")
         alert.alertStyle = .warning
+
+        guard hasUnsaved else {
+            // Nur Analysen offen: hier gibt es nichts zu speichern, nur die
+            // Entscheidung, ob die Rechenarbeit verfallen darf.
+            alert.messageText = String(localized: "Analyses still running")
+            alert.informativeText = analysisNote ?? ""
+            alert.addButton(withTitle: String(localized: "Quit"))
+            alert.addButton(withTitle: String(localized: "Cancel"))
+            if alert.runModal() == .alertFirstButtonReturn {
+                return .terminateNow
+            }
+            restoreClosedWindow()
+            return .terminateCancel
+        }
+
+        alert.messageText = String(localized: "Unsaved changes")
+        let unsavedText = String(localized: "There are library changes that haven't been written to the files yet. What would you like to do?")
+        alert.informativeText = [unsavedText, analysisNote]
+            .compactMap { $0 }
+            .joined(separator: "\n\n")
         alert.addButton(withTitle: String(localized: "Save"))
         alert.addButton(withTitle: String(localized: "Discard"))
         alert.addButton(withTitle: String(localized: "Cancel"))
@@ -96,11 +137,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let response = alert.runModal()
         switch response {
         case .alertFirstButtonReturn:    // Speichern
-            Self.saveAllNow?()
-            // Den Save-Tasks Zeit geben, dann wirklich beenden.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                NSApp.reply(toApplicationShouldTerminate: true)
-            }
+            saveThenTerminate()
             return .terminateLater
         case .alertSecondButtonReturn:   // Verwerfen
             return .terminateNow
@@ -111,6 +148,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             restoreClosedWindow()
             return .terminateCancel
         }
+    }
+
+    /// Schreibt alles raus und beendet erst dann. Früher wurde hier pauschal
+    /// 1,5 Sekunden gewartet und danach gehofft — auf einem NAS oder bei
+    /// vielen Dateien reichte das nicht, und bestätigte Änderungen gingen
+    /// beim Beenden verloren.
+    private func saveThenTerminate() {
+        Task { @MainActor in
+            await Self.saveAll?()
+            self.replyToTerminateOnce()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.saveBeforeQuitTimeout) { [weak self] in
+            self?.replyToTerminateOnce()
+        }
+    }
+
+    private func replyToTerminateOnce() {
+        guard !didReplyToTerminate else { return }
+        didReplyToTerminate = true
+        NSApp.reply(toApplicationShouldTerminate: true)
     }
 
     /// Holt das bereits geschlossene Hauptfenster zurück, indem die App sich
