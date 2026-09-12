@@ -107,7 +107,15 @@ struct ContentView: View {
             }
             if waveform.isLoading {
                 HStack(spacing: 6) {
-                    ProgressView().controlSize(.small)
+                    // Sobald die ersten Bins da sind, zeigt der Balken den
+                    // Fortschritt — die Welle wächst ja sichtbar mit.
+                    if let partial = waveform.data, !partial.bins.isEmpty, !partial.isComplete {
+                        ProgressView(value: partial.completion)
+                            .controlSize(.small)
+                            .frame(width: 60)
+                    } else {
+                        ProgressView().controlSize(.small)
+                    }
                     Text("Analyzing waveform…")
                         .font(.caption)
                         .foregroundStyle(.primary.opacity(0.85))
@@ -140,7 +148,10 @@ struct ContentView: View {
 
     private var waveformDuration: Double {
         guard let w = waveform.data else { return 0 }
-        return Double(w.bins.count) * w.secondsPerBin
+        // `totalSeconds` nimmt während der laufenden Analyse die geschätzte
+        // Gesamtlänge — sonst würde der Playhead am rechten Rand kleben und
+        // bei jedem Zwischenstand zurückspringen, weil die Welle noch wächst.
+        return w.totalSeconds
     }
 
     private var chipsBar: some View {

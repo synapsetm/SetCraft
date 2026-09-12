@@ -20,18 +20,68 @@ public enum PCMLoader {
         public let sampleRate: Double
     }
 
-    public static func load(url: URL) throws -> PCM {
+    /// Kopfdaten eines beginnenden Streams.
+    public struct StreamFormat: Sendable {
+        public let sampleRate: Double
+        /// Aus Dateilänge bzw. Track-Dauer geschätzte Gesamtzahl Mono-Frames.
+        /// `0`, wenn sie sich nicht ermitteln liess.
+        public let estimatedFrameCount: Int
+    }
+
+    /// Dekodiert blockweise und reicht jeden Mono-Block sofort weiter, ohne
+    /// die Datei im Speicher zu sammeln. Ein zweistündiger Mix kostet so ein
+    /// paar Kilobyte statt ~1,3 GB.
+    ///
+    /// **`onStart` kann mehr als einmal kommen.** Scheitert der
+    /// `AVAudioFile`-Pfad mitten im Stream, wird über `AVAssetReader` von
+    /// vorne begonnen — der Aufrufer muss bei jedem `onStart` verwerfen, was
+    /// er bisher gesammelt hat.
+    public static func stream(
+        url: URL,
+        onStart: (StreamFormat) -> Void,
+        onBlock: (UnsafeBufferPointer<Float>) -> Void
+    ) throws {
         do {
-            return try loadViaAVAudioFile(url: url)
+            try streamViaAVAudioFile(url: url, onStart: onStart, onBlock: onBlock)
         } catch {
             log.error("AVAudioFile path failed for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public). Falling back to AVAssetReader.")
-            return try loadViaAssetReader(url: url, primaryError: error)
+            try streamViaAssetReader(url: url, primaryError: error, onStart: onStart, onBlock: onBlock)
         }
+    }
+
+    /// Sammelt den kompletten Stream in einem Stück — für aubio und
+    /// libKeyFinder, die den ganzen Track am Stück brauchen.
+    public static func load(url: URL) throws -> PCM {
+        var monoData = Data()
+        var sampleRate: Double = 0
+        try stream(
+            url: url,
+            onStart: { format in
+                // Decoder-Neustart: alles bisher Gesammelte ist ungültig.
+                sampleRate = format.sampleRate
+                monoData.removeAll(keepingCapacity: true)
+                if format.estimatedFrameCount > 0 {
+                    monoData.reserveCapacity(format.estimatedFrameCount * MemoryLayout<Float>.size)
+                }
+            },
+            onBlock: { block in
+                if let base = block.baseAddress {
+                    appendFloats(&monoData, base: base, count: block.count)
+                }
+            }
+        )
+        guard !monoData.isEmpty else { throw AnalysisError.noSamples(url) }
+        log.debug("Decoded \(url.lastPathComponent, privacy: .public): \(monoData.count / 4) mono samples @ \(sampleRate) Hz")
+        return PCM(samples: monoData, sampleRate: sampleRate)
     }
 
     // MARK: - AVAudioFile-Pfad (Standard)
 
-    private static func loadViaAVAudioFile(url: URL) throws -> PCM {
+    private static func streamViaAVAudioFile(
+        url: URL,
+        onStart: (StreamFormat) -> Void,
+        onBlock: (UnsafeBufferPointer<Float>) -> Void
+    ) throws {
         let file = try AVAudioFile(forReading: url)
 
         // Wichtig: der Buffer muss `processingFormat` sein, sonst wirft
@@ -49,16 +99,29 @@ public enum PCMLoader {
             throw AnalysisError.decodeFailed(url, underlying: nil)
         }
 
-        var monoData = Data()
-        monoData.reserveCapacity(Int(file.length) * MemoryLayout<Float>.size)
+        onStart(StreamFormat(sampleRate: sampleRate, estimatedFrameCount: Int(file.length)))
+
         var monoTemp = [Float](repeating: 0, count: Int(frameCapacity))
         let invChannels = 1.0 / Float(channelCount)
+        var deliveredFrames = 0
 
         // Apple-Doku: `read(into:)` darf mitten im Stream auch weniger als
         // `frameCapacity` Frames liefern, ohne dass der Stream zu Ende ist —
-        // einzig sicheres Abbruch-Signal ist `frameLength == 0`.
+        // `frameLength == 0` ist deshalb das eine Abbruch-Signal.
+        //
+        // In der Praxis gibt es ein zweites: viele Dateien **werfen** am Ende,
+        // statt 0 Frames zu liefern (`nilError` aus dem ExtAudioFile-Pfad).
+        // Wer das als Fehler behandelt, wirft die bereits komplett dekodierte
+        // Datei weg und lässt den AVAssetReader-Fallback alles noch einmal
+        // machen — also jede Analyse und jede Waveform doppelt. Haben wir
+        // schon Frames geliefert, ist ein Wurf hier schlicht das Dateiende.
         while true {
-            try file.read(into: buffer)
+            do {
+                try file.read(into: buffer)
+            } catch {
+                if deliveredFrames > 0 { break }
+                throw error
+            }
             let framesRead = Int(buffer.frameLength)
             if framesRead == 0 { break }
 
@@ -74,7 +137,7 @@ public enum PCMLoader {
             if format.isInterleaved {
                 let src = channels[0]
                 if channelCount == 1 {
-                    appendFloats(&monoData, base: src, count: framesRead)
+                    onBlock(UnsafeBufferPointer(start: src, count: framesRead))
                 } else {
                     for f in 0..<framesRead {
                         var sum: Float = 0
@@ -84,15 +147,13 @@ public enum PCMLoader {
                         monoTemp[f] = sum * invChannels
                     }
                     monoTemp.withUnsafeBufferPointer { ptr in
-                        if let base = ptr.baseAddress {
-                            appendFloats(&monoData, base: base, count: framesRead)
-                        }
+                        onBlock(UnsafeBufferPointer(rebasing: ptr[0..<framesRead]))
                     }
                 }
             } else {
                 // Non-interleaved: channels[c] zeigt auf den c-ten Kanal.
                 if channelCount == 1 {
-                    appendFloats(&monoData, base: channels[0], count: framesRead)
+                    onBlock(UnsafeBufferPointer(start: channels[0], count: framesRead))
                 } else {
                     for f in 0..<framesRead {
                         var sum: Float = 0
@@ -102,20 +163,17 @@ public enum PCMLoader {
                         monoTemp[f] = sum * invChannels
                     }
                     monoTemp.withUnsafeBufferPointer { ptr in
-                        if let base = ptr.baseAddress {
-                            appendFloats(&monoData, base: base, count: framesRead)
-                        }
+                        onBlock(UnsafeBufferPointer(rebasing: ptr[0..<framesRead]))
                     }
                 }
             }
+            deliveredFrames += framesRead
         }
 
-        guard !monoData.isEmpty else {
+        guard deliveredFrames > 0 else {
             throw AnalysisError.noSamples(url)
         }
-        log.debug("Decoded \(url.lastPathComponent, privacy: .public) via AVAudioFile: \(monoData.count / 4) mono samples")
-
-        return PCM(samples: monoData, sampleRate: sampleRate)
+        log.debug("Streamed \(url.lastPathComponent, privacy: .public) via AVAudioFile: \(deliveredFrames) mono samples")
     }
 
     // MARK: - AVAssetReader-Pfad (Fallback)
@@ -124,7 +182,12 @@ public enum PCMLoader {
     /// AVAudioFile auf dieser Datei scheitert (typisch: bestimmte MP3-Header,
     /// die der ExtAudioFile-Pfad nicht verdaut). Liefert immer Float32 mono
     /// in der nativen Sample-Rate des Audio-Tracks.
-    private static func loadViaAssetReader(url: URL, primaryError: Error) throws -> PCM {
+    private static func streamViaAssetReader(
+        url: URL,
+        primaryError: Error,
+        onStart: (StreamFormat) -> Void,
+        onBlock: (UnsafeBufferPointer<Float>) -> Void
+    ) throws {
         let asset = AVURLAsset(url: url)
 
         // tracks(withMediaType:) ist auf macOS 13+ als deprecated markiert,
@@ -167,13 +230,13 @@ public enum PCMLoader {
             throw AnalysisError.decodeFailed(url, underlying: reader.error ?? primaryError)
         }
 
-        var monoData = Data()
-        // Reservierung anhand der Track-Dauer — vermeidet ständiges Reallozieren.
         let durationSeconds = CMTimeGetSeconds(track.timeRange.duration)
-        if durationSeconds.isFinite, durationSeconds > 0 {
-            monoData.reserveCapacity(Int(durationSeconds * sampleRate) * MemoryLayout<Float>.size)
-        }
+        let estimatedFrames = (durationSeconds.isFinite && durationSeconds > 0)
+            ? Int(durationSeconds * sampleRate)
+            : 0
+        onStart(StreamFormat(sampleRate: sampleRate, estimatedFrameCount: estimatedFrames))
 
+        var deliveredFrames = 0
         while let buffer = output.copyNextSampleBuffer() {
             guard let block = CMSampleBufferGetDataBuffer(buffer) else { continue }
             var length: Int = 0
@@ -186,22 +249,22 @@ public enum PCMLoader {
                 dataPointerOut: &ptr
             )
             if status == kCMBlockBufferNoErr, let p = ptr, length > 0 {
-                monoData.append(
-                    UnsafeRawPointer(p).assumingMemoryBound(to: UInt8.self),
-                    count: length
-                )
+                let frames = length / MemoryLayout<Float>.size
+                if frames > 0 {
+                    let floats = UnsafeRawPointer(p).assumingMemoryBound(to: Float.self)
+                    onBlock(UnsafeBufferPointer(start: floats, count: frames))
+                    deliveredFrames += frames
+                }
             }
         }
 
         if reader.status == .failed {
             throw AnalysisError.decodeFailed(url, underlying: reader.error ?? primaryError)
         }
-        guard !monoData.isEmpty else {
+        guard deliveredFrames > 0 else {
             throw AnalysisError.noSamples(url)
         }
-        log.debug("Decoded \(url.lastPathComponent, privacy: .public) via AVAssetReader: \(monoData.count / 4) mono samples @ \(sampleRate) Hz")
-
-        return PCM(samples: monoData, sampleRate: sampleRate)
+        log.debug("Streamed \(url.lastPathComponent, privacy: .public) via AVAssetReader: \(deliveredFrames) mono samples @ \(sampleRate) Hz")
     }
 
     private static func nativeSampleRate(for track: AVAssetTrack) -> Double? {

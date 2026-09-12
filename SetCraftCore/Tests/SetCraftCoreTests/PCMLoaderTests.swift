@@ -29,6 +29,44 @@ final class PCMLoaderTests: XCTestCase {
         XCTAssertEqual(frameCount, 44_100, "1 s @ 44.1 kHz mono")
     }
 
+    /// Regression: `AVAudioFile.read(into:)` wirft bei vielen Dateien am
+    /// Ende, statt 0 Frames zu liefern. Wurde das als Fehler behandelt, lief
+    /// der AVAssetReader-Fallback an und dekodierte die bereits vollständig
+    /// gelesene Datei ein zweites Mal — jede Analyse und jede Waveform
+    /// kostete doppelt so lange. `onStart` markiert den Beginn eines
+    /// Durchlaufs und darf bei einer lesbaren Datei genau einmal kommen.
+    func test_stream_decodesReadableFileOnlyOnce() throws {
+        let url = try writeSineWAV(channels: 2, sampleRate: 44100, durationSeconds: 2.0)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        var starts = 0
+        var frames = 0
+        try PCMLoader.stream(
+            url: url,
+            onStart: { _ in starts += 1 },
+            onBlock: { frames += $0.count }
+        )
+        XCTAssertEqual(starts, 1, "Datei wurde zweimal dekodiert")
+        XCTAssertEqual(frames, 88_200, "2 s @ 44.1 kHz mono")
+    }
+
+    /// Der Stream darf die Datei nicht am Stück im Speicher sammeln — genau
+    /// dafür gibt es ihn. Ein 2-Sekunden-File kommt in mehreren Blöcken.
+    func test_stream_deliversInBlocks() throws {
+        let url = try writeSineWAV(channels: 1, sampleRate: 44100, durationSeconds: 2.0)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        var blocks = 0
+        var largest = 0
+        try PCMLoader.stream(
+            url: url,
+            onStart: { _ in },
+            onBlock: { blocks += 1; largest = max(largest, $0.count) }
+        )
+        XCTAssertGreaterThan(blocks, 1)
+        XCTAssertLessThanOrEqual(largest, 16_384)
+    }
+
     // MARK: - Helper
 
     /// Schreibt eine WAV-Datei mit konstantem 440 Hz-Sinus, Float32-PCM.

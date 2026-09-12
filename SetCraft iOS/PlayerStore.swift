@@ -227,11 +227,25 @@ final class PlayerStore {
         waveformTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let data = try await self.waveformCache.waveform(for: url)
-                if Task.isCancelled { return }
-                guard self.currentTrack?.url == url else { return }
-                self.currentWaveform = data
-                self.isLoadingWaveform = false
+                // Zwischenstände: die Welle wächst mit dem Dekodieren mit,
+                // statt bis zum Ende der Analyse leer zu bleiben. Aus dem
+                // Cache kommt sofort ein einziger, vollständiger Stand.
+                for try await update in self.waveformCache.stream(for: url) {
+                    if Task.isCancelled { return }
+                    guard self.currentTrack?.url == url else { return }
+                    // Verspätete Zwischenstände nie hinter den bereits
+                    // gezeigten Stand zurückfallen lassen.
+                    if let existing = self.currentWaveform,
+                       update.bins.count < existing.bins.count,
+                       !update.isComplete {
+                        continue
+                    }
+                    self.currentWaveform = update
+                    self.isLoadingWaveform = !update.isComplete
+                }
+                if self.currentTrack?.url == url {
+                    self.isLoadingWaveform = false
+                }
             } catch {
                 if self.currentTrack?.url == url {
                     self.isLoadingWaveform = false

@@ -144,7 +144,7 @@ struct PlayerScreen: View {
             position: store.position,
             duration: store.duration,
             bpm: store.effectiveBPM,
-            isLoading: store.isLoadingWaveform,
+            isLoading: store.isLoadingWaveform && store.currentWaveform == nil,
             onScrub: { store.seek(to: $0) },
             axis: .vertical
         )
@@ -207,7 +207,7 @@ struct PlayerScreen: View {
             position: store.position,
             duration: store.duration,
             bpm: store.effectiveBPM,
-            isLoading: store.isLoadingWaveform,
+            isLoading: store.isLoadingWaveform && store.currentWaveform == nil,
             onScrub: { store.seek(to: $0) }
         )
     }

@@ -36,13 +36,29 @@ final class WaveformViewModel {
         isLoading = true
         loadTask = Task { [weak self, cache] in
             do {
-                let result = try await cache.waveform(for: url)
-                if Task.isCancelled { return }
+                // Zwischenstände: die Welle wächst von links nach rechts,
+                // statt bis zum Ende der Analyse leer zu bleiben. Aus dem
+                // Cache kommt sofort ein einziger, vollständiger Stand.
+                for try await update in cache.stream(for: url) {
+                    if Task.isCancelled { return }
+                    await MainActor.run {
+                        guard let self else { return }
+                        // Race: Player könnte inzwischen einen anderen Track
+                        // haben.
+                        guard self.currentURL == url else { return }
+                        // Zwischenstände können verspätet eintreffen — nie
+                        // hinter den bereits gezeigten Stand zurückfallen.
+                        if let existing = self.data,
+                           update.bins.count < existing.bins.count,
+                           !update.isComplete {
+                            return
+                        }
+                        self.data = update
+                        self.isLoading = !update.isComplete
+                    }
+                }
                 await MainActor.run {
-                    guard let self else { return }
-                    // Race: Player könnte inzwischen einen anderen Track haben.
-                    guard self.currentURL == url else { return }
-                    self.data = result
+                    guard let self, self.currentURL == url else { return }
                     self.isLoading = false
                 }
             } catch {

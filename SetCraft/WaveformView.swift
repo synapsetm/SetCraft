@@ -87,7 +87,22 @@ struct WaveformView: View {
         // wächst (bei 460-s-Track mit 800 px: ~2 s nach 3 min).
         let columnCount = Int(width.rounded())
         guard columnCount > 0 else { return }
-        let binsPerColumnExact = Double(data.bins.count) / Double(columnCount)
+        // Bezug ist die Zeitachse des FERTIGEN Tracks, nicht das, was gerade
+        // schon berechnet ist. Während die Analyse läuft, füllt sich die
+        // Welle deshalb von links nach rechts, statt dass ein Teilstück über
+        // die volle Breite gestreckt wird und bei jedem Update zurückspringt.
+        let totalBins = max(data.expectedBinCount, data.bins.count)
+        let binsPerColumnExact = Double(totalBins) / Double(columnCount)
+
+        // Für den noch nicht berechneten Teil die Skeleton-Linie stehen
+        // lassen, damit sichtbar ist, dass da noch etwas kommt.
+        if !data.isComplete {
+            let doneX = width * CGFloat(data.completion)
+            var line = Path()
+            line.move(to: CGPoint(x: doneX, y: height * 0.5))
+            line.addLine(to: CGPoint(x: width, y: height * 0.5))
+            ctx.stroke(line, with: .color(skeletonColor), lineWidth: 1)
+        }
 
         let progressX = CGFloat(progress) * width
 
@@ -96,6 +111,7 @@ struct WaveformView: View {
 
         for col in 0..<columnCount {
             let start = Int(Double(col) * binsPerColumnExact)
+            if start >= data.bins.count { break }   // Rest ist noch nicht berechnet
             let end = min(data.bins.count, Int(Double(col + 1) * binsPerColumnExact))
             guard start < end else { continue }
 
