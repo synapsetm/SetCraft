@@ -147,16 +147,6 @@
         }
       }
     },
-    "Analyzing (%lld)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analysiere (%lld)"
-          }
-        }
-      }
-    },
     "Analyzing waveform…" : {
       "localizations" : {
         "de" : {
@@ -548,6 +538,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Imported, but could not remove source ‘%1$@’: %2$@"
+          }
+        }
+      }
+    },
+    "In analysis: %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Analyse: %lld"
           }
         }
       }

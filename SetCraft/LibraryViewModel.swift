@@ -113,11 +113,22 @@ final class LibraryViewModel {
         analysisState.values.lazy.filter { $0 == .scheduled }.count
     }
 
-    /// Wie viele Tracks der automatischen Analyse noch offenstehen. DJ-Mixes
-    /// zählen nicht mit — sie werden bewusst übersprungen, also darf der
-    /// „Analyze missing"-Knopf sie auch nicht versprechen.
+    /// Wie viele Tracks des **aktuellen Ordners** der Analyse noch offenstehen
+    /// — die Zahl hinter „Analyze missing". Zwei Ausnahmen:
+    ///
+    /// - DJ-Mixes zählen nicht mit; sie werden bewusst übersprungen, also darf
+    ///   der Knopf sie auch nicht versprechen.
+    /// - Bereits eingeplante Tracks zählen nicht mit. Sonst stünde nach dem
+    ///   Klick weiter dieselbe Zahl da, obwohl alles schon läuft, und der
+    ///   Knopf lüde zum wirkungslosen Nachklicken ein. Wie viel gerade
+    ///   gerechnet wird, sagt `pendingAnalysisCount` in der Statuszeile.
     var missingAnalysisCount: Int {
-        tracks.lazy.filter { !$0.isLikelyDJMix && ($0.bpm == nil || $0.key == nil) }.count
+        let state = analysisState
+        return tracks.lazy.filter {
+            !$0.isLikelyDJMix
+                && ($0.bpm == nil || $0.key == nil)
+                && state[$0.id] != .scheduled
+        }.count
     }
 
     /// Wird nach jeder abgeschlossenen Analyse mit dem aktualisierten Track

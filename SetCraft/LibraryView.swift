@@ -137,15 +137,16 @@ struct LibraryView: View {
             Button {
                 library.analyzeAllMissing()
             } label: {
+                // Bewusst nur der Befehl — was gerade läuft, steht in der
+                // Statuszeile. Ein Knopf, der unter dem Cursor vom Befehl zur
+                // Fortschrittsanzeige wird, wechselt seine Identität; und die
+                // laufende Analyse ist ordnerübergreifend, während die Toolbar
+                // sonst durchweg den aktuellen Ordner meint.
                 let missing = library.missingAnalysisCount
-                if library.pendingAnalysisCount > 0 {
-                    Label("Analyzing (\(library.pendingAnalysisCount))", systemImage: "wand.and.stars")
-                } else {
-                    Label(
-                        missing > 0 ? "Analyze missing (\(missing))" : "Analyze",
-                        systemImage: "wand.and.stars"
-                    )
-                }
+                Label(
+                    missing > 0 ? "Analyze missing (\(missing))" : "Analyze",
+                    systemImage: "wand.and.stars"
+                )
             }
             .disabled(library.missingAnalysisCount == 0)
 
@@ -198,6 +199,17 @@ struct LibraryView: View {
                     .foregroundStyle(.secondary)
             } else if !library.tracks.isEmpty {
                 Text("\(library.tracks.count) tracks")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Laufende Analysen — bewusst über alle Quellen hinweg gezählt:
+            // die Warteschlange ist global und arbeitet nach einem
+            // Ordnerwechsel weiter.
+            if library.pendingAnalysisCount > 0 {
+                ProgressView()
+                    .controlSize(.small)
+                Text("In analysis: \(library.pendingAnalysisCount)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
