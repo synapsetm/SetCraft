@@ -83,6 +83,13 @@ struct MetadataFixSheet: View {
                 }
             }
 
+            if model.didRun {
+                Text("Library: \(model.libraryCandidateCount) tagged tracks · \(model.knownArtistCount) artists")
+                    .font(.caption)
+                    .foregroundStyle(model.libraryCandidateCount == 0 ? .orange : .secondary)
+                    .help("Source for the duplicate match and for splitting concatenated artists. Scan the folders that hold your properly tagged files once, so they land in the library.")
+            }
+
             if !model.isRunning, model.estimatedSeconds >= 30, model.proposals.isEmpty {
                 Text("Estimated runtime: \(durationText(model.estimatedSeconds))")
                     .font(.caption)

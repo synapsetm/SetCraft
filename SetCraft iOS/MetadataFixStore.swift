@@ -30,6 +30,12 @@ final class MetadataFixStore {
     var lastError: String?
     var estimatedSeconds: Double = 0
     var didRun = false
+    /// Wie viele Tracks der Zwillings-Abgleich kennt und wie viele
+    /// Interpreten-Namen daraus gewonnen wurden. Steht im Sheet: sind das 0,
+    /// ist die Bibliothek noch nicht gescannt, und zwei der vier Stufen
+    /// koennen prinzipiell nichts finden.
+    var libraryCandidateCount = 0
+    var knownArtistCount = 0
 
     private var runTask: Task<Void, Never>?
     private let library: LibraryStore
@@ -82,6 +88,9 @@ final class MetadataFixStore {
                 folderTracks: self.library.tracks,
                 library: await self.library.taggedTracksAcrossLibrary()
             )
+            self.libraryCandidateCount = context.duplicates.candidateCount
+            self.knownArtistCount = context.knownArtists.count
+
             for await proposal in runner.proposals(for: tracks, context: context) {
                 if Task.isCancelled { break }
                 self.processed += 1

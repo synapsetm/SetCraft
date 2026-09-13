@@ -19,7 +19,7 @@ Letzte Aktualisierung: 2026-09-13.
 - **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
   weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
   manuell über den Xcode Organizer.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 215 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 217 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
   Vorschlagskette/Discogs).
@@ -98,7 +98,10 @@ Für Tracks ohne saubere Artist/Title-Tags. Vier Stufen, jede darf die vorige
    Offline-Quelle, weil die Tags vom Nutzer selbst kuratiert sind. Gesucht
    wird über die **ganze** Bibliothek (`DatabaseService.taggedTracks()`), nicht
    nur in der offenen Quelle — der wichtigste Fall ist ja gerade die rohe
-   Kopie im Download-Ordner und die saubere im Album-Ordner. Deshalb
+   Kopie im Download-Ordner und die saubere im Album-Ordner. Verglichen wird
+   der **geparste** Name (Artist und Titel getrennt, ohne Mix-Klammer), nicht
+   der rohe Dateiname — sonst scheitert der Abgleich an Scene- und
+   Seiten-Kürzeln, sobald die Dateigrössen nicht exakt übereinstimmen. Deshalb
    überstimmt **Discogs einen Zwilling nicht**: dessen Wert bleibt stehen, der
    Katalogwert wird Alternative, und die Uneinigkeit kostet 0.1 Confidence.
 4. **`DiscogsResolver`** — Gegenprüfung gegen api.discogs.com. Policy
@@ -127,6 +130,11 @@ sie mit Wissen von aussen, zuerst aus der **eigenen Bibliothek**: stehen beide
 Namen dort schon in anderen Dateien, ist die Zerlegung eindeutig (wortweises
 DP, lückenlose Abdeckung, wenigste Teile gewinnen). Ist der ganze String selbst
 ein bekannter Name, wird nie zerlegt — „Paul van Dyk" bleibt ganz.
+
+Beide Stufen hängen an der Bibliothek. Ist sie leer — weil die sauber
+getaggten Ordner nie als Quelle gescannt wurden —, können sie prinzipiell
+nichts finden. Das Sheet zeigt deshalb nach jedem Lauf, worauf es sich stützt:
+„Bibliothek: n getaggte Tracks · m Interpreten", bei 0 orange hervorgehoben.
 
 **Wer gewinnt bei Widerspruch?** Der **hergeleitete Wert**, nicht der Katalog:
 der Dateiname beschreibt die Datei, die vorliegt, der Katalog einen Eintrag,

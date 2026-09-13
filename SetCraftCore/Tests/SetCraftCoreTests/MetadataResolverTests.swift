@@ -153,6 +153,31 @@ final class DuplicateMatcherTests: XCTestCase {
         XCTAssertNil(DuplicateMatcher(tracks: [twin]).match(for: orphan))
     }
 
+    func test_matchesDespiteDownloadJunkAndDifferentFileSize() {
+        // Zweiter Download derselben Aufnahme: andere Dateigrösse, Dateiname
+        // voller Seiten- und Scene-Reste. Der rohe Namensvergleich scheiterte
+        // hier — der geparste trifft.
+        let twin = makeTrack("/lib/Oliver Heldens - Lost In Music.mp3",
+                             title: "Lost In Music", artist: "Oliver Heldens, Will Clarke",
+                             duration: 372, fileSize: 9_000_000)
+        let orphan = makeTrack(
+            "/dl/Oliver_Heldens_Will_Clarke_-_Lost_In_Music_Extended_Mix_-_4DJSONLINE_(SkySound7.com).mp3",
+            duration: 372, fileSize: 9_123_456
+        )
+        let match = DuplicateMatcher(tracks: [twin]).match(for: orphan)
+        XCTAssertEqual(match?.reason, .durationAndName)
+        XCTAssertEqual(match?.track.artist, "Oliver Heldens, Will Clarke")
+    }
+
+    func test_candidateCount_reportsWhatWasLoaded() {
+        let tracks = [
+            makeTrack("/lib/a.mp3", title: "A", artist: "X", duration: 100),
+            makeTrack("/lib/b.mp3", title: "B", artist: "Y", duration: 200),
+            makeTrack("/lib/c.mp3", duration: 300)   // untagged, zählt nicht
+        ]
+        XCTAssertEqual(DuplicateMatcher(tracks: tracks).candidateCount, 2)
+    }
+
     func test_untaggedCandidates_areIgnored() {
         let twin = makeTrack("/lib/Skudge - Phantom.mp3", duration: 371, fileSize: 42)
         let orphan = makeTrack("/dl/other.mp3", duration: 371, fileSize: 42)

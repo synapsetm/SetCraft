@@ -38,6 +38,11 @@ public struct DuplicateMatcher: Sendable {
     /// Kandidaten, gebucketet auf ganze Sekunden.
     private let buckets: [Int: [Track]]
 
+    /// Wie viele Tracks überhaupt als Zwilling in Frage kommen. Steht im
+    /// Review-Sheet — wenn hier 0 steht, ist die Bibliothek noch nicht
+    /// gescannt, und die Stufe kann gar nichts finden.
+    public let candidateCount: Int
+
     /// Nimmt nur Tracks als Kandidaten auf, die Artist **und** Titel tragen —
     /// alles andere kann nichts beitragen.
     public init(tracks: [Track]) {
@@ -47,6 +52,7 @@ public struct DuplicateMatcher: Sendable {
             buckets[Int(track.durationSeconds.rounded()), default: []].append(track)
         }
         self.buckets = buckets
+        self.candidateCount = buckets.values.reduce(0) { $0 + $1.count }
     }
 
     public func match(for track: Track) -> Match? {
@@ -75,17 +81,43 @@ public struct DuplicateMatcher: Sendable {
             return Match(track: candidate, confidence: 0.95, reason: .identicalFile)
         }
 
-        // Namensvergleich gegen die Tags des Kandidaten, nicht gegen dessen
-        // Dateinamen — der kann genauso kryptisch sein wie unserer.
-        let stem = track.url.deletingPathExtension().lastPathComponent
-        let tagged = "\(candidate.artist) \(candidate.title)"
-        let similarity = TextSimilarity.similarity(stem, tagged)
+        // Verglichen wird der **geparste** Name, nicht der rohe Dateiname:
+        // `Oliver_Heldens_Will_Clarke_-_Lost_In_Music_Extended_Mix_-_4DJSONLINE_
+        // (SkySound7.com)` hat mit „Oliver Heldens, Will Clarke — Lost In Music"
+        // auf Zeichenebene wenig gemein, meint aber dasselbe. Artist und Titel
+        // werden getrennt bewertet, und die Mix-Klammer fliegt raus: derselbe
+        // Track kann in einer Datei als „(Extended Mix)" ausgewiesen sein und
+        // in der anderen nicht.
+        let ours = identity(of: track)
+        let theirs = identity(of: candidate)
+        guard !ours.title.isEmpty, !theirs.title.isEmpty else { return nil }
+
+        let titleScore = TextSimilarity.similarity(ours.title, theirs.title)
+        let similarity: Double
+        if ours.artist.isEmpty || theirs.artist.isEmpty {
+            similarity = titleScore
+        } else {
+            similarity = titleScore * 0.5 + TextSimilarity.similarity(ours.artist, theirs.artist) * 0.5
+        }
         guard similarity >= Self.nameThreshold else { return nil }
 
         return Match(
             track: candidate,
             confidence: min(0.92, 0.7 + similarity * 0.2),
             reason: .durationAndName
+        )
+    }
+
+    /// Artist und Titel eines Tracks — aus den Tags, wo vorhanden, sonst aus
+    /// dem Dateinamen. Die Mix-Klammer bleibt aussen vor.
+    private func identity(of track: Track) -> (artist: String, title: String) {
+        if !track.title.isEmpty {
+            return (track.artist, FilenameParser.withoutTrailingBracket(track.title))
+        }
+        let parsed = FilenameParser.parse(url: track.url)
+        return (
+            track.artist.isEmpty ? parsed.artist : track.artist,
+            FilenameParser.withoutTrailingBracket(parsed.title)
         )
     }
 }

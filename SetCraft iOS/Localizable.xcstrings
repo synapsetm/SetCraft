@@ -323,6 +323,16 @@
         }
       }
     },
+    "Library: %lld tagged tracks · %lld artists" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliothek: %lld getaggte Tracks · %lld Interpreten"
+          }
+        }
+      }
+    },
     "Library twin" : {
       "localizations" : {
         "de" : {

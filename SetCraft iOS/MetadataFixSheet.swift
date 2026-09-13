@@ -98,6 +98,12 @@ struct MetadataFixSheet: View {
                 .disabled(store.tracks(for: scope).isEmpty)
             }
 
+            if store.didRun {
+                Text("Library: \(store.libraryCandidateCount) tagged tracks · \(store.knownArtistCount) artists")
+                    .font(.footnote)
+                    .foregroundStyle(store.libraryCandidateCount == 0 ? .orange : .secondary)
+            }
+
             if !store.isRunning, store.estimatedSeconds >= 30, store.proposals.isEmpty {
                 Text("Estimated runtime: \(durationText(store.estimatedSeconds))")
                     .font(.footnote)
