@@ -4,7 +4,7 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-13.
+Letzte Aktualisierung: 2026-09-13 (Release v1.3-15).
 
 ---
 
@@ -18,9 +18,10 @@ Letzte Aktualisierung: 2026-09-13.
   Waveform und die Scope-/Beenden-Korrekturen (s. u.).
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 15) auf TestFlight. `exportArchive` scheitert
-  weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
-  manuell über den Xcode Organizer.
+- **iOS-Release:** 1.3 (Build 15) archiviert unter
+  `build/ios/SetCraft-iOS.xcarchive`. `exportArchive` scheitert weiterhin am
+  Cloud-Signing („No signing certificate iOS Distribution found", s. u.) —
+  der Upload zu TestFlight muss von Hand über den Xcode Organizer laufen.
 - **Tests:** `swift test` im `SetCraftCore`-Paket grün — 222 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
