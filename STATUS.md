@@ -19,7 +19,7 @@ Letzte Aktualisierung: 2026-09-13.
 - **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
   weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
   manuell über den Xcode Organizer.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 178 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 184 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
   Vorschlagskette/Discogs).
@@ -77,15 +77,21 @@ Für Tracks ohne saubere Artist/Title-Tags. Vier Stufen, jede darf die vorige
 überstimmen, die Confidence wandert mit (`SetCraftCore/Metadata/`):
 
 1. **`FilenameParser`** — zerlegt „Artist - Title (Mix)", räumt Rip-Reste
-   (Seiten-URLs, `[320kbps]`, `(WEB)`), Tracknummern, Vinyl-Positionen und
-   Label-Katalognummern weg. Mix-Version und `feat.` bleiben **im Titel**
-   (Serato/Rekordbox zeigen nur den Titel), werden aber separat ausgewiesen.
+   (Seiten-URLs, `[320kbps]`, `(WEB)`, Scene-Kürzel als drittes Feld),
+   Tracknummern, Vinyl-Positionen und Label-Katalognummern weg. Enthält der
+   Name kein Leerzeichen, sind Underscores die Wortgrenze — das passiert ganz
+   zu Beginn, sonst überlebt `_` mitten im Titel. Mix-Version und `feat.`
+   bleiben **im Titel** (Serato/Rekordbox zeigen nur den Titel), werden aber
+   separat ausgewiesen. Eine nackte Mix-Bezeichnung wird eingeklammert
+   („Higher Dimension Original MIx" → „… (Original Mix)"); mehrdeutige Wörter
+   wie „Dub" lösen das nicht aus.
 2. **`PatternLearner`** — lernt das Namensschema eines Ordners aus den
    Dateien, die **schon** Tags haben, und richtet die untagged Geschwister
    danach aus. Damit ist „Title - Artist" auflösbar, was aus einem Dateinamen
    allein nicht geht. Minimum: drei Belege, 75 % Zustimmung.
-   `FolderContext` liefert zusätzlich Album/Artist/Jahr aus dem Ordnernamen
-   und Album/Label/Jahr aus einstimmigen Geschwister-Tags.
+   Der **Ordnername ist bewusst keine Quelle** — er trägt zu oft
+   Download-Datum oder Sampler-Titel, und das landete dann in Album und Jahr
+   jeder Datei darin.
 3. **`DuplicateMatcher`** — getaggter Zwilling in der Bibliothek, gefunden
    über Dauer (±2 s) plus Dateigrösse bzw. Namensähnlichkeit. Verlässlichste
    Offline-Quelle, weil die Tags vom Nutzer selbst kuratiert sind.
@@ -94,7 +100,8 @@ Für Tracks ohne saubere Artist/Title-Tags. Vier Stufen, jede darf die vorige
    Reihenfolge, schwacher Trenner, fehlendes Kernfeld oder ein angefordertes
    Feld, das offline leer bleibt.
 
-Gefüllt werden Artist, Titel, Album, Label, Jahr. **Genre bewusst nicht** —
+Gefüllt werden Artist, Titel, Album, Label, Jahr — Album/Label/Jahr können
+dabei nur vom Zwilling oder aus Discogs kommen. **Genre bewusst nicht** —
 Discogs-Styles würden eine kuratierte Spalte überschreiben. BPM/Key kommen
 weiter aus der Audio-Analyse.
 
