@@ -19,7 +19,7 @@ Letzte Aktualisierung: 2026-09-13.
 - **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
   weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
   manuell über den Xcode Organizer.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 191 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 195 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
   Vorschlagskette/Discogs).
@@ -105,6 +105,16 @@ Gefüllt werden Artist, Titel, Album, Label, Jahr — Album/Label/Jahr können
 dabei nur vom Zwilling oder aus Discogs kommen. **Genre bewusst nicht** —
 Discogs-Styles würden eine kuratierte Spalte überschreiben. BPM/Key kommen
 weiter aus der Audio-Analyse.
+
+**Confidence** (0…1, Skala dokumentiert an `SuggestionConfidence`): Dateiname
+0.55, mit geklärter Reihenfolge 0.75, Ordner-Schema 0.60–0.90, Zwilling
+0.70–0.95, Handeingabe 1.00. Beim Katalog werden drei Lagen unterschieden —
+**Bestätigung** (0.75–0.97), **Lücke gefüllt** (0.55–0.90) und **Widerspruch**
+(Deckel 0.82, minus 0.12 × Confidence der überstimmten Stufe, minus 0.05 bei
+mehreren gleich guten Treffern). Ein Widerspruch erreicht damit nie „hoch" und
+wird nie vorausgewählt: die Punktzahl eines Treffers sagt, wie gut er zur
+*Anfrage* passt, nicht ob er recht hat — bei einem Bootleg kennt Discogs den
+Remix nicht und trifft trotzdem hervorragend auf das Original.
 
 **Geschrieben wird nie automatisch.** Ein Review-Sheet (macOS) bzw.
 -Screen (iOS) zeigt pro Feld Ist-Wert, Vorschlag, Quelle und Verlässlichkeit;

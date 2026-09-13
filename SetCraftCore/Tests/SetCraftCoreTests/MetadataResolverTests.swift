@@ -481,6 +481,102 @@ final class MetadataResolverChainTests: XCTestCase {
         XCTAssertTrue(title.alternatives.contains { $0.value == "Mekong Delta" })
     }
 
+    // MARK: Confidence
+
+    /// Kontext mit einem einstimmigen, gut belegten Ordner-Schema.
+    private func confidentPatternContext() -> MetadataContext {
+        let siblings = (1...5).map { index in
+            makeTrack("/m/Artist\(index) - Title\(index).mp3", title: "Title\(index)", artist: "Artist\(index)")
+        }
+        return MetadataContext.build(folderTracks: siblings, library: [])
+    }
+
+    func test_contradiction_neverReachesHighConfidence() async {
+        // Bootleg-Lage: der Dateiname hat recht, Discogs liefert einen sehr gut
+        // passenden Treffer auf eine andere Fassung.
+        let catalog = FakeCatalog(matches: [
+            CatalogMatch(artist: "Paul van Dyk",
+                         title: "For An Angel (Terry Lee Brown Jnr Remix)",
+                         score: 0.95, reference: "discogs:release/2#B")
+        ])
+        let resolver = MetadataResolver(
+            catalog: catalog,
+            options: .init(fields: MetadataField.core, policy: .always)
+        )
+        let proposal = await resolver.proposal(
+            for: makeTrack("/m/Paul van Dyk - For An Angel Phaxe Remix.mp3"),
+            context: confidentPatternContext()
+        )
+        let title = try! XCTUnwrap(proposal.suggestion(for: .title))
+        XCTAssertEqual(title.source, .catalog)
+        XCTAssertNotEqual(SuggestionConfidence.level(title.confidence), .high,
+                          "Ein Widerspruch darf nie als sicher durchgehen")
+        XCTAssertFalse(title.isAccepted, "…und schon gar nicht vorausgewählt sein")
+        XCTAssertFalse(title.alternatives.isEmpty, "Der Dateiname-Wert bleibt erreichbar")
+    }
+
+    func test_contradiction_costsMoreAgainstAStrongerStage() async {
+        let catalog = FakeCatalog(matches: [
+            CatalogMatch(artist: "Somebody", title: "Some Other Title", score: 0.9)
+        ])
+        let resolver = MetadataResolver(
+            catalog: catalog,
+            options: .init(fields: MetadataField.core, policy: .always)
+        )
+        let track = makeTrack("/m/Artist - Original Title.mp3")
+
+        let weak = await resolver.proposal(for: track, context: emptyContext())
+        let strong = await resolver.proposal(for: track, context: confidentPatternContext())
+
+        let weakConfidence = try! XCTUnwrap(weak.suggestion(for: .title)?.confidence)
+        let strongConfidence = try! XCTUnwrap(strong.suggestion(for: .title)?.confidence)
+        XCTAssertLessThan(strongConfidence, weakConfidence,
+                          "Ein einstimmiges Ordner-Schema zu überstimmen muss teurer sein")
+    }
+
+    func test_gapFill_mayReachHighConfidence() async {
+        // Kein Trenner im Namen → offline gibt es keinen Artist. Der Katalog
+        // widerspricht also niemandem, er füllt eine Lücke.
+        let catalog = FakeCatalog(matches: [
+            CatalogMatch(artist: "Burial", title: "Archangel", score: 1.0)
+        ])
+        let resolver = MetadataResolver(
+            catalog: catalog,
+            options: .init(fields: MetadataField.core, policy: .always)
+        )
+        let proposal = await resolver.proposal(
+            for: makeTrack("/m/Archangel.mp3"),
+            context: emptyContext()
+        )
+        let artist = try! XCTUnwrap(proposal.suggestion(for: .artist))
+        XCTAssertEqual(artist.value, "Burial")
+        XCTAssertEqual(SuggestionConfidence.level(artist.confidence), .high)
+    }
+
+    func test_ambiguousMatches_lowerTheConfidence() async {
+        let single = FakeCatalog(matches: [
+            CatalogMatch(artist: "Burial", title: "Archangel", score: 0.95)
+        ])
+        let several = FakeCatalog(matches: [
+            CatalogMatch(artist: "Burial", title: "Archangel", score: 0.95),
+            CatalogMatch(artist: "Burial", title: "Archangel (Edit)", score: 0.94)
+        ])
+        let track = makeTrack("/m/Archangel.mp3")
+
+        func confidence(_ catalog: CatalogLookup) async -> Double {
+            let resolver = MetadataResolver(
+                catalog: catalog,
+                options: .init(fields: MetadataField.core, policy: .always)
+            )
+            let proposal = await resolver.proposal(for: track, context: emptyContext())
+            return proposal.suggestion(for: .artist)?.confidence ?? 0
+        }
+
+        let clear = await confidence(single)
+        let murky = await confidence(several)
+        XCTAssertLessThan(murky, clear)
+    }
+
     // MARK: Anwenden
 
     func test_applied_writesOnlyAcceptedFields() async {

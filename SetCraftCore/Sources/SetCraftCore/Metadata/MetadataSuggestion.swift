@@ -139,6 +139,28 @@ public struct FieldSuggestion: Sendable, Equatable, Identifiable {
 
 /// Confidence-Stufen für die Anzeige. Die Schwellen liegen hier, damit UI und
 /// Auto-Auswahl dieselbe Skala benutzen.
+///
+/// Woher die Zahl kommt — ein Überblick über die ganze Kette:
+///
+/// | Lage | Wert |
+/// |---|---|
+/// | Dateiname, Reihenfolge unklar | 0.55 |
+/// | Dateiname, nur Bindestrich als Trenner | −0.15 |
+/// | Dateiname, Mix-Klammer klärt die Reihenfolge | 0.75 |
+/// | Ordner-Schema (je nach Belegen und Einstimmigkeit) | 0.60–0.90 |
+/// | Zwilling in der Bibliothek (Name + Dauer) | 0.70–0.92 |
+/// | Bit-identische Datei in der Bibliothek | 0.95 |
+/// | Katalog **bestätigt** den Offline-Wert | 0.75–0.97 |
+/// | Katalog füllt eine **Lücke** (offline war nichts da) | 0.55–0.90 |
+/// | Katalog **widerspricht** einem Offline-Wert | max. 0.82, minus Abschlag |
+/// | Von Hand eingetippt | 1.00 |
+///
+/// Der letzte Fall ist der wichtigste und war zuerst falsch modelliert: die
+/// Punktzahl eines Katalogtreffers sagt, wie gut er zur *Anfrage* passt — nicht,
+/// ob er recht hat. Bei einem Bootleg kennt Discogs den Remix nicht und liefert
+/// trotzdem einen hervorragend passenden Treffer auf das Original. Ein
+/// Widerspruch kann deshalb nie „hoch" erreichen, und er kostet umso mehr, je
+/// überzeugter die überstimmte Stufe war (siehe `MetadataResolver`).
 public enum SuggestionConfidence: String, Sendable {
     case high
     case medium

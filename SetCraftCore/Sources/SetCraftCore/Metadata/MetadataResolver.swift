@@ -252,22 +252,42 @@ public struct MetadataResolver: Sendable {
             return (nil, nil)
         }
         // Zweiter Treffer dicht dahinter → der Nutzer soll zweimal hinschauen.
-        if matches.count > 1, matches[1].score >= best.score - 0.05 {
+        let ambiguous = matches.count > 1 && matches[1].score >= best.score - 0.05
+        if ambiguous {
             notes.append(.catalogAmbiguous)
         }
 
         var confirmed = false
         var corrected = false
-        // Gut genug bestätigt ist besser als alles Offline-Geratene; ein
-        // Widerspruch wiegt weniger, weil Discogs auf Release-Ebene arbeitet
-        // und der Treffer eine andere Fassung sein kann.
-        let confirmConfidence = min(0.97, 0.75 + best.score * 0.2)
-        let correctConfidence = min(0.9, 0.5 + best.score * 0.4)
+
+        // Mehrere gleich gute Treffer: dann ist schon die Auswahl des Releases
+        // eine Wette. Das schlägt auf alles durch, was aus diesem Treffer kommt.
+        let ambiguityPenalty = ambiguous ? Self.ambiguityPenalty : 0
+
+        // Drei verschiedene Fragen, drei verschiedene Zahlen:
+        //
+        // • **Bestätigung** — beide Quellen meinen dasselbe. Das ist eine
+        //   echte zweite Meinung und darf hoch bewertet werden.
+        // • **Lücke gefüllt** — offline war nichts da, es gibt also keinen
+        //   Widerspruch. Die Punktzahl des Treffers zählt allein.
+        // • **Widerspruch** — zwei Quellen sind sich uneinig, und die
+        //   Punktzahl sagt nur, wie gut der Treffer zur *Anfrage* passt, nicht
+        //   wer recht hat. Bei einem Bootleg kennt Discogs den Remix gar nicht
+        //   und liegt trotz hoher Punktzahl falsch. Deshalb ein Deckel
+        //   unterhalb der „hoch"-Schwelle — ein Widerspruch wird nie grün —
+        //   und ein Abschlag, der mit der Überzeugung der Offline-Stufe wächst.
+        let confirmConfidence = min(0.97, 0.75 + best.score * 0.2) - ambiguityPenalty
+        let gapFillConfidence = min(0.90, 0.55 + best.score * 0.35) - ambiguityPenalty
+
+        func contradictionConfidence(displacing existing: Double) -> Double {
+            let base = min(Self.contradictionCeiling, 0.5 + best.score * 0.32)
+            return max(0.3, base - existing * Self.contradictionPenaltyFactor - ambiguityPenalty)
+        }
 
         func merge(_ field: MetadataField, _ value: String) {
             guard !value.isEmpty else { return }
             guard var existing = candidates[field], !existing.value.isEmpty else {
-                candidates[field] = Candidate(value: value, source: .catalog, confidence: correctConfidence)
+                candidates[field] = Candidate(value: value, source: .catalog, confidence: gapFillConfidence)
                 return
             }
 
@@ -286,7 +306,9 @@ public struct MetadataResolver: Sendable {
             var replacement = Candidate(
                 value: value,
                 source: .catalog,
-                confidence: agrees ? max(existing.confidence, confirmConfidence) : correctConfidence
+                confidence: agrees
+                    ? max(existing.confidence, confirmConfidence)
+                    : contradictionConfidence(displacing: existing.confidence)
             )
             replacement.displaced = existing.displaced
             replacement.remember(value: existing.value, source: existing.source, confidence: existing.confidence)
@@ -308,6 +330,21 @@ public struct MetadataResolver: Sendable {
     }
 
     // MARK: - Helpers
+
+    /// Obergrenze für einen Wert, der einer Offline-Stufe **widerspricht**.
+    /// Liegt bewusst unter `SuggestionConfidence`-Schwelle für „hoch": ein
+    /// Widerspruch ist nie eine Gewissheit, egal wie gut der Katalogtreffer
+    /// zur Anfrage passt.
+    static let contradictionCeiling = 0.82
+
+    /// Wie stark die Überzeugung der überstimmten Stufe den Widerspruch
+    /// verbilligt bzw. verteuert. Wer ein einstimmiges Ordner-Schema oder
+    /// einen getaggten Zwilling überstimmt, muss mehr mitbringen als wer einen
+    /// mehrdeutigen Dateinamen überstimmt.
+    static let contradictionPenaltyFactor = 0.12
+
+    /// Abschlag, wenn mehrere Katalog-Treffer gleich gut passten.
+    static let ambiguityPenalty = 0.05
 
     /// Ein Kandidat, solange noch Stufen folgen können — samt der Werte, die
     /// unterwegs verdrängt wurden. Die gehen nicht verloren: im Review-Sheet
