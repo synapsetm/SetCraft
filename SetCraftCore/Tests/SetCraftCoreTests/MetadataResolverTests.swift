@@ -122,57 +122,6 @@ final class PatternLearnerTests: XCTestCase {
     }
 }
 
-// MARK: - FolderContext
-
-final class FolderContextTests: XCTestCase {
-
-    func test_folderName_artistAlbumYear() {
-        let context = FolderContext.fromFolderName(URL(fileURLWithPath: "/m/Daft Punk - Discovery (2001)"))
-        XCTAssertEqual(context.albumArtist, "Daft Punk")
-        XCTAssertEqual(context.album, "Discovery")
-        XCTAssertEqual(context.year, 2001)
-    }
-
-    func test_genericFolderName_yieldsNothing() {
-        let context = FolderContext.fromFolderName(URL(fileURLWithPath: "/m/Downloads"))
-        XCTAssertTrue(context.isEmpty)
-    }
-
-    func test_plainFolderName_becomesAlbum() {
-        let context = FolderContext.fromFolderName(URL(fileURLWithPath: "/m/Selected Ambient Works"))
-        XCTAssertEqual(context.album, "Selected Ambient Works")
-        XCTAssertEqual(context.albumArtist, "")
-    }
-
-    func test_yearOnlyFolder_isNotAnAlbum() {
-        let context = FolderContext.fromFolderName(URL(fileURLWithPath: "/m/2019"))
-        XCTAssertEqual(context.album, "")
-    }
-
-    func test_siblingConsensus_overridesFolderName() {
-        let siblings = [
-            makeTrack("/m/a.mp3", album: "Untrue", label: "Hyperdub", year: 2007),
-            makeTrack("/m/b.mp3", album: "Untrue", label: "Hyperdub", year: 2007)
-        ]
-        let context = FolderContext.merging(folder: URL(fileURLWithPath: "/m/burial rip"), siblings: siblings)
-        XCTAssertEqual(context.album, "Untrue")
-        XCTAssertEqual(context.label, "Hyperdub")
-        XCTAssertEqual(context.year, 2007)
-    }
-
-    func test_siblingsDisagree_noConsensus() {
-        let siblings = [
-            makeTrack("/m/a.mp3", album: "Untrue"),
-            makeTrack("/m/b.mp3", album: "Burial")
-        ]
-        XCTAssertNil(FolderContext.consensus(of: siblings.map(\.album)))
-    }
-
-    func test_singleSibling_isNoConsensus() {
-        XCTAssertNil(FolderContext.consensus(of: ["Untrue", "", ""]))
-    }
-}
-
 // MARK: - DuplicateMatcher
 
 final class DuplicateMatcherTests: XCTestCase {
@@ -222,7 +171,7 @@ final class DuplicateMatcherTests: XCTestCase {
 final class MetadataResolverChainTests: XCTestCase {
 
     private func emptyContext() -> MetadataContext {
-        MetadataContext(pattern: nil, folder: FolderContext(), duplicates: DuplicateMatcher(tracks: []))
+        MetadataContext(pattern: nil, duplicates: DuplicateMatcher(tracks: []))
     }
 
     func test_cleanFilename_offline_proposesArtistAndTitle() async {
@@ -257,11 +206,7 @@ final class MetadataResolverChainTests: XCTestCase {
         let siblings = (1...4).map { index in
             makeTrack("/m/Title\(index) - Artist\(index).mp3", title: "Title\(index)", artist: "Artist\(index)")
         }
-        let context = MetadataContext.build(
-            folder: URL(fileURLWithPath: "/m"),
-            folderTracks: siblings,
-            library: siblings
-        )
+        let context = MetadataContext.build(folderTracks: siblings, library: siblings)
         let resolver = MetadataResolver(options: .init(fields: MetadataField.core, policy: .off))
         let track = makeTrack("/m/Rolling Sevens - Skudge.mp3")
         let proposal = await resolver.proposal(for: track, context: context)
@@ -276,11 +221,7 @@ final class MetadataResolverChainTests: XCTestCase {
         let twin = makeTrack("/lib/x.mp3", title: "Phantom", artist: "Skudge",
                              album: "Phantom EP", duration: 371, fileSize: 42)
         let orphan = makeTrack("/dl/unknown artist - phantom.mp3", duration: 371, fileSize: 42)
-        let context = MetadataContext(
-            pattern: nil,
-            folder: FolderContext(),
-            duplicates: DuplicateMatcher(tracks: [twin])
-        )
+        let context = MetadataContext(pattern: nil, duplicates: DuplicateMatcher(tracks: [twin]))
         let resolver = MetadataResolver(options: .init(policy: .off))
         let proposal = await resolver.proposal(for: orphan, context: context)
 
@@ -290,18 +231,17 @@ final class MetadataResolverChainTests: XCTestCase {
         XCTAssertTrue(proposal.notes.contains(.identicalFileFound))
     }
 
-    func test_folderName_fillsAlbumAndYear() async {
-        let context = MetadataContext.build(
-            folder: URL(fileURLWithPath: "/m/Daft Punk - Discovery (2001)"),
-            folderTracks: [],
-            library: []
-        )
+    func test_folderName_contributesNothing() async {
+        // Der Ordnername ist bewusst keine Quelle: „Daft Punk - Discovery
+        // (2001)" wuerde sonst Album und Jahr an jede Datei darin haengen,
+        // und in Download-Ordnern steht dort Unsinn.
+        let context = MetadataContext.build(folderTracks: [], library: [])
         let resolver = MetadataResolver(options: .init(policy: .off))
         let track = makeTrack("/m/Daft Punk - Discovery (2001)/04 - Crescendolls.mp3")
         let proposal = await resolver.proposal(for: track, context: context)
 
-        XCTAssertEqual(proposal.suggestion(for: .album)?.value, "Discovery")
-        XCTAssertEqual(proposal.suggestion(for: .year)?.value, "2001")
+        XCTAssertNil(proposal.suggestion(for: .album))
+        XCTAssertNil(proposal.suggestion(for: .label))
         XCTAssertEqual(proposal.suggestion(for: .title)?.value, "Crescendolls")
     }
 
@@ -326,7 +266,7 @@ final class MetadataResolverChainTests: XCTestCase {
         let siblings = (1...4).map { index in
             makeTrack("/m/Artist\(index) - Title\(index).mp3", title: "Title\(index)", artist: "Artist\(index)")
         }
-        let context = MetadataContext.build(folder: URL(fileURLWithPath: "/m"), folderTracks: siblings, library: [])
+        let context = MetadataContext.build(folderTracks: siblings, library: [])
         _ = await resolver.proposal(for: makeTrack("/m/Skudge - Phantom.mp3"), context: context)
 
         let queries = await catalog.recordedQueries()

@@ -70,8 +70,8 @@ public struct MetadataFixRunner: Sendable {
 
     /// Baut den Kontext für einen Lauf. `library` darf alle bekannten Tracks
     /// enthalten — der Zwillings-Abgleich sucht ordnerübergreifend.
-    public func context(folder: URL?, folderTracks: [Track], library: [Track]) -> MetadataContext {
-        MetadataContext.build(folder: folder, folderTracks: folderTracks, library: library)
+    public func context(folderTracks: [Track], library: [Track]) -> MetadataContext {
+        MetadataContext.build(folderTracks: folderTracks, library: library)
     }
 
     public func proposals(for tracks: [Track], context: MetadataContext) -> AsyncStream<MetadataProposal> {

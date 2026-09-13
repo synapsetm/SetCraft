@@ -149,6 +149,86 @@ final class FilenameParserTests: XCTestCase {
         XCTAssertEqual(p.title, "Stockholm")
     }
 
+    // MARK: - Download-Namen aus der Praxis
+
+    func test_underscoreName_withThreeFields() {
+        // Regression: `_-_` machte den Namen leerzeichenhaltig, danach blieben
+        // die restlichen Underscores mitten im Titel stehen.
+        let p = FilenameParser.parse(stem: "James_Hype_-_Seratonin_Extended_Mix_-_4DJSONLINE_(SkySound.cc)")
+        XCTAssertEqual(p.artist, "James Hype")
+        XCTAssertEqual(p.title, "Seratonin (Extended Mix)")
+        XCTAssertEqual(p.mixVersion, "Extended Mix")
+    }
+
+    func test_underscoreName_withSiteSuffix() {
+        let p = FilenameParser.parse(stem: "IK_N_-_Higher_Dimension_Original_MIx_(SkySound.cc)")
+        XCTAssertEqual(p.artist, "IK N")
+        XCTAssertEqual(p.title, "Higher Dimension (Original Mix)")
+    }
+
+    func test_underscoreName_withRemixerBeforeKeyword() {
+        let p = FilenameParser.parse(stem: "Liquid_Soul_-_Hypnotic_Energy_Egorythmia_rmx_(SkySound.cc)")
+        XCTAssertEqual(p.artist, "Liquid Soul")
+        XCTAssertEqual(p.title, "Hypnotic Energy (Egorythmia Rmx)")
+    }
+
+    // MARK: - Seiten-/Scene-Kürzel als drittes Feld
+
+    func test_sceneTagField_isRemoved() {
+        let p = FilenameParser.parse(stem: "Artist - Title - ZIPPYSHARE")
+        XCTAssertEqual(p.title, "Title")
+    }
+
+    func test_shortUppercaseWord_isKept() {
+        // „AMEN" ist zu kurz und ziffernlos, um ein Seiten-Kürzel zu sein.
+        let p = FilenameParser.parse(stem: "Artist - Song - AMEN")
+        XCTAssertEqual(p.title, "Song - AMEN")
+    }
+
+    func test_sceneTagWithDigits_isRemovedEvenWhenShort() {
+        let p = FilenameParser.parse(stem: "Artist - Title - 4DJS")
+        XCTAssertEqual(p.title, "Title")
+    }
+
+    func test_twoFieldsOnly_neverLosesTheTitle() {
+        let p = FilenameParser.parse(stem: "Artist - AMEN")
+        XCTAssertEqual(p.title, "AMEN")
+    }
+
+    // MARK: - Mix-Bezeichnung einklammern
+
+    func test_unbracketedOriginalMix_isBracketed() {
+        let p = FilenameParser.parse(stem: "Aphex Twin - Xtal Original Mix")
+        XCTAssertEqual(p.title, "Xtal (Original Mix)")
+        XCTAssertEqual(p.mixVersion, "Original Mix")
+    }
+
+    func test_mixKeywordCase_isNormalized() {
+        let p = FilenameParser.parse(stem: "Artist - Track Original MIx")
+        XCTAssertEqual(p.title, "Track (Original Mix)")
+    }
+
+    func test_remixerWithConnector_staysTogether() {
+        let p = FilenameParser.parse(stem: "Artist - Colt Dense & Pika Remix")
+        XCTAssertEqual(p.title, "Colt (Dense & Pika Remix)")
+    }
+
+    func test_ambiguousKeyword_isLeftAlone() {
+        // „Dub" ist genauso oft Teil des Titels — hier wird nicht geraten.
+        let p = FilenameParser.parse(stem: "Digital Mystikz - Anti War Dub")
+        XCTAssertEqual(p.title, "Anti War Dub")
+    }
+
+    func test_bareKeywordWithoutRoomForATitle_isLeftAlone() {
+        let p = FilenameParser.parse(stem: "Dense & Pika - Colt Remix")
+        XCTAssertEqual(p.title, "Colt Remix")
+    }
+
+    func test_alreadyBracketedMix_isUntouched() {
+        let p = FilenameParser.parse(stem: "Len Faki - Mekong Delta (Extended Mix)")
+        XCTAssertEqual(p.title, "Mekong Delta (Extended Mix)")
+    }
+
     // MARK: - searchQuery
 
     func test_searchQuery_dropsMixBracket() {

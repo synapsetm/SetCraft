@@ -78,7 +78,6 @@ final class MetadataFixViewModel {
         // betrachteten: die getaggten Geschwister sind das Lehrmaterial für das
         // Namensschema, und genau die stehen nicht in der Auswahl.
         let context = runner.context(
-            folder: library.folderURL,
             folderTracks: library.tracks,
             library: library.tracks
         )

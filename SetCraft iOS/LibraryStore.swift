@@ -220,9 +220,7 @@ final class LibraryStore {
     /// URL des aktuell ausgewählten Folders über die Bookmark-Resolution in
     /// `scopes` — das ist die einzige Stelle, an der die echte Filesystem-URL
     /// der Quelle vorliegt (FolderRecord.url ist nur ein Anzeige-Pfad-String).
-    /// Nicht `private`, weil der `MetadataFixStore` den Ordner braucht, um
-    /// dessen Namensschema zu lernen.
-    var selectedFolderURL: URL? {
+    private var selectedFolderURL: URL? {
         scopes.activeURL
     }
 

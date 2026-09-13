@@ -1,27 +1,28 @@
 import Foundation
 import OSLog
 
-/// Was für einen ganzen Lauf gilt: das im Ordner gelernte Namensschema, die
-/// Ordner-Infos und der Index für den Zwillings-Abgleich. Einmal bauen, für
-/// alle Tracks des Ordners benutzen.
+/// Was für einen ganzen Lauf gilt: das im Ordner gelernte Namensschema und der
+/// Index für den Zwillings-Abgleich. Einmal bauen, für alle Tracks des Ordners
+/// benutzen.
+///
+/// Der **Ordnername** ist bewusst keine Quelle. Er trägt in gewachsenen
+/// Sammlungen zu oft Download-Datum, Sampler-Titel oder gar nichts — und was
+/// er liefert, landete dann in Album und Jahr jeder Datei darin.
 public struct MetadataContext: Sendable {
     public var pattern: NamingPattern?
-    public var folder: FolderContext
     public var duplicates: DuplicateMatcher
 
-    public init(pattern: NamingPattern?, folder: FolderContext, duplicates: DuplicateMatcher) {
+    public init(pattern: NamingPattern?, duplicates: DuplicateMatcher) {
         self.pattern = pattern
-        self.folder = folder
         self.duplicates = duplicates
     }
 
     /// `folderTracks` sind die Dateien des betrachteten Ordners (Lehrmaterial
     /// für das Schema), `library` alle bekannten Tracks (Kandidaten für den
     /// Zwillings-Abgleich — der darf ordnerübergreifend suchen).
-    public static func build(folder: URL?, folderTracks: [Track], library: [Track]) -> MetadataContext {
+    public static func build(folderTracks: [Track], library: [Track]) -> MetadataContext {
         MetadataContext(
             pattern: PatternLearner.learn(from: folderTracks),
-            folder: folder.map { FolderContext.merging(folder: $0, siblings: folderTracks) } ?? FolderContext(),
             duplicates: DuplicateMatcher(tracks: library)
         )
     }
@@ -103,18 +104,6 @@ public struct MetadataResolver: Sendable {
         put(&candidates, .artist, parsed.artist, nameSource, nameConfidence)
         if let year = parsed.year {
             put(&candidates, .year, String(year), nameSource, nameConfidence)
-        }
-
-        // ── Ordner: Album, Label, Jahr ─────────────────────────────────────
-        put(&candidates, .album, context.folder.album, .folderName, 0.65)
-        put(&candidates, .label, context.folder.label, .folderName, 0.65)
-        if let year = context.folder.year {
-            put(&candidates, .year, String(year), .folderName, 0.6)
-        }
-        // Ordner-Artist nur, wenn der Dateiname keinen hergibt — bei
-        // Compilations ist er falsch.
-        if parsed.artist.isEmpty {
-            put(&candidates, .artist, context.folder.albumArtist, .folderName, 0.5)
         }
 
         // ── Stufe 3: getaggter Zwilling in der Bibliothek ───────────────────

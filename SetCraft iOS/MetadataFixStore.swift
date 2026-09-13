@@ -76,7 +76,6 @@ final class MetadataFixStore {
         // Geschwister sind das Lehrmaterial, und genau die sind nicht dabei,
         // wenn nur die unvollständigen betrachtet werden.
         let context = runner.context(
-            folder: library.selectedFolderURL,
             folderTracks: library.tracks,
             library: library.tracks
         )

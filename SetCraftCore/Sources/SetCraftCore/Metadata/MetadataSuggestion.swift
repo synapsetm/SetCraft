@@ -25,8 +25,6 @@ public enum SuggestionSource: String, Sendable, Codable {
     case filename
     /// Dateiname, aber mit dem im Ordner gelernten Schema ausgerichtet.
     case folderPattern
-    /// Ordnername (`Artist - Album (1999)`).
-    case folderName
     /// Getaggter Zwilling in der eigenen Bibliothek.
     case libraryDuplicate
     /// Katalog-Abgleich (Discogs).

@@ -363,7 +363,6 @@ private func sourceName(_ source: SuggestionSource) -> String {
     switch source {
     case .filename:         return String(localized: "Filename")
     case .folderPattern:    return String(localized: "Folder pattern")
-    case .folderName:       return String(localized: "Folder name")
     case .libraryDuplicate: return String(localized: "Library twin")
     case .catalog:          return String(localized: "Discogs")
     }
