@@ -19,7 +19,7 @@ Letzte Aktualisierung: 2026-09-13.
 - **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
   weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
   manuell über den Xcode Organizer.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 220 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 222 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
   Vorschlagskette/Discogs).
@@ -133,10 +133,14 @@ beiden bekannt — der Normalfall in einer frisch gescannten Bibliothek —, gil
 der Rest als zweiter Interpret; dann aber nur bei genau zwei Teilen, die beide
 mindestens zwei Wörter haben. Ist der ganze String selbst ein bekannter Name,
 wird nie zerlegt — „Paul van Dyk" bleibt ganz, auch wenn „Paul" bekannt ist.
+Kennt **niemand** die Grenze (auch der Katalog nicht), bleibt der String wie er
+ist; bei gerader Wortzahl ab vier steht die Mitte-Vermutung aber als
+*Alternative* im Menü — ein Klick statt Abtippen, und falsch liegen kann sie
+nicht, weil sie nie von selbst in ein Tag wandert.
 
 Beide Stufen hängen an der Bibliothek. Ist sie leer — weil die sauber
 getaggten Ordner nie als Quelle gescannt wurden —, können sie prinzipiell
-nichts finden. Das Sheet zeigt deshalb nach jedem Lauf, worauf es sich stützt:
+nichts finden. Die Fusszeile des Sheets zeigt deshalb nach jedem Lauf, worauf es sich stützt:
 „Bibliothek: n getaggte Tracks · m Interpreten", bei 0 orange hervorgehoben.
 
 **Wer gewinnt bei Widerspruch?** Der **hergeleitete Wert**, nicht der Katalog:

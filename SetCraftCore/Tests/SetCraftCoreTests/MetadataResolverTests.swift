@@ -292,15 +292,20 @@ final class MetadataResolverChainTests: XCTestCase {
         XCTAssertEqual(proposal.suggestion(for: .title)?.value, "Crave The Dark (Extended Mix)")
     }
 
-    func test_unknownArtists_areLeftAlone() async {
+    func test_unknownArtists_areLeftAloneButGetAGuessAsAlternative() async {
+        // Weder Bibliothek noch Katalog kennen die Namen. Vorgeschlagen wird
+        // deshalb der String wie er ist — die Mitte-Vermutung steht nur im
+        // Alternativen-Menü und wandert nie von selbst in ein Tag.
         let context = MetadataContext.build(folderTracks: [], library: [])
         let resolver = MetadataResolver(options: .init(fields: MetadataField.core, policy: .off))
         let proposal = await resolver.proposal(
             for: makeTrack("/dl/Luca Antolini Andrea Montorsi - Crave The Dark.mp3"),
             context: context
         )
-        XCTAssertEqual(proposal.suggestion(for: .artist)?.value, "Luca Antolini Andrea Montorsi")
+        let artist = try! XCTUnwrap(proposal.suggestion(for: .artist))
+        XCTAssertEqual(artist.value, "Luca Antolini Andrea Montorsi")
         XCTAssertFalse(proposal.notes.contains(.artistsSplitUsingLibrary))
+        XCTAssertTrue(artist.alternatives.contains { $0.value == "Luca Antolini, Andrea Montorsi" })
     }
 
     // MARK: Katalog-Policy

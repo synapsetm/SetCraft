@@ -99,6 +99,22 @@ final class ArtistNamesTests: XCTestCase {
         XCTAssertNil(ArtistNames.split("Some Unknown Other Duo", usingKnownNames: [:]))
     }
 
+    // MARK: - Vermutung, wenn niemand die Grenze kennt
+
+    func test_guess_splitsEvenWordCountInTheMiddle() {
+        XCTAssertEqual(ArtistNames.guessedSplit("Luca Antolini Andrea Montorsi"),
+                       ["Luca Antolini", "Andrea Montorsi"])
+        XCTAssertEqual(ArtistNames.guessedSplit("Oliver Heldens Will Clarke"),
+                       ["Oliver Heldens", "Will Clarke"])
+    }
+
+    func test_guess_staysAwayFromOddOrShortNames() {
+        XCTAssertNil(ArtistNames.guessedSplit("Paul van Dyk"))        // drei Wörter
+        XCTAssertNil(ArtistNames.guessedSplit("Len Faki"))            // zwei Wörter
+        XCTAssertNil(ArtistNames.guessedSplit("Dense & Pika"))        // hat schon einen Trenner
+        XCTAssertNil(ArtistNames.guessedSplit("Luca Antolini, Andrea Montorsi"))
+    }
+
     func test_join_usesTheBeatportStyleSeparator() {
         XCTAssertEqual(ArtistNames.join(["Luca Antolini", "Andrea Montorsi"]),
                        "Luca Antolini, Andrea Montorsi")

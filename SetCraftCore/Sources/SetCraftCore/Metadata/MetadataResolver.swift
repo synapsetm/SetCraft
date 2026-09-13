@@ -135,15 +135,27 @@ public struct MetadataResolver: Sendable {
         // billigste ist die eigene Bibliothek.
         if let artist = candidates[.artist],
            artist.source != .libraryDuplicate,
-           !ArtistNames.hasExplicitSeparator(artist.value),
-           let parts = ArtistNames.split(artist.value, usingKnownNames: context.knownArtists) {
-            notes.append(.artistsSplitUsingLibrary)
-            var updated = artist
-            // Erst den neuen Wert setzen, dann den alten merken: `remember`
-            // lehnt einen Wert ab, der dem aktuellen entspricht.
-            updated.value = ArtistNames.join(parts)
-            updated.remember(value: artist.value, source: artist.source, confidence: artist.confidence)
-            candidates[.artist] = updated
+           !ArtistNames.hasExplicitSeparator(artist.value) {
+            if let parts = ArtistNames.split(artist.value, usingKnownNames: context.knownArtists) {
+                notes.append(.artistsSplitUsingLibrary)
+                var updated = artist
+                // Erst den neuen Wert setzen, dann den alten merken: `remember`
+                // lehnt einen Wert ab, der dem aktuellen entspricht.
+                updated.value = ArtistNames.join(parts)
+                updated.remember(value: artist.value, source: artist.source, confidence: artist.confidence)
+                candidates[.artist] = updated
+            } else if let guess = ArtistNames.guessedSplit(artist.value) {
+                // Niemand kennt die Grenze — weder Bibliothek noch Katalog.
+                // Die Mitte ist eine Vermutung und taugt nicht als Vorschlag,
+                // aber als Alternative erspart sie das Abtippen.
+                var updated = artist
+                updated.remember(
+                    value: ArtistNames.join(guess),
+                    source: artist.source,
+                    confidence: max(0.3, artist.confidence - 0.2)
+                )
+                candidates[.artist] = updated
+            }
         }
 
         // ── Stufe 4: Katalog als Gegenprüfung ──────────────────────────────

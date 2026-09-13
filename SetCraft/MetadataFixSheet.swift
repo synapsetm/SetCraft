@@ -83,13 +83,6 @@ struct MetadataFixSheet: View {
                 }
             }
 
-            if model.didRun {
-                Text("Library: \(model.libraryCandidateCount) tagged tracks · \(model.knownArtistCount) artists")
-                    .font(.caption)
-                    .foregroundStyle(model.libraryCandidateCount == 0 ? .orange : .secondary)
-                    .help("Source for the duplicate match and for splitting concatenated artists. Scan the folders that hold your properly tagged files once, so they land in the library.")
-            }
-
             if !model.isRunning, model.estimatedSeconds >= 30, model.proposals.isEmpty {
                 Text("Estimated runtime: \(durationText(model.estimatedSeconds))")
                     .font(.caption)
@@ -184,11 +177,24 @@ struct MetadataFixSheet: View {
 
     private var footer: some View {
         HStack(spacing: 10) {
-            Button("Select all missing") { model.setAllAccepted(true, onlyMissingValues: true) }
-            Button("Only high confidence") { model.acceptHighConfidenceOnly() }
-            Button("Clear selection") { model.setAllAccepted(false, onlyMissingValues: false) }
+            Group {
+                Button("Select all missing") { model.setAllAccepted(true, onlyMissingValues: true) }
+                Button("Only high confidence") { model.acceptHighConfidenceOnly() }
+                Button("Clear selection") { model.setAllAccepted(false, onlyMissingValues: false) }
+            }
+            .disabled(model.proposals.isEmpty)
 
             Spacer()
+
+            // Worauf sich Zwillings-Abgleich und Interpreten-Trennung stützen.
+            // Steht hier, weil es den ganzen Lauf betrifft und nicht einzelne
+            // Zeilen — und weil 0 sofort erklärt, warum beide Stufen schweigen.
+            if model.didRun {
+                Text("Library: \(model.libraryCandidateCount) tagged tracks · \(model.knownArtistCount) artists")
+                    .font(.caption)
+                    .foregroundStyle(model.libraryCandidateCount == 0 ? .orange : .secondary)
+                    .help("Source for the duplicate match and for splitting concatenated artists. Scan the folders that hold your properly tagged files once, so they land in the library.")
+            }
 
             if let error = model.lastError {
                 Text(error)
@@ -208,7 +214,6 @@ struct MetadataFixSheet: View {
             .disabled(model.acceptedFieldCount == 0)
         }
         .padding(12)
-        .disabled(model.proposals.isEmpty)
     }
 
     // MARK: - Einstellungen

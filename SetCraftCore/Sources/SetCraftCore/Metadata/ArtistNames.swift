@@ -139,6 +139,28 @@ public enum ArtistNames {
         return nil
     }
 
+    /// Reine **Vermutung** für den Fall, dass niemand die Grenze kennt: weder
+    /// die Bibliothek noch der Katalog.
+    ///
+    /// Bei einer geraden Wortzahl ab vier ist die Mitte der wahrscheinlichste
+    /// Schnitt — „Luca Antolini | Andrea Montorsi", „Oliver Heldens | Will
+    /// Clarke". Das ist zu dünn für einen Vorschlag, aber gut genug für eine
+    /// **Alternative**: ein Klick statt Abtippen, und falsch liegen kann sie
+    /// nicht, weil sie nie von selbst in ein Tag wandert.
+    public static func guessedSplit(_ raw: String) -> [String]? {
+        let trimmed = raw.trimmingCharacters(in: .whitespaces)
+        guard !hasExplicitSeparator(trimmed) else { return nil }
+
+        let words = trimmed.split(separator: " ").map(String.init)
+        guard words.count >= 4, words.count % 2 == 0 else { return nil }
+
+        let middle = words.count / 2
+        return [
+            words[0..<middle].joined(separator: " "),
+            words[middle...].joined(separator: " ")
+        ]
+    }
+
     /// Setzt eine bekannte Namensliste zum Tag-Wert zusammen.
     public static func join(_ names: [String]) -> String {
         names

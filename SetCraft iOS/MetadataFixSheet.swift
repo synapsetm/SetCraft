@@ -98,12 +98,6 @@ struct MetadataFixSheet: View {
                 .disabled(store.tracks(for: scope).isEmpty)
             }
 
-            if store.didRun {
-                Text("Library: \(store.libraryCandidateCount) tagged tracks · \(store.knownArtistCount) artists")
-                    .font(.footnote)
-                    .foregroundStyle(store.libraryCandidateCount == 0 ? .orange : .secondary)
-            }
-
             if !store.isRunning, store.estimatedSeconds >= 30, store.proposals.isEmpty {
                 Text("Estimated runtime: \(durationText(store.estimatedSeconds))")
                     .font(.footnote)
@@ -184,9 +178,18 @@ struct MetadataFixSheet: View {
 
             Spacer()
 
-            Text("\(store.acceptedTrackCount) tracks · \(store.acceptedFieldCount) fields")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .trailing, spacing: 1) {
+                Text("\(store.acceptedTrackCount) tracks · \(store.acceptedFieldCount) fields")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                // Worauf sich Zwillings-Abgleich und Interpreten-Trennung
+                // stützen — 0 erklärt sofort, warum beide Stufen schweigen.
+                if store.didRun {
+                    Text("Library: \(store.libraryCandidateCount) tagged tracks · \(store.knownArtistCount) artists")
+                        .font(.caption2)
+                        .foregroundStyle(store.libraryCandidateCount == 0 ? .orange : .secondary)
+                }
+            }
         }
     }
 
