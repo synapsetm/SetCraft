@@ -11,12 +11,14 @@ Letzte Aktualisierung: 2026-09-13.
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.2-14 (Build 14), notarisiert, Sparkle-Auto-Update live.
+- **Mac-Release:** v1.3-15 (Build 15), notarisiert, Sparkle-Auto-Update live.
+  Bringt die Tag-Ergänzung aus Dateinamen (vier Stufen, Review-Sheet,
+  Discogs-Abgleich) auf beiden Plattformen.
   Bringt Löschen aus der Library, die DJ-Mix-Erkennung, die mitwachsende
   Waveform und die Scope-/Beenden-Korrekturen (s. u.).
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
+- **iOS-Release:** 1.3 (Build 15) auf TestFlight. `exportArchive` scheitert
   weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
   manuell über den Xcode Organizer.
 - **Tests:** `swift test` im `SetCraftCore`-Paket grün — 222 Tests

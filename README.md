@@ -24,6 +24,30 @@ beat-matched chops.
   genre, album, label, comment + clickable 5-star rating; iOS: dedicated edit
   sheet). Atomic write-back via TagLib; writes to the currently playing file
   are queued and flushed when the player switches tracks.
+- **Tag completion from filenames**, for the untagged half of a collection.
+  Four stages, each allowed to overrule the previous one: a filename parser
+  (strips download junk like `[320kbps]`, `(WEB)` and site suffixes, brackets
+  bare mix versions — `Higher Dimension Original MIx` becomes
+  `Higher Dimension (Original Mix)` — and spells out `rmx` → `Remix`); the
+  folder's own naming pattern, **learned from the files that already are
+  tagged**, which is the only way to tell `Artist - Title` from
+  `Title - Artist`; a tagged twin of the same recording elsewhere in the
+  library, matched on duration plus file size or parsed name; and finally a
+  cross-check against **Discogs**. Multiple artists concatenated by a
+  download site (`Luca_Antolini_Andrea_Montorsi`) are split again using names
+  already known from the library, and written Beatport-style with `, `.
+  Nothing is ever written automatically — a review sheet shows current value,
+  proposal, source and confidence per field, every value is editable, and
+  every discarded suggestion stays one click away.
+- **Discogs is a second opinion, not an authority.** It costs two requests per
+  track (search is release-level, the tracklist needs a second call), so the
+  default only asks where the offline stages are uncertain; responses are
+  cached in SQLite for a month, and a sliding-window limiter honours the 25 /
+  60 requests-per-minute budget. Where the sources disagree, the value derived
+  from your files wins — Discogs does not know your bootlegs — except when it
+  looks like a spelling fix (`IK N` → `Ikøn`), adds a mix version you lack, or
+  resolves swapped artist/title sides. A disagreement never reaches "high"
+  confidence and is never pre-selected.
 - **Automatic BPM and key analysis** (aubio + libKeyFinder) on track open or
   via the menu's "Analyze all" button. BPM octave correction by genre preset
   (Universal / DnB / Psy-Trance / House / HipHop / Disco), plus a ⅔ / 1½
@@ -52,6 +76,9 @@ beat-matched chops.
   star-prefix in the comment field — Rekordbox ignores `POPM` but does read
   the comment.
 - **Localised** (English + German, auto-switch by system language).
+  `scripts/check-localization.py` audits both string catalogues against the
+  keys the compiler actually extracted — missing translations, mismatched
+  placeholders, and the classic trap of the two catalogues drifting apart.
 - **Appearance toggle** (System / Light / Dark) on the macOS app via the
   "View" menu (default: Dark). Applied through `NSApp.appearance` so AppKit
   subviews (List, Table, Canvas) follow reliably.
@@ -130,6 +157,15 @@ bookmarks; iOS uses `UIDocumentPickerViewController` for source folders.
 
 ```bash
 cd SetCraftCore && swift test
+```
+
+222 tests, no network access — the Discogs layer is exercised through an
+HTTP stub built from real API responses.
+
+### 4) Localisation check
+
+```bash
+python3 scripts/check-localization.py     # both targets must be built first
 ```
 
 ---
