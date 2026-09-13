@@ -142,16 +142,25 @@ struct MetadataFixSheet: View {
 
     private var optionsSection: some View {
         Section {
-            ForEach(MetadataField.allCases, id: \.rawValue) { field in
+            // Artist und Titel lassen sich nicht abwählen. Ein ausgegrauter
+            // Schalter, der trotzdem „an" zeigt, sieht aber nach Fehler aus —
+            // also sagen wir es hin.
+            HStack {
+                Text(coreFieldNames)
+                Spacer()
+                Text("always included")
+                    .foregroundStyle(.secondary)
+            }
+
+            ForEach(optionalFields, id: \.rawValue) { field in
                 Toggle(fieldName(field), isOn: binding(for: field))
-                    .disabled(MetadataField.core.contains(field))
             }
         } header: {
             Text("Fields to complete")
         } footer: {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Reading works without an account. A token raises the limit from 25 to 60 requests per minute. It is stored in this app’s preferences in plain text.")
-                Text("Artist and title are always included. Genre is deliberately left out — Discogs styles would overwrite your own curation.")
+                Text("Genre is deliberately left out — Discogs styles would overwrite your own curation.")
             }
         }
     }
@@ -425,6 +434,19 @@ private struct ConfidenceDot: View {
 }
 
 // MARK: - Gemeinsame Beschriftungen
+
+/// „Artist · Titel" — die Felder, die immer mitlaufen.
+private var coreFieldNames: String {
+    MetadataField.allCases
+        .filter { MetadataField.core.contains($0) }
+        .map(fieldName)
+        .joined(separator: " · ")
+}
+
+/// Felder, die sich abwählen lassen.
+private var optionalFields: [MetadataField] {
+    MetadataField.allCases.filter { !MetadataField.core.contains($0) }
+}
 
 private func fieldName(_ field: MetadataField) -> String {
     switch field {

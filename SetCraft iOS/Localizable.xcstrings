@@ -43,22 +43,22 @@
         }
       }
     },
+    "always included" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "immer dabei"
+          }
+        }
+      }
+    },
     "Apply" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Übernehmen"
-          }
-        }
-      }
-    },
-    "Artist and title are always included. Genre is deliberately left out — Discogs styles would overwrite your own curation." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Artist und Titel sind immer dabei. Genre bleibt bewusst aussen vor — Discogs-Styles würden deine eigene Pflege überschreiben."
           }
         }
       }
@@ -309,6 +309,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ordner-Schema: Seiten getauscht"
+          }
+        }
+      }
+    },
+    "Genre is deliberately left out — Discogs styles would overwrite your own curation." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genre bleibt bewusst aussen vor — Discogs-Styles würden deine eigene Pflege überschreiben."
           }
         }
       }
