@@ -25,6 +25,10 @@ struct LibraryView: View {
     /// angefordert wurde und die auf die Rückfrage warten.
     @State private var pendingMixAnalysis: [Track] = []
     @State private var showMixAnalysisConfirm = false
+    /// Lauf der Tag-Ergaenzung. Wird pro Aufruf neu gebaut, damit ein zweites
+    /// Oeffnen nicht die Vorschlaege des letzten Laufs zeigt.
+    @State private var fixModel: MetadataFixViewModel?
+    @State private var fixScope: MetadataFixViewModel.Scope = .missing
 
     var body: some View {
         HStack(spacing: 0) {
@@ -161,6 +165,18 @@ struct LibraryView: View {
             }
             .disabled(library.selectedTracks.isEmpty)
             .help("Force a fresh BPM/key analysis for the selected tracks")
+
+            Button {
+                openFixSheet(scope: library.tracksMissingTags.isEmpty ? .all : .missing)
+            } label: {
+                let missing = library.tracksMissingTags.count
+                Label(
+                    missing > 0 ? "Complete tags (\(missing))" : "Complete tags",
+                    systemImage: "text.badge.checkmark"
+                )
+            }
+            .disabled(library.tracks.isEmpty)
+            .help("Derive artist and title from filenames, folder patterns and Discogs")
 
             Button {
                 showResetConfirm = true
@@ -317,6 +333,10 @@ struct LibraryView: View {
                 scaleBPM(ids, factor: 2.0 / 3.0)
             }
             .disabled(ids.isEmpty)
+            Button("Complete tags…") {
+                openFixSheet(scope: .selection)
+            }
+            .disabled(ids.isEmpty)
             Divider()
             Button("Move to Folder…") {
                 moveToFolder(ids)
@@ -329,6 +349,16 @@ struct LibraryView: View {
             .disabled(ids.isEmpty)
         } primaryAction: { ids in
             loadFirst(ids)
+        }
+        .sheet(isPresented: Binding(
+            get: { fixModel != nil },
+            set: { if !$0 { fixModel = nil } }
+        )) {
+            if let fixModel {
+                MetadataFixSheet(model: fixModel, initialScope: fixScope) {
+                    self.fixModel = nil
+                }
+            }
         }
         .confirmationDialog(
             trashConfirmTitle,
@@ -381,6 +411,11 @@ struct LibraryView: View {
         } message: {
             Text("BPM and key say little about a whole mix, and the analysis takes several minutes per file.")
         }
+    }
+
+    private func openFixSheet(scope: MetadataFixViewModel.Scope) {
+        fixScope = scope
+        fixModel = MetadataFixViewModel(library: library)
     }
 
     private var trashConfirmTitle: String {

@@ -7,6 +7,36 @@
     "—" : {
       "shouldTranslate" : false
     },
+    "about %lld min" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ca. %lld Min"
+          }
+        }
+      }
+    },
+    "about %lld s" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ca. %lld s"
+          }
+        }
+      }
+    },
+    "All tracks (%lld)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle Tracks (%lld)"
+          }
+        }
+      }
+    },
     "‘%@’ already exists in this folder — skipped." : {
       "localizations" : {
         "de" : {
@@ -19,6 +49,306 @@
     },
     "%@ / -%@" : {
       "shouldTranslate" : false
+    },
+    "Apply" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Übernehmen"
+          }
+        }
+      }
+    },
+    "Artist and title are always included. Genre is deliberately left out — Discogs styles would overwrite your own curation." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artist und Titel sind immer dabei. Genre bleibt bewusst aussen vor — Discogs-Styles würden deine eigene Pflege überschreiben."
+          }
+        }
+      }
+    },
+    "Artist/title order unclear" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reihenfolge Artist/Titel unklar"
+          }
+        }
+      }
+    },
+    "Catalog check" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Katalog-Abgleich"
+          }
+        }
+      }
+    },
+    "Clear selection" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auswahl aufheben"
+          }
+        }
+      }
+    },
+    "Complete missing tags" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fehlende Tags ergänzen"
+          }
+        }
+      }
+    },
+    "Complete tags" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags ergänzen"
+          }
+        }
+      }
+    },
+    "Complete tags…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags ergänzen…"
+          }
+        }
+      }
+    },
+    "Complete tags (%lld)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags ergänzen (%lld)"
+          }
+        }
+      }
+    },
+    "Confirmed by Discogs" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von Discogs bestätigt"
+          }
+        }
+      }
+    },
+    "Corrected by Discogs" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von Discogs korrigiert"
+          }
+        }
+      }
+    },
+    "Derive artist and title from filenames, folder patterns and Discogs" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artist und Titel aus Dateinamen, Ordner-Schema und Discogs ableiten"
+          }
+        }
+      }
+    },
+    "Discogs" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discogs"
+          }
+        }
+      }
+    },
+    "Discogs: always" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discogs: immer"
+          }
+        }
+      }
+    },
+    "Discogs costs two requests per track. “Only when uncertain” asks just for the doubtful ones." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discogs kostet zwei Anfragen pro Track. „Bei Zweifel“ fragt nur für die unklaren Fälle."
+          }
+        }
+      }
+    },
+    "Discogs not queried" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discogs nicht gefragt"
+          }
+        }
+      }
+    },
+    "Discogs: off" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discogs: aus"
+          }
+        }
+      }
+    },
+    "Discogs options" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discogs-Optionen"
+          }
+        }
+      }
+    },
+    "Discogs was unreachable" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discogs nicht erreichbar"
+          }
+        }
+      }
+    },
+    "Discogs: when uncertain" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discogs: bei Zweifel"
+          }
+        }
+      }
+    },
+    "Estimated runtime: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geschätzte Laufzeit: %@"
+          }
+        }
+      }
+    },
+    "Fields to complete" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu ergänzende Felder"
+          }
+        }
+      }
+    },
+    "Folder name" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordnername"
+          }
+        }
+      }
+    },
+    "Folder naming pattern applied" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner-Schema angewendet"
+          }
+        }
+      }
+    },
+    "Folder pattern" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner-Schema"
+          }
+        }
+      }
+    },
+    "Folder pattern: sides swapped" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner-Schema: Seiten getauscht"
+          }
+        }
+      }
+    },
+    "High confidence" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hohe Verlässlichkeit"
+          }
+        }
+      }
+    },
+    "Identical file found in your library" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identische Datei in der Bibliothek gefunden"
+          }
+        }
+      }
+    },
+    "Library twin" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zwilling"
+          }
+        }
+      }
+    },
+    "%lld of %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld"
+          }
+        }
+      }
     },
     "%lld tracks are DJ mixes — analyze anyway?" : {
       "localizations" : {
@@ -602,6 +932,26 @@
         }
       }
     },
+    "%lld tracks in scope" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Tracks betroffen"
+          }
+        }
+      }
+    },
+    "%lld tracks · %lld fields" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Tracks · %lld Felder"
+          }
+        }
+      }
+    },
     "Load" : {
       "localizations" : {
         "de" : {
@@ -652,12 +1002,52 @@
         }
       }
     },
+    "Looking for suggestions…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suche nach Vorschlägen…"
+          }
+        }
+      }
+    },
+    "Low confidence" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geringe Verlässlichkeit"
+          }
+        }
+      }
+    },
     "Master tempo active — keys shift with the tempo. Sorted by sounding key." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Master-Tempo aktiv — die Tonarten verschieben sich mit dem Tempo. Sortierung nach klingendem Key."
+          }
+        }
+      }
+    },
+    "Medium confidence" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mittlere Verlässlichkeit"
+          }
+        }
+      }
+    },
+    "Missing tags (%lld)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fehlende Tags (%lld)"
           }
         }
       }
@@ -792,6 +1182,46 @@
         }
       }
     },
+    "No separator in the filename" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Trenner im Dateinamen"
+          }
+        }
+      }
+    },
+    "No suggestions — nothing to complete here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Vorschläge — hier ist nichts zu ergänzen."
+          }
+        }
+      }
+    },
+    "Not found on Discogs" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf Discogs nicht gefunden"
+          }
+        }
+      }
+    },
+    "Only high confidence" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur sichere Treffer"
+          }
+        }
+      }
+    },
     "Open a file, drop one here, or load one from the library" : {
       "localizations" : {
         "de" : {
@@ -832,12 +1262,52 @@
         }
       }
     },
+    "optional" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "optional"
+          }
+        }
+      }
+    },
+    "overwrites" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "überschreibt"
+          }
+        }
+      }
+    },
     "Permanent deletion cannot be undone." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Endgültiges Löschen lässt sich nicht rückgängig machen."
+          }
+        }
+      }
+    },
+    "Personal access token" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personal Access Token"
+          }
+        }
+      }
+    },
+    "Pick a set of tracks and press Start." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle die Tracks aus und drücke auf Starten."
           }
         }
       }
@@ -898,6 +1368,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rating"
+          }
+        }
+      }
+    },
+    "Reading works without an account. A token raises the limit from 25 to 60 requests per minute. It is stored in this app’s preferences in plain text." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lesen funktioniert auch ohne Account. Mit Token steigt das Limit von 25 auf 60 Anfragen pro Minute. Er liegt im Klartext in den Einstellungen dieser App."
           }
         }
       }
@@ -1038,8 +1518,48 @@
         }
       }
     },
+    "Select all missing" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle fehlenden auswählen"
+          }
+        }
+      }
+    },
+    "Selection (%lld)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auswahl (%lld)"
+          }
+        }
+      }
+    },
+    "Separator was only a hyphen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trenner war nur ein Bindestrich"
+          }
+        }
+      }
+    },
     "SetCraft" : {
       "shouldTranslate" : false
+    },
+    "Several plausible Discogs matches" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehrere plausible Discogs-Treffer"
+          }
+        }
+      }
     },
     "Size" : {
       "localizations" : {
@@ -1081,12 +1601,42 @@
         }
       }
     },
+    "Start" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starten"
+          }
+        }
+      }
+    },
+    "Stop" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stoppen"
+          }
+        }
+      }
+    },
     "System" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "System"
+          }
+        }
+      }
+    },
+    "Tags from a duplicate in your library" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags von einem Zwilling in der Bibliothek"
           }
         }
       }
@@ -1147,6 +1697,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Track ist nicht in der Bibliothek — Bewertung kann nicht gespeichert werden"
+          }
+        }
+      }
+    },
+    "Tracks" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracks"
           }
         }
       }

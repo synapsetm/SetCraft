@@ -510,6 +510,29 @@ final class LibraryViewModel {
         tracks.filter { selectedTrackIDs.contains($0.id) }
     }
 
+    /// Tracks, bei denen Artist oder Titel fehlt — die Kundschaft der
+    /// Metadaten-Ergaenzung.
+    var tracksMissingTags: [Track] {
+        tracks.filter { $0.title.isEmpty || $0.artist.isEmpty }
+    }
+
+    /// Der DB-Actor dient der Metadaten-Kette als Cache fuer Katalog-Antworten.
+    var catalogCache: CatalogResponseCache { database }
+
+    /// Uebernimmt die angehakten Felder eines Vorschlags in die Liste und
+    /// schreibt sie ueber den normalen Save-Pfad zurueck. Liefert `false`, wenn
+    /// der Track nicht mehr in der Liste steht (Quelle gewechselt) oder der
+    /// Vorschlag nichts aendert.
+    @discardableResult
+    func applyMetadata(_ proposal: MetadataProposal) -> Bool {
+        guard let idx = tracks.firstIndex(where: { $0.url == proposal.url }) else { return false }
+        let updated = proposal.applied(to: tracks[idx])
+        guard updated != tracks[idx] else { return false }
+        tracks[idx] = updated
+        scheduleSave(updated)
+        return true
+    }
+
     // MARK: - Navigation
 
     /// Nächster Track in der aktuell angezeigten Sortierung. Wenn der gerade
