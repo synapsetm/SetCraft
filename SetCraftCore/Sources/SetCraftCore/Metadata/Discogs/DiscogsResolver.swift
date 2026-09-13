@@ -47,6 +47,19 @@ public struct DiscogsResolver: CatalogLookup {
         if results.isEmpty, !query.catalogNumber.isEmpty {
             results = try await client.searchReleases(artist: query.artist, title: query.title)
         }
+
+        // Zweiter Anlauf ohne Artist. Download-Seiten ersetzen Sonderzeichen im
+        // Dateinamen durch Underscores — aus „Ikøn" wird „IK N", und die
+        // Feldsuche findet damit nichts. Über den Titel allein steht die
+        // Aufnahme trotzdem da; welcher der vielen Gleichnamigen gemeint ist,
+        // entscheidet dann das Scoring, das den Artist weiterhin kennt.
+        // Weil hier die Trefferliste viel breiter ist, gilt eine strengere
+        // Mindestpunktzahl.
+        var usedBroadSearch = false
+        if results.isEmpty, !query.artist.isEmpty {
+            results = try await client.searchReleases(artist: "", title: query.title)
+            usedBroadSearch = true
+        }
         guard !results.isEmpty else { return [] }
 
         let ranked = prerank(results, query: query)
@@ -64,8 +77,16 @@ public struct DiscogsResolver: CatalogLookup {
             if match.score >= goodEnoughScore { break }
         }
 
-        return matches.sorted { $0.score > $1.score }
+        let floor = usedBroadSearch ? Self.broadSearchMinimumScore : 0
+        return matches
+            .filter { $0.score >= floor }
+            .sorted { $0.score > $1.score }
     }
+
+    /// Mindestpunktzahl für Treffer aus der Suche ohne Artist. Deutlich über
+    /// der normalen Schwelle: bei einem verbreiteten Titel stünden dort sonst
+    /// beliebige gleichnamige Aufnahmen.
+    static let broadSearchMinimumScore = 0.75
 
     // MARK: - Vorsortieren
 

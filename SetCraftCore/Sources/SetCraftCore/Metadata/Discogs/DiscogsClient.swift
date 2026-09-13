@@ -115,9 +115,14 @@ public actor DiscogsClient {
     // sollen nicht aus den App-Targets heraus sichtbar sein. Nach draussen
     // führt nur `DiscogsResolver` als `CatalogLookup`.
 
-    /// Release-Suche. Mit bekanntem Artist nutzen wir die Feldsuche
-    /// (`artist=`/`track=`), sonst die Freitextsuche (`q=`) — die ist
-    /// toleranter, liefert aber unschärfere Treffer.
+    /// Release-Suche über die Feldparameter `track=` (immer) und `artist=`
+    /// (wenn bekannt).
+    ///
+    /// Die Freitextsuche `q=` wäre die naheliegende Alternative, ist für
+    /// diesen Zweck aber schlechter: „q=Higher Dimension" liefert 614 Treffer,
+    /// in deren erster Seite die gesuchte Aufnahme nicht vorkommt, während
+    /// „track=Higher Dimension" sie auf Platz 3 hat. `q=` sucht über alles,
+    /// auch über Release- und Labelnamen; wir suchen aber einen Track.
     func searchReleases(
         artist: String,
         title: String,
@@ -125,18 +130,16 @@ public actor DiscogsClient {
     ) async throws -> [Discogs.SearchResult] {
         var items: [URLQueryItem] = [
             URLQueryItem(name: "type", value: "release"),
-            URLQueryItem(name: "per_page", value: String(configuration.searchResultLimit))
+            URLQueryItem(name: "per_page", value: String(configuration.searchResultLimit)),
+            URLQueryItem(name: "track", value: title)
         ]
         if !catalogNumber.isEmpty {
             // Die Katalognummer ist das stärkste Signal, das ein Dateiname
             // hergeben kann — damit trifft man die richtige Pressung direkt.
             items.append(URLQueryItem(name: "catno", value: catalogNumber))
         }
-        if artist.isEmpty {
-            items.append(URLQueryItem(name: "q", value: title))
-        } else {
+        if !artist.isEmpty {
             items.append(URLQueryItem(name: "artist", value: artist))
-            items.append(URLQueryItem(name: "track", value: title))
         }
 
         let response: Discogs.SearchResponse = try await get(path: "/database/search", items: items)

@@ -7,6 +7,12 @@
     "%@ / -%@" : {
       "shouldTranslate" : false
     },
+    "" : {
+      "shouldTranslate" : false
+    },
+    "%@ — %@" : {
+      "shouldTranslate" : false
+    },
     "about %lld min" : {
       "localizations" : {
         "de" : {
@@ -1261,6 +1267,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Typ"
+          }
+        }
+      }
+    },
+    "Typed in" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von Hand"
           }
         }
       }

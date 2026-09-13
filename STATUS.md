@@ -19,7 +19,7 @@ Letzte Aktualisierung: 2026-09-13.
 - **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
   weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
   manuell über den Xcode Organizer.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 185 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 191 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
   Vorschlagskette/Discogs).
@@ -108,7 +108,11 @@ weiter aus der Audio-Analyse.
 
 **Geschrieben wird nie automatisch.** Ein Review-Sheet (macOS) bzw.
 -Screen (iOS) zeigt pro Feld Ist-Wert, Vorschlag, Quelle und Verlässlichkeit;
-vorausgewählt ist nur, was fehlt und als sicher gilt. Das Übernehmen läuft
+vorausgewählt ist nur, was fehlt und als sicher gilt. **Keine Stufe hat immer
+recht** — bei einem Bootleg kennt Discogs den Remix nicht und „korrigiert" den
+richtigen Dateinamen-Titel kaputt. Verdrängte Werte bleiben deshalb als
+Alternativen am Feld hängen (Menü in der Zeile), und jeder Wert ist direkt
+editierbar; eine Handeingabe gilt als eigene Quelle mit voller Confidence. Das Übernehmen läuft
 durch `applyMetadata` und damit den bestehenden Save-Pfad (Scope-Token,
 Serialisierung, Active-Track-Guard).
 
@@ -125,6 +129,16 @@ Serialisierung, Active-Track-Guard).
   ohne es in den Headern zu zeigen.
 - Antworten landen roh im SQLite-Cache (Migration `v6`, 30 Tage), damit ein
   zweiter Lauf über denselben Ordner kein Budget kostet.
+- Gesucht wird über `track=` (plus `artist=`, wenn bekannt), nicht über die
+  Freitextsuche `q=`: für „Higher Dimension" liefert `q=` 614 Treffer ohne die
+  gesuchte Aufnahme auf der ersten Seite, `track=` hat sie auf Platz 3.
+  Findet die Feldsuche nichts, läuft ein zweiter Versuch **ohne Artist** —
+  Download-Seiten ersetzen Sonderzeichen im Dateinamen (aus „Ikøn" wird
+  „IK N"), und über den Titel allein steht die Aufnahme trotzdem da. Für diese
+  breite Suche gilt eine strengere Mindestpunktzahl (0.75).
+- Bei Übereinstimmung gewinnt die **Schreibweise des Katalogs**: „Mama India
+  Outside The (Universe Remix)" und „Mama India (Outside The Universe Remix)"
+  sind für das Ähnlichkeitsmass identisch, aber nur eine gehört in den Tag.
 - **Dauer-Abgleich ist der wichtigste Gegencheck** (±5 s bestätigt, >20 s
   wertet ab) — ohne ihn landet der Radio Edit als Extended Mix in den Tags.
   Discogs füllt `duration` aber nicht immer; dann kann der Schutz nicht

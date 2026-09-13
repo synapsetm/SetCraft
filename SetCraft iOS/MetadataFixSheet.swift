@@ -254,12 +254,7 @@ private struct ProposalSection: View {
     var body: some View {
         Section {
             ForEach($proposal.fields) { $field in
-                Button {
-                    field.isAccepted.toggle()
-                } label: {
-                    FieldRow(field: field)
-                }
-                .buttonStyle(.plain)
+                FieldRow(field: $field)
             }
         } header: {
             HStack(spacing: 6) {
@@ -297,21 +292,47 @@ private struct ProposalSection: View {
 }
 
 private struct FieldRow: View {
-    let field: FieldSuggestion
+    @Binding var field: FieldSuggestion
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: field.isAccepted ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(field.isAccepted ? Color.accentColor : Color.secondary)
+            Button {
+                field.isAccepted.toggle()
+            } label: {
+                Image(systemName: field.isAccepted ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(field.isAccepted ? Color.accentColor : Color.secondary)
+            }
+            .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(fieldName(field.field))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(field.value)
-                        .lineLimit(2)
-                    Spacer(minLength: 4)
+
+                    // Direkt editierbar: keine Stufe hat immer recht, und
+                    // manchmal weiss nur der Besitzer der Datei, wie der
+                    // Track heisst.
+                    TextField("", text: valueBinding)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+
+                    if !field.alternatives.isEmpty {
+                        Menu {
+                            ForEach(field.alternatives) { alternative in
+                                Button {
+                                    field.select(alternative)
+                                    field.isAccepted = true
+                                } label: {
+                                    Text("\(alternative.value) — \(sourceName(alternative.source))")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "arrow.triangle.branch")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
                     ConfidenceDot(confidence: field.confidence)
                 }
                 HStack(spacing: 6) {
@@ -331,7 +352,18 @@ private struct FieldRow: View {
                 }
             }
         }
-        .contentShape(Rectangle())
+    }
+
+    /// Tippen macht den Wert zu einer Handeingabe — und hakt die Zeile an,
+    /// weil niemand etwas eintippt, das er nicht übernehmen will.
+    private var valueBinding: Binding<String> {
+        Binding(
+            get: { field.value },
+            set: { newValue in
+                field.setManualValue(newValue)
+                field.isAccepted = !newValue.trimmingCharacters(in: .whitespaces).isEmpty
+            }
+        )
     }
 }
 
@@ -371,5 +403,6 @@ private func sourceName(_ source: SuggestionSource) -> String {
     case .folderPattern:    return String(localized: "Folder pattern")
     case .libraryDuplicate: return String(localized: "Library twin")
     case .catalog:          return String(localized: "Discogs")
+    case .manual:           return String(localized: "Typed in")
     }
 }

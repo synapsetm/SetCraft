@@ -7,6 +7,9 @@
     "—" : {
       "shouldTranslate" : false
     },
+    "%@ — %@" : {
+      "shouldTranslate" : false
+    },
     "about %lld min" : {
       "localizations" : {
         "de" : {
@@ -1711,6 +1714,16 @@
         }
       }
     },
+    "Typed in" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von Hand"
+          }
+        }
+      }
+    },
     "Unknown artist" : {
       "localizations" : {
         "de" : {
@@ -1737,6 +1750,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ungespeicherte Änderungen"
+          }
+        }
+      }
+    },
+    "Use one of the other suggestions" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einen der anderen Vorschläge verwenden"
           }
         }
       }

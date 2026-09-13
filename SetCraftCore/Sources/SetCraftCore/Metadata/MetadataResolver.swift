@@ -161,7 +161,8 @@ public struct MetadataResolver: Sendable {
                 currentValue: current,
                 source: candidate.source,
                 confidence: min(1.0, max(0.0, candidate.confidence)),
-                isAccepted: current.isEmpty && candidate.confidence >= SuggestionConfidence.autoAcceptThreshold
+                isAccepted: current.isEmpty && candidate.confidence >= SuggestionConfidence.autoAcceptThreshold,
+                alternatives: candidate.alternatives
             )
             guard !suggestion.isRedundant else { continue }
             fields.append(suggestion)
@@ -265,21 +266,31 @@ public struct MetadataResolver: Sendable {
 
         func merge(_ field: MetadataField, _ value: String) {
             guard !value.isEmpty else { return }
-            if let existing = candidates[field], !existing.value.isEmpty {
-                if TextSimilarity.similarity(existing.value, value) >= 0.85 {
-                    confirmed = true
-                    candidates[field] = Candidate(
-                        value: existing.value,
-                        source: existing.source,
-                        confidence: max(existing.confidence, confirmConfidence)
-                    )
-                } else {
-                    corrected = true
-                    candidates[field] = Candidate(value: value, source: .catalog, confidence: correctConfidence)
-                }
-            } else {
+            guard var existing = candidates[field], !existing.value.isEmpty else {
                 candidates[field] = Candidate(value: value, source: .catalog, confidence: correctConfidence)
+                return
             }
+
+            let agrees = TextSimilarity.similarity(existing.value, value) >= 0.85
+            if agrees {
+                confirmed = true
+            } else {
+                corrected = true
+            }
+            // In beiden Fällen zählt die **Schreibweise des Katalogs**: bei
+            // Übereinstimmung meinen beide denselben Track, und dann ist die
+            // Katalogfassung die saubere — sie setzt die Klammern richtig.
+            // „Mama India Outside The (Universe Remix)" und „Mama India
+            // (Outside The Universe Remix)" sind für unser Ähnlichkeitsmass
+            // identisch; nur eine der beiden gehört in den Tag.
+            var replacement = Candidate(
+                value: value,
+                source: .catalog,
+                confidence: agrees ? max(existing.confidence, confirmConfidence) : correctConfidence
+            )
+            replacement.displaced = existing.displaced
+            replacement.remember(value: existing.value, source: existing.source, confidence: existing.confidence)
+            candidates[field] = replacement
         }
 
         merge(.artist, best.artist)
@@ -298,11 +309,28 @@ public struct MetadataResolver: Sendable {
 
     // MARK: - Helpers
 
-    /// Ein Kandidat, solange noch Stufen folgen können.
+    /// Ein Kandidat, solange noch Stufen folgen können — samt der Werte, die
+    /// unterwegs verdrängt wurden. Die gehen nicht verloren: im Review-Sheet
+    /// kann der Nutzer zurückschalten, wenn die „bessere" Stufe danebenlag.
     struct Candidate: Sendable {
         var value: String
         var source: SuggestionSource
         var confidence: Double
+        var displaced: [FieldSuggestion.Alternative] = []
+
+        /// Legt einen Wert zu den Verworfenen, ohne Dubletten.
+        mutating func remember(value: String, source: SuggestionSource, confidence: Double) {
+            guard !value.isEmpty, value != self.value else { return }
+            guard !displaced.contains(where: { $0.value == value }) else { return }
+            displaced.append(.init(value: value, source: source, confidence: confidence))
+        }
+
+        /// Verworfene, beste zuerst.
+        var alternatives: [FieldSuggestion.Alternative] {
+            displaced
+                .filter { $0.value != value }
+                .sorted { $0.confidence > $1.confidence }
+        }
     }
 
     /// Trägt einen Kandidaten ein, wenn er besser ist als der bisherige.
@@ -315,8 +343,21 @@ public struct MetadataResolver: Sendable {
     ) {
         let trimmed = value.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-        if let existing = candidates[field], existing.confidence >= confidence { return }
-        candidates[field] = Candidate(value: trimmed, source: source, confidence: confidence)
+
+        guard var existing = candidates[field] else {
+            candidates[field] = Candidate(value: trimmed, source: source, confidence: confidence)
+            return
+        }
+        if existing.confidence >= confidence {
+            // Schwächerer Vorschlag: trotzdem behalten, als Alternative.
+            existing.remember(value: trimmed, source: source, confidence: confidence)
+            candidates[field] = existing
+            return
+        }
+        var replacement = Candidate(value: trimmed, source: source, confidence: confidence)
+        replacement.displaced = existing.displaced
+        replacement.remember(value: existing.value, source: existing.source, confidence: existing.confidence)
+        candidates[field] = replacement
     }
 
     private func currentValue(of field: MetadataField, in track: Track) -> String {

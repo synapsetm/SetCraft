@@ -8,6 +8,8 @@ import XCTest
 private final class StubResponder: @unchecked Sendable {
     private let lock = NSLock()
     private var routes: [(fragment: String, status: Int, body: Data, headers: [String: String])] = []
+    private var sequences: [String: [Data]] = [:]
+    private var sequenceIndex: [String: Int] = [:]
     private var requests: [URLRequest] = []
 
     func route(_ fragment: String, status: Int = 200, json: String, headers: [String: String] = [:]) {
@@ -15,10 +17,23 @@ private final class StubResponder: @unchecked Sendable {
         routes.append((fragment, status, Data(json.utf8), headers))
     }
 
+    /// Antwortfolge für dieselbe Route — der Stub kann Requests nicht nach
+    /// Parametern unterscheiden, also unterscheiden wir nach Reihenfolge.
+    func routeSequence(_ fragment: String, jsons: [String]) {
+        lock.lock(); defer { lock.unlock() }
+        sequences[fragment] = jsons.map { Data($0.utf8) }
+    }
+
     func handle(_ request: URLRequest) -> (Int, Data, [String: String]) {
         lock.lock(); defer { lock.unlock() }
         requests.append(request)
         let target = request.url?.absoluteString ?? ""
+        if let fragment = sequences.keys.first(where: { target.contains($0) }),
+           let bodies = sequences[fragment], !bodies.isEmpty {
+            let index = sequenceIndex[fragment] ?? 0
+            sequenceIndex[fragment] = index + 1
+            return (200, bodies[min(index, bodies.count - 1)], [:])
+        }
         if let route = routes.first(where: { target.contains($0.fragment) }) {
             return (route.status, route.body, route.headers)
         }
@@ -237,7 +252,51 @@ final class DiscogsResolverTests: XCTestCase {
         _ = try await resolver.search(
             CatalogQuery(artist: "The Persuader", title: "Vasastaden", catalogNumber: "SK032A")
         )
-        XCTAssertEqual(responder.requestCount, 2, "Verstümmelte Katalognummer bekommt einen zweiten Versuch")
+        // Leiter: mit Katalognummer → ohne Katalognummer → ohne Artist.
+        XCTAssertEqual(responder.requestCount, 3)
+    }
+
+    func test_broadSearch_findsTrackWhenArtistNameIsMangled() async throws {
+        let responder = StubResponder()
+        // Erste Suche (mit Artist „IK N") leer, zweite ohne Artist trifft.
+        responder.routeSequence("database/search", jsons: [
+            #"{"results":[]}"#,
+            #"{"results":[{"id":18687190,"title":"Ikøn - Higher Dimension","type":"release"}]}"#
+        ])
+        responder.route("releases/18687190", json: """
+        {"id":18687190,"title":"Higher Dimension","year":2021,
+         "artists":[{"name":"Ikøn","anv":"","join":""}],
+         "labels":[{"name":"Sacred Technology","catno":"ST001"}],
+         "tracklist":[{"position":"1","type_":"track","title":"Higher Dimension","duration":"7:30"}]}
+        """)
+
+        let resolver = DiscogsResolver(client: makeClient(responder: responder))
+        let matches = try await resolver.search(
+            CatalogQuery(artist: "IK N", title: "Higher Dimension", durationSeconds: 450)
+        )
+        let best = try XCTUnwrap(matches.first)
+        XCTAssertEqual(best.artist, "Ikøn", "Sonderzeichen kommt aus dem Katalog zurück")
+        XCTAssertGreaterThanOrEqual(best.score, DiscogsResolver.broadSearchMinimumScore)
+    }
+
+    func test_broadSearch_dropsWeakMatches() async throws {
+        let responder = StubResponder()
+        responder.routeSequence("database/search", jsons: [
+            #"{"results":[]}"#,
+            #"{"results":[{"id":7,"title":"Someone Else - Higher Dimension","type":"release"}]}"#
+        ])
+        // Gleicher Titel, wildfremder Artist, Dauer daneben → zu schwach.
+        responder.route("releases/7", json: """
+        {"id":7,"title":"Higher Dimension","year":2013,
+         "artists":[{"name":"Planewalker","anv":"","join":""}],
+         "tracklist":[{"position":"A","type_":"track","title":"Higher Dimension","duration":"3:00"}]}
+        """)
+
+        let resolver = DiscogsResolver(client: makeClient(responder: responder))
+        let matches = try await resolver.search(
+            CatalogQuery(artist: "IK N", title: "Higher Dimension", durationSeconds: 450)
+        )
+        XCTAssertTrue(matches.isEmpty, "Ohne Artist-Filter darf kein beliebiger Gleichnamiger durchrutschen")
     }
 
     func test_onlyTopResultsAreResolved() async throws {

@@ -287,10 +287,7 @@ private struct ProposalCard: View {
             }
 
             ForEach($proposal.fields) { $field in
-                Toggle(isOn: $field.isAccepted) {
-                    FieldRow(field: field)
-                }
-                .toggleStyle(.checkbox)
+                FieldRow(field: $field)
             }
 
             if !proposal.notes.isEmpty {
@@ -323,10 +320,14 @@ private struct ProposalCard: View {
 }
 
 private struct FieldRow: View {
-    let field: FieldSuggestion
+    @Binding var field: FieldSuggestion
 
     var body: some View {
         HStack(spacing: 8) {
+            Toggle("", isOn: $field.isAccepted)
+                .labelsHidden()
+                .toggleStyle(.checkbox)
+
             Text(fieldName(field.field))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -336,17 +337,35 @@ private struct FieldRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .frame(width: 130, alignment: .leading)
 
             Image(systemName: "arrow.right")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
 
-            Text(field.value)
-                .fontWeight(field.isOverwrite ? .semibold : .regular)
-                .lineLimit(1)
-                .truncationMode(.middle)
+            // Direkt editierbar: keine Stufe hat immer recht, und manchmal
+            // weiss nur der Besitzer der Datei, wie der Track heisst.
+            TextField("", text: valueBinding)
+                .textFieldStyle(.roundedBorder)
+                .frame(minWidth: 200)
 
-            Spacer(minLength: 8)
+            if !field.alternatives.isEmpty {
+                Menu {
+                    ForEach(field.alternatives) { alternative in
+                        Button {
+                            field.select(alternative)
+                            field.isAccepted = true
+                        } label: {
+                            Text("\(alternative.value) — \(sourceName(alternative.source))")
+                        }
+                    }
+                } label: {
+                    Image(systemName: "arrow.triangle.branch")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .help("Use one of the other suggestions")
+            }
 
             if field.isOverwrite {
                 Text("overwrites")
@@ -363,6 +382,18 @@ private struct FieldRow: View {
 
             ConfidenceDot(confidence: field.confidence)
         }
+    }
+
+    /// Tippen macht den Wert zu einer Handeingabe — und hakt die Zeile an,
+    /// weil niemand etwas eintippt, das er nicht übernehmen will.
+    private var valueBinding: Binding<String> {
+        Binding(
+            get: { field.value },
+            set: { newValue in
+                field.setManualValue(newValue)
+                field.isAccepted = !newValue.trimmingCharacters(in: .whitespaces).isEmpty
+            }
+        )
     }
 }
 
@@ -411,5 +442,6 @@ private func sourceName(_ source: SuggestionSource) -> String {
     case .folderPattern:    return String(localized: "Folder pattern")
     case .libraryDuplicate: return String(localized: "Library twin")
     case .catalog:          return String(localized: "Discogs")
+    case .manual:           return String(localized: "Typed in")
     }
 }

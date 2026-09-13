@@ -396,6 +396,91 @@ final class MetadataResolverChainTests: XCTestCase {
         XCTAssertEqual(proposal.suggestion(for: .artist)?.value, "Len Faki")
     }
 
+    func test_catalogConfirmation_takesTheCatalogSpelling() async {
+        // Beide meinen denselben Track — unser Ähnlichkeitsmass sieht dieselben
+        // Tokens. Nur eine der beiden Klammersetzungen ist richtig, und das ist
+        // die aus dem Katalog.
+        let catalog = FakeCatalog(matches: [
+            CatalogMatch(artist: "Technical Hitch",
+                         title: "Mama India (Outside The Universe Remix)",
+                         score: 0.9, reference: "discogs:release/1#A")
+        ])
+        let resolver = MetadataResolver(
+            catalog: catalog,
+            options: .init(fields: MetadataField.core, policy: .always)
+        )
+        let proposal = await resolver.proposal(
+            for: makeTrack("/m/Technical Hitch - Mama India Outside The Universe Remix.mp3"),
+            context: emptyContext()
+        )
+        let title = try! XCTUnwrap(proposal.suggestion(for: .title))
+        XCTAssertEqual(title.value, "Mama India (Outside The Universe Remix)")
+        XCTAssertEqual(title.source, .catalog)
+        XCTAssertTrue(proposal.notes.contains(.catalogConfirmed))
+        XCTAssertTrue(
+            title.alternatives.contains { $0.value == "Mama India Outside The (Universe Remix)" },
+            "Der hergeleitete Wert bleibt als Alternative erhalten"
+        )
+    }
+
+    func test_correction_keepsDerivedValueAsAlternative() async {
+        // Bootleg: Discogs kennt den Remix nicht und schlägt einen anderen vor.
+        // Der Dateiname hatte recht — der Wert muss erreichbar bleiben.
+        let catalog = FakeCatalog(matches: [
+            CatalogMatch(artist: "Paul van Dyk",
+                         title: "For An Angel (Terry Lee Brown Jnr Remix)",
+                         score: 0.8, reference: "discogs:release/2#B")
+        ])
+        let resolver = MetadataResolver(
+            catalog: catalog,
+            options: .init(fields: MetadataField.core, policy: .always)
+        )
+        var proposal = await resolver.proposal(
+            for: makeTrack("/m/Paul van Dyk - For An Angel Phaxe Remix.mp3"),
+            context: emptyContext()
+        )
+        var title = try! XCTUnwrap(proposal.suggestion(for: .title))
+        XCTAssertEqual(title.value, "For An Angel (Terry Lee Brown Jnr Remix)")
+        let derived = try! XCTUnwrap(title.alternatives.first { $0.value.contains("Phaxe") })
+
+        // Zurückschalten — und der Katalogwert bleibt seinerseits erreichbar.
+        title.select(derived)
+        XCTAssertEqual(title.value, "For An Angel (Phaxe Remix)")
+        XCTAssertTrue(title.alternatives.contains { $0.value.contains("Terry Lee Brown") })
+
+        proposal.fields[0] = title
+        XCTAssertEqual(proposal.suggestion(for: title.field)?.value, "For An Angel (Phaxe Remix)")
+    }
+
+    func test_weakerStage_survivesAsAlternative() async {
+        // Der Zwilling schlägt den Dateinamen — dessen Wert bleibt trotzdem da.
+        let twin = makeTrack("/lib/x.mp3", title: "Phantom", artist: "Skudge",
+                             duration: 371, fileSize: 42)
+        let orphan = makeTrack("/dl/Skudge - Phantom Remastered.mp3", duration: 371, fileSize: 42)
+        let context = MetadataContext(pattern: nil, duplicates: DuplicateMatcher(tracks: [twin]))
+        let resolver = MetadataResolver(options: .init(fields: MetadataField.core, policy: .off))
+        let proposal = await resolver.proposal(for: orphan, context: context)
+
+        let title = try! XCTUnwrap(proposal.suggestion(for: .title))
+        XCTAssertEqual(title.value, "Phantom")
+        XCTAssertTrue(title.alternatives.contains { $0.value.contains("Remastered") })
+    }
+
+    func test_manualValue_takesOverAndKeepsSuggestion() async {
+        let resolver = MetadataResolver(options: .init(fields: MetadataField.core, policy: .off))
+        let proposal = await resolver.proposal(
+            for: makeTrack("/m/Len Faki - Mekong Delta.mp3"),
+            context: emptyContext()
+        )
+        var title = try! XCTUnwrap(proposal.suggestion(for: .title))
+        title.setManualValue("Mekong Delta (Dub)")
+
+        XCTAssertEqual(title.value, "Mekong Delta (Dub)")
+        XCTAssertEqual(title.source, .manual)
+        XCTAssertEqual(title.confidence, 1.0, accuracy: 0.0001)
+        XCTAssertTrue(title.alternatives.contains { $0.value == "Mekong Delta" })
+    }
+
     // MARK: Anwenden
 
     func test_applied_writesOnlyAcceptedFields() async {

@@ -29,6 +29,8 @@ public enum SuggestionSource: String, Sendable, Codable {
     case libraryDuplicate
     /// Katalog-Abgleich (Discogs).
     case catalog
+    /// Von Hand im Review-Sheet eingetippt.
+    case manual
 }
 
 /// Vorschlag für **ein** Feld.
@@ -45,6 +47,28 @@ public struct FieldSuggestion: Sendable, Equatable, Identifiable {
     /// und die Confidence trägt — bestehende Werte überschreibt niemand
     /// versehentlich.
     public var isAccepted: Bool
+    /// Was die anderen Stufen vorgeschlagen hatten, absteigend nach Confidence.
+    ///
+    /// Wird gebraucht, weil keine Stufe immer recht hat: bei einem Bootleg
+    /// kennt Discogs den Remix nicht und „korrigiert" den richtigen
+    /// Dateinamen-Titel kaputt. Der verworfene Wert bleibt deshalb erhalten
+    /// und ist im Review-Sheet einen Klick entfernt.
+    public var alternatives: [Alternative]
+
+    /// Ein verworfener Kandidat.
+    public struct Alternative: Sendable, Equatable, Identifiable {
+        public var value: String
+        public var source: SuggestionSource
+        public var confidence: Double
+
+        public init(value: String, source: SuggestionSource, confidence: Double) {
+            self.value = value
+            self.source = source
+            self.confidence = confidence
+        }
+
+        public var id: String { "\(source.rawValue)|\(value)" }
+    }
 
     public var id: MetadataField { field }
 
@@ -54,7 +78,8 @@ public struct FieldSuggestion: Sendable, Equatable, Identifiable {
         currentValue: String,
         source: SuggestionSource,
         confidence: Double,
-        isAccepted: Bool
+        isAccepted: Bool,
+        alternatives: [Alternative] = []
     ) {
         self.field = field
         self.value = value
@@ -62,6 +87,43 @@ public struct FieldSuggestion: Sendable, Equatable, Identifiable {
         self.source = source
         self.confidence = confidence
         self.isAccepted = isAccepted
+        self.alternatives = alternatives
+    }
+
+    /// Schaltet auf eine Alternative um. Der bisherige Wert geht nicht
+    /// verloren, sondern wird selbst zur Alternative — der Nutzer soll
+    /// zurückwechseln können, ohne den Lauf zu wiederholen.
+    public mutating func select(_ alternative: Alternative) {
+        guard alternative.value != value else { return }
+        let previous = Alternative(value: value, source: source, confidence: confidence)
+        alternatives.removeAll { $0.value == alternative.value }
+        if !alternatives.contains(where: { $0.value == previous.value }) {
+            alternatives.insert(previous, at: 0)
+        }
+        value = alternative.value
+        source = alternative.source
+        confidence = alternative.confidence
+    }
+
+    /// Übernimmt einen von Hand eingegebenen Wert. Der bisherige Vorschlag
+    /// bleibt als Alternative stehen, die Confidence ist per Definition voll —
+    /// der Mensch hat hingeschaut.
+    /// Getrimmt wird bewusst **nicht** hier, sondern erst beim Schreiben:
+    /// sonst verschluckt das Feld jedes Leerzeichen, das der Nutzer gerade
+    /// zwischen zwei Wörtern tippt.
+    public mutating func setManualValue(_ newValue: String) {
+        guard newValue != value else { return }
+        if source != .manual,
+           !value.isEmpty,
+           !alternatives.contains(where: { $0.value == value }) {
+            alternatives.insert(
+                Alternative(value: value, source: source, confidence: confidence),
+                at: 0
+            )
+        }
+        value = newValue
+        source = .manual
+        confidence = 1.0
     }
 
     /// Der Vorschlag würde einen bestehenden Wert ersetzen.
@@ -190,13 +252,15 @@ public struct MetadataProposal: Sendable, Identifiable {
     /// unangetastet.
     public func applied(to base: Track) -> Track {
         var result = base
-        for suggestion in fields where suggestion.isAccepted && !suggestion.value.isEmpty {
+        for suggestion in fields where suggestion.isAccepted {
+            let value = suggestion.value.trimmingCharacters(in: .whitespaces)
+            guard !value.isEmpty else { continue }
             switch suggestion.field {
-            case .artist: result.artist = suggestion.value
-            case .title:  result.title = suggestion.value
-            case .album:  result.album = suggestion.value
-            case .label:  result.label = suggestion.value
-            case .year:   result.year = Int(suggestion.value) ?? result.year
+            case .artist: result.artist = value
+            case .title:  result.title = value
+            case .album:  result.album = value
+            case .label:  result.label = value
+            case .year:   result.year = Int(value) ?? result.year
             }
         }
         return result
