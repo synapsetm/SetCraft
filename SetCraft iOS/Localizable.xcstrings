@@ -577,7 +577,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Jeder Track startet mit diesem Tempo — die Tonarten verschieben sich mit."
+            "value" : "Jeder Track startet mit diesem Tempo — die Keys verschieben sich mit."
           }
         }
       }
@@ -607,7 +607,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Feinjustage ±8 %"
+            "value" : "Feinregelung ±8 %"
           }
         }
       }
@@ -637,7 +637,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tonart"
+            "value" : "Key"
           }
         }
       }
@@ -1110,7 +1110,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Größe"
+            "value" : "Grösse"
           }
         }
       }
@@ -1130,7 +1130,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Klingt %1$@ Halbtöne verschoben — zwischen zwei Tonarten: %2$@ → ~%3$@. In der Datei bleibt %4$@."
+            "value" : "Klingt %1$@ Halbtöne verschoben — zwischen zwei Keys: %2$@ → ~%3$@. In der Datei bleibt %4$@."
           }
         }
       }

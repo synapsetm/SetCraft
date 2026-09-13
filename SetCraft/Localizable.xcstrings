@@ -45,7 +45,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "‘%@’ existiert in diesem Ordner bereits — übersprungen."
+            "value" : "„%@“ existiert in diesem Ordner bereits — übersprungen."
           }
         }
       }
@@ -439,7 +439,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zugriff auf ‘%@’ ist verloren gegangen. Entferne den Ordner und füge ihn neu hinzu."
+            "value" : "Zugriff auf „%@“ ist verloren gegangen. Entferne den Ordner und füge ihn neu hinzu."
           }
         }
       }
@@ -698,7 +698,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "‘%@’ konnte nicht zur Bibliothek hinzugefügt werden."
+            "value" : "„%@“ konnte nicht zur Bibliothek hinzugefügt werden."
           }
         }
       }
@@ -904,7 +904,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Importiert, aber Quelle ‘%1$@’ konnte nicht entfernt werden: %2$@"
+            "value" : "Importiert, aber Quelle „%1$@“ konnte nicht entfernt werden: %2$@"
           }
         },
         "en" : {
@@ -1020,7 +1020,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Länger als %lld Minuten — wird als DJ-Mix behandelt, darum werden BPM, Key und Welle nicht automatisch berechnet. Re-Analyze fragt vorher nach."
+            "value" : "Länger als %lld Minuten — wird als DJ-Mix behandelt, darum werden BPM, Key und Waveform nicht automatisch berechnet. Re-Analyze fragt vorher nach."
           }
         }
       }
@@ -1050,7 +1050,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Master-Tempo aktiv — die Tonarten verschieben sich mit dem Tempo. Sortierung nach klingendem Key."
+            "value" : "Master-Tempo aktiv — die Keys verschieben sich mit dem Tempo. Sortierung nach klingendem Key."
           }
         }
       }
@@ -1170,7 +1170,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keine BPM und keine Tonart erkannt: %@"
+            "value" : "Keine BPM und kein Key erkannt: %@"
           }
         }
       }
@@ -1200,7 +1200,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keine Tonart erkannt: %@"
+            "value" : "Kein Key erkannt: %@"
           }
         }
       }
@@ -1390,7 +1390,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rating"
+            "value" : "Bewertung"
           }
         }
       }
@@ -1460,7 +1460,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entfernt: ‘%1$@’ — Bookmark nicht lesbar (%2$@)."
+            "value" : "Entfernt: „%1$@“ — Bookmark nicht lesbar (%2$@)."
           }
         },
         "en" : {
@@ -1496,7 +1496,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reset"
+            "value" : "Zurücksetzen"
           }
         }
       }
@@ -1599,7 +1599,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Klingt %1$@ Halbtöne verschoben — zwischen zwei Tonarten, die Rundung auf %2$@ ist willkürlich. In der Datei steht weiterhin %3$@."
+            "value" : "Klingt %1$@ Halbtöne verschoben — zwischen zwei Keys, die Rundung auf %2$@ ist willkürlich. In der Datei steht weiterhin %3$@."
           }
         }
       }

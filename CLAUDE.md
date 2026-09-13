@@ -123,17 +123,17 @@ Tooltips im Infinitiv („Markierten Track aus der Bibliothek laden"), Schweizer
 statt „ß"** („Grösse", „Schliessen"). Fachbegriffe bleiben englisch: Track, Player,
 Tempo, BPM, Key.
 
-**Prüfen**, ob noch Lücken offen sind:
+**Prüfen** (beide Targets vorher bauen, das Skript liest die vom Compiler
+extrahierten `.stringsdata`):
 
 ```sh
-python3 -c "
-import json,sys
-for p in ['SetCraft/Localizable.xcstrings','SetCraft iOS/Localizable.xcstrings']:
-    s=json.load(open(p))['strings']
-    miss=[k for k,v in s.items() if 'de' not in v.get('localizations',{})]
-    print(p, '->', len(miss), 'ohne de:', miss)
-"
+python3 scripts/check-localization.py
 ```
+
+Gemeldet werden fehlende `de`-Einträge, nicht zusammenpassende Platzhalter,
+„ß" statt „ss", Karteileichen, Keys ohne Katalogeintrag — und Fälle, in denen
+macOS und iOS denselben Key unterschiedlich übersetzen. Letzteres ist der
+häufigste Fehler, weil die Kataloge getrennt sind.
 
 ---
 
