@@ -84,6 +84,11 @@ final class MetadataFixStore {
             for await proposal in runner.proposals(for: tracks, context: context) {
                 guard let self, !Task.isCancelled else { break }
                 self.processed += 1
+                // Den ersten Katalog-Fehler zeigen, statt ihn nur als Notiz an
+                // jeder einzelnen Zeile zu vermerken — der Grund steht dort.
+                if self.lastError == nil, let reason = proposal.catalogErrorDescription {
+                    self.lastError = reason
+                }
                 guard proposal.hasChanges else { continue }
                 self.proposals.append(proposal)
             }

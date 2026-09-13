@@ -106,6 +106,12 @@ struct MetadataFixSheet: View {
 
             Toggle("Discogs options", isOn: $showOptions)
                 .font(.footnote)
+
+            if let error = store.lastError {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
         } footer: {
             Text("Discogs costs two requests per track. “Only when uncertain” asks just for the doubtful ones.")
         }

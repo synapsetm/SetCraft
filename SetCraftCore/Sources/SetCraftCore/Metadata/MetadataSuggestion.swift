@@ -138,6 +138,11 @@ public struct MetadataProposal: Sendable, Identifiable {
     /// Kennung des Katalog-Treffers, falls einer verwendet wurde
     /// (z. B. `discogs:release/1#B2`) — landet als Provenienz im Log.
     public var catalogReference: String?
+    /// Warum die Katalog-Abfrage scheiterte, im Klartext. Gehört in die UI:
+    /// ein blosses „nicht erreichbar" kostete schon einmal eine Runde
+    /// Fehlersuche, obwohl der Grund (fehlendes Sandbox-Entitlement) in der
+    /// Fehlermeldung stand.
+    public var catalogErrorDescription: String?
 
     public var id: URL { url }
 
@@ -147,7 +152,8 @@ public struct MetadataProposal: Sendable, Identifiable {
         parsed: ParsedFilename,
         fields: [FieldSuggestion] = [],
         notes: [ProposalNote] = [],
-        catalogReference: String? = nil
+        catalogReference: String? = nil,
+        catalogErrorDescription: String? = nil
     ) {
         self.url = url
         self.track = track
@@ -155,6 +161,7 @@ public struct MetadataProposal: Sendable, Identifiable {
         self.fields = fields
         self.notes = notes
         self.catalogReference = catalogReference
+        self.catalogErrorDescription = catalogErrorDescription
     }
 
     /// Niedrigste Confidence der tatsächlich angehakten Felder — danach

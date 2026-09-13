@@ -18,7 +18,7 @@ public enum FilenameParser {
 
     /// Klammerinhalte, die eine Mix-/Versionsbezeichnung markieren.
     static let mixKeywords: Set<String> = [
-        "mix", "remix", "rmx", "edit", "re-edit", "reedit", "dub", "version",
+        "mix", "remix", "rmx", "remx", "rmix", "edit", "re-edit", "reedit", "dub", "version",
         "bootleg", "vip", "rework", "refix", "remake", "flip", "mashup",
         "instrumental", "acapella", "acappella", "radio", "extended",
         "original", "club", "live", "remaster", "remastered", "intro",
@@ -245,12 +245,27 @@ public enum FilenameParser {
     /// genauso oft Teil des Titels („Anti War Dub"), und ein falsch
     /// abgetrennter Titel ist schlimmer als eine fehlende Klammer.
     private static let remixerKeywords: Set<String> = [
-        "remix", "rmx", "mix", "edit", "reedit", "bootleg", "rework",
+        "remix", "rmx", "remx", "rmix", "mix", "edit", "reedit", "bootleg", "rework",
         "refix", "remake", "flip", "mashup", "vip"
     ]
 
     /// Verbinder in Remixer-Namen („Dense & Pika Remix").
     private static let artistConnectors: Set<String> = ["&", "and", "vs", "vs.", "x", "ft", "ft.", "feat", "feat."]
+
+    /// Abkuerzungen, die ausgeschrieben in den Tag gehoeren. DJ-Software
+    /// gruppiert Fassungen ueber den Titeltext — „Rmx" und „Remix" sind dort
+    /// zwei verschiedene Dinge.
+    private static let mixWordSpellings: [String: String] = [
+        "rmx": "Remix",
+        "remx": "Remix",
+        "rmix": "Remix",
+        "orig": "Original",
+        "ext": "Extended",
+        "instr": "Instrumental",
+        "acappella": "Acapella",
+        "reedit": "Re-Edit",
+        "re-edit": "Re-Edit"
+    ]
 
     /// Bezeichnungen, die auch allein in Klammern gehoeren.
     private static let standaloneMixWords: Set<String> = ["instrumental", "acapella", "acappella"]
@@ -306,6 +321,7 @@ public enum FilenameParser {
     /// (Remixer-Namen) bleibt unangetastet.
     private static func normalizeMixWord(_ word: String) -> String {
         let bare = bareWord(word)
+        if let spelled = mixWordSpellings[bare] { return spelled }
         guard mixKeywords.contains(bare) || mixQualifiers.contains(bare) else { return word }
         return bare.prefix(1).uppercased() + bare.dropFirst()
     }

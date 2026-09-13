@@ -8,10 +8,17 @@
 	<true/>
 	<key>com.apple.security.files.bookmarks.app-scope</key>
 	<true/>
-	<!-- Sparkle 2 im Sandbox-Modus: die App selbst macht keinen Outbound-
-	     HTTPS mehr (kein `network.client`); stattdessen lädt der Sparkle-
-	     Downloader-XPC die Update-Dateien und der Installer-XPC führt die
-	     Installation aus. Die Mach-Lookup-Exceptions geben der App die
+	<!-- Ausgehende HTTPS-Verbindungen: gebraucht für den Discogs-Abgleich
+	     der Tag-Ergänzung (api.discogs.com). Ohne dieses Entitlement
+	     scheitert in der Sandbox jede URLSession-Anfrage, und zwar mit einer
+	     nichtssagenden Netzwerkfehlermeldung — die Vorschlagskette meldete
+	     dann für jeden Track „Discogs nicht erreichbar". -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<!-- Sparkle 2 im Sandbox-Modus: der Sparkle-Downloader-XPC lädt die
+	     Update-Dateien und der Installer-XPC führt die Installation aus.
+	     Das bleibt so, auch jetzt mit `network.client` — die XPC-Services
+	     sind bereits eingerichtet und signiert. Die Mach-Lookup-Exceptions geben der App die
 	     Erlaubnis, sich mit den beiden XPC-Services zu verbinden, die
 	     Sparkle unter `<bundle-id>-spks` (Installer) und `<bundle-id>-spki`
 	     (Downloader) registriert. Siehe

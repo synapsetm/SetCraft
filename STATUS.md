@@ -19,7 +19,7 @@ Letzte Aktualisierung: 2026-09-13.
 - **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
   weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
   manuell über den Xcode Organizer.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 184 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 185 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
   Vorschlagskette/Discogs).
@@ -83,8 +83,9 @@ Für Tracks ohne saubere Artist/Title-Tags. Vier Stufen, jede darf die vorige
    zu Beginn, sonst überlebt `_` mitten im Titel. Mix-Version und `feat.`
    bleiben **im Titel** (Serato/Rekordbox zeigen nur den Titel), werden aber
    separat ausgewiesen. Eine nackte Mix-Bezeichnung wird eingeklammert
-   („Higher Dimension Original MIx" → „… (Original Mix)"); mehrdeutige Wörter
-   wie „Dub" lösen das nicht aus.
+   („Higher Dimension Original MIx" → „… (Original Mix)") und Abkürzungen
+   werden ausgeschrieben („rmx" → „Remix"); mehrdeutige Wörter wie „Dub"
+   lösen das nicht aus.
 2. **`PatternLearner`** — lernt das Namensschema eines Ordners aus den
    Dateien, die **schon** Tags haben, und richtet die untagged Geschwister
    danach aus. Damit ist „Title - Artist" auflösbar, was aus einem Dateinamen
@@ -130,6 +131,12 @@ Serialisierung, Active-Track-Guard).
   greifen und der Vorschlag bleibt entsprechend niedriger bewertet.
 - Lizenz: die genutzten Felder sind CC0, Bilder/Marktplatzdaten wären
   „Restricted Data" (nicht kommerziell) — für dieses Projekt unkritisch.
+- **Sandbox:** die Mac-App braucht dafür `com.apple.security.network.client`.
+  Das Entitlement fehlte zunächst (die App machte bis dahin keinen eigenen
+  Outbound-HTTPS, Sparkle lädt über seinen XPC), und die Sandbox liess jede
+  Anfrage auflaufen — im Sheet stand dann für jeden Track nur „Discogs nicht
+  erreichbar". Der Grund steht jetzt im Klartext in der Statuszeile
+  (`MetadataProposal.catalogErrorDescription`).
 
 ### Player
 - macOS: fixe Waveform, beweglicher Playhead; iOS: Center-Playhead, Waveform

@@ -121,6 +121,7 @@ public struct MetadataResolver: Sendable {
 
         // ── Stufe 4: Katalog als Gegenprüfung ──────────────────────────────
         var reference: String?
+        var catalogError: String?
         if let catalog, options.policy != .off {
             if shouldCheckCatalog(candidates: candidates, parsed: parsed, track: track) {
                 let query = CatalogQuery(
@@ -132,7 +133,14 @@ public struct MetadataResolver: Sendable {
                     durationSeconds: track.durationSeconds
                 )
                 if query.isUsable {
-                    reference = await applyCatalog(catalog, query: query, candidates: &candidates, notes: &notes)
+                    let outcome = await applyCatalog(
+                        catalog,
+                        query: query,
+                        candidates: &candidates,
+                        notes: &notes
+                    )
+                    reference = outcome.reference
+                    catalogError = outcome.errorDescription
                 }
             } else {
                 notes.append(.catalogNotChecked)
@@ -165,7 +173,8 @@ public struct MetadataResolver: Sendable {
             parsed: parsed,
             fields: fields,
             notes: notes,
-            catalogReference: reference
+            catalogReference: reference,
+            catalogErrorDescription: catalogError
         )
     }
 
@@ -220,25 +229,26 @@ public struct MetadataResolver: Sendable {
     }
 
     /// Fragt den Katalog und verrechnet den besten Treffer mit den bisherigen
-    /// Kandidaten. Liefert die Provenienz des verwendeten Treffers.
+    /// Kandidaten. Liefert die Provenienz des verwendeten Treffers — und, falls
+    /// die Abfrage scheiterte, den Grund im Klartext.
     private func applyCatalog(
         _ catalog: CatalogLookup,
         query: CatalogQuery,
         candidates: inout [MetadataField: Candidate],
         notes: inout [ProposalNote]
-    ) async -> String? {
+    ) async -> (reference: String?, errorDescription: String?) {
         let matches: [CatalogMatch]
         do {
             matches = try await catalog.search(query)
         } catch {
             Self.log.notice("Catalog lookup failed for \(query.title, privacy: .public): \(error.localizedDescription, privacy: .public)")
             notes.append(.catalogUnavailable)
-            return nil
+            return (nil, error.localizedDescription)
         }
 
         guard let best = matches.first, best.score >= options.minimumCatalogScore else {
             notes.append(.catalogNoMatch)
-            return nil
+            return (nil, nil)
         }
         // Zweiter Treffer dicht dahinter → der Nutzer soll zweimal hinschauen.
         if matches.count > 1, matches[1].score >= best.score - 0.05 {
@@ -283,7 +293,7 @@ public struct MetadataResolver: Sendable {
         } else if confirmed {
             notes.append(.catalogConfirmed)
         }
-        return best.reference.isEmpty ? nil : best.reference
+        return (best.reference.isEmpty ? nil : best.reference, nil)
     }
 
     // MARK: - Helpers

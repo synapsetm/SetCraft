@@ -169,7 +169,7 @@ final class FilenameParserTests: XCTestCase {
     func test_underscoreName_withRemixerBeforeKeyword() {
         let p = FilenameParser.parse(stem: "Liquid_Soul_-_Hypnotic_Energy_Egorythmia_rmx_(SkySound.cc)")
         XCTAssertEqual(p.artist, "Liquid Soul")
-        XCTAssertEqual(p.title, "Hypnotic Energy (Egorythmia Rmx)")
+        XCTAssertEqual(p.title, "Hypnotic Energy (Egorythmia Remix)")
     }
 
     // MARK: - Seiten-/Scene-Kürzel als drittes Feld
@@ -222,6 +222,16 @@ final class FilenameParserTests: XCTestCase {
     func test_bareKeywordWithoutRoomForATitle_isLeftAlone() {
         let p = FilenameParser.parse(stem: "Dense & Pika - Colt Remix")
         XCTAssertEqual(p.title, "Colt Remix")
+    }
+
+    func test_abbreviationsAreSpelledOut() {
+        // „Rmx" und „Remix" waeren fuer DJ-Software zwei verschiedene Dinge.
+        XCTAssertEqual(FilenameParser.parse(stem: "Artist - Track Someone rmx").title,
+                       "Track (Someone Remix)")
+        XCTAssertEqual(FilenameParser.parse(stem: "Artist - Track Orig Mix").title,
+                       "Track (Original Mix)")
+        XCTAssertEqual(FilenameParser.parse(stem: "Artist - Track Ext Mix").title,
+                       "Track (Extended Mix)")
     }
 
     func test_alreadyBracketedMix_isUntouched() {
