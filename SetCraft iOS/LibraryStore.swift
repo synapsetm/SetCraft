@@ -156,6 +156,22 @@ final class LibraryStore {
     /// Der DB-Actor dient der Metadaten-Kette als Cache fuer Katalog-Antworten.
     var catalogCache: CatalogResponseCache { database }
 
+    /// Kandidaten fuer den Zwillings-Abgleich: **alle** je gescannten Tracks mit
+    /// brauchbaren Tags, nicht nur die der offenen Quelle. Genau der wichtigste
+    /// Fall liegt sonst ausserhalb — die rohe Kopie in einem Ordner, die
+    /// saubere in einem anderen. Die Zeilen der offenen Quelle gewinnen, weil
+    /// sie frischer sind.
+    func taggedTracksAcrossLibrary() async -> [Track] {
+        var byPath: [String: Track] = [:]
+        for track in (try? await database.taggedTracks()) ?? [] {
+            byPath[track.url.standardizedFileURL.path] = track
+        }
+        for track in tracks where !track.artist.isEmpty && !track.title.isEmpty {
+            byPath[track.url.standardizedFileURL.path] = track
+        }
+        return Array(byPath.values)
+    }
+
     /// Uebernimmt die angehakten Felder eines Vorschlags und schreibt sie ueber
     /// den normalen Save-Pfad zurueck. Liefert `false`, wenn der Track nicht
     /// mehr in der Liste steht oder der Vorschlag nichts aendert.

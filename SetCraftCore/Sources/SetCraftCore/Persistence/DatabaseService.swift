@@ -158,6 +158,22 @@ public actor DatabaseService {
         }
     }
 
+    /// Alle Zeilen, die als **Zwilling** taugen: Artist und Titel gesetzt, Dauer
+    /// bekannt. Quelle für den ordnerübergreifenden Duplikat-Abgleich der
+    /// Tag-Ergänzung — der praktisch wichtigste Fall ist, dass die sauber
+    /// getaggte Kopie in einem *anderen* Ordner liegt als die rohe.
+    ///
+    /// Gefiltert wird in SQL, damit bei grossen Bibliotheken nicht zehntausende
+    /// nutzlose Zeilen durch den Decoder gehen.
+    public func taggedTracks() async throws -> [Track] {
+        try await dbQueue.read { db in
+            try CachedTrack
+                .filter(sql: "artist <> '' AND title <> '' AND duration_seconds > 0")
+                .fetchAll(db)
+                .map { $0.track() }
+        }
+    }
+
     // MARK: - Waveforms
 
     public func loadWaveform(url: URL, expectedModifiedAt: Date) async throws -> WaveformData? {

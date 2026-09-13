@@ -198,6 +198,9 @@ public enum ProposalNote: String, Sendable, CaseIterable {
     /// Der Katalog widerspricht — sein Wert steht im Vorschlag, der Offline-Wert
     /// bleibt als Bestand sichtbar.
     case catalogCorrected
+    /// Der Katalog widerspricht dem Zwilling aus der Bibliothek — dessen Wert
+    /// bleibt stehen, der Katalogwert steht als Alternative daneben.
+    case libraryTwinKept
     /// Katalog wurde gefragt, kennt den Track aber nicht.
     case catalogNoMatch
     /// Mehrere plausible Katalog-Treffer; genommen wurde der beste.

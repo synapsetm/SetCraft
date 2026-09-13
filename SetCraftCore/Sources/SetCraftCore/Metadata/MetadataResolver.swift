@@ -259,6 +259,7 @@ public struct MetadataResolver: Sendable {
 
         var confirmed = false
         var corrected = false
+        var twinKept = false
 
         // Mehrere gleich gute Treffer: dann ist schon die Auswahl des Releases
         // eine Wette. Das schlägt auf alles durch, was aus diesem Treffer kommt.
@@ -297,6 +298,24 @@ public struct MetadataResolver: Sendable {
             } else {
                 corrected = true
             }
+
+            // Ein Zwilling aus der eigenen Bibliothek wird nicht überstimmt.
+            // Seine Tags hat der Nutzer selbst gesetzt oder geprüft; ein
+            // fremder Katalog ist dagegen keine höhere Instanz. Der
+            // Katalogwert bleibt als Alternative erreichbar, und der
+            // Widerspruch kostet trotzdem etwas Confidence — uneinig sind
+            // sich die Quellen ja.
+            if existing.source == .libraryDuplicate {
+                if agrees {
+                    existing.confidence = max(existing.confidence, confirmConfidence)
+                } else {
+                    twinKept = true
+                    existing.confidence = max(0.6, existing.confidence - Self.twinDisagreementPenalty)
+                    existing.remember(value: value, source: .catalog, confidence: gapFillConfidence)
+                }
+                candidates[field] = existing
+                return
+            }
             // In beiden Fällen zählt die **Schreibweise des Katalogs**: bei
             // Übereinstimmung meinen beide denselben Track, und dann ist die
             // Katalogfassung die saubere — sie setzt die Klammern richtig.
@@ -321,7 +340,9 @@ public struct MetadataResolver: Sendable {
         merge(.label, best.label)
         if let year = best.year { merge(.year, String(year)) }
 
-        if corrected {
+        if twinKept {
+            notes.append(.libraryTwinKept)
+        } else if corrected {
             notes.append(.catalogCorrected)
         } else if confirmed {
             notes.append(.catalogConfirmed)
@@ -345,6 +366,10 @@ public struct MetadataResolver: Sendable {
 
     /// Abschlag, wenn mehrere Katalog-Treffer gleich gut passten.
     static let ambiguityPenalty = 0.05
+
+    /// Abschlag auf den Wert eines Bibliotheks-Zwillings, dem der Katalog
+    /// widerspricht. Der Zwilling bleibt, aber sicher ist die Sache nicht mehr.
+    static let twinDisagreementPenalty = 0.1
 
     /// Ein Kandidat, solange noch Stufen folgen können — samt der Werte, die
     /// unterwegs verdrängt wurden. Die gehen nicht verloren: im Review-Sheet

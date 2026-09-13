@@ -74,17 +74,19 @@ final class MetadataFixViewModel {
         let runner = MetadataFixRunner(settings: settings, cache: library.catalogCache)
         estimatedSeconds = runner.estimatedSeconds(trackCount: tracks.count)
 
-        // Der Kontext lernt aus **allen** Tracks der Quelle, nicht nur aus den
-        // betrachteten: die getaggten Geschwister sind das Lehrmaterial für das
-        // Namensschema, und genau die stehen nicht in der Auswahl.
-        let context = runner.context(
-            folderTracks: library.tracks,
-            library: library.tracks
-        )
-
         runTask = Task { [weak self] in
+            guard let self else { return }
+            // Das Namensschema lernt aus **allen** Tracks der Quelle, nicht nur
+            // aus den betrachteten: die getaggten Geschwister sind das
+            // Lehrmaterial, und genau die stehen nicht in der Auswahl.
+            // Der Zwillings-Abgleich schaut darüber hinaus in die ganze
+            // Bibliothek — dafür muss erst die DB gelesen werden.
+            let context = runner.context(
+                folderTracks: self.library.tracks,
+                library: await self.library.taggedTracksAcrossLibrary()
+            )
             for await proposal in runner.proposals(for: tracks, context: context) {
-                guard let self, !Task.isCancelled else { break }
+                if Task.isCancelled { break }
                 self.processed += 1
                 // Den ersten Katalog-Fehler zeigen, statt ihn nur als Notiz an
                 // jeder einzelnen Zeile zu vermerken — der Grund steht dort.
@@ -94,7 +96,7 @@ final class MetadataFixViewModel {
                 guard proposal.hasChanges else { continue }
                 self.proposals.append(proposal)
             }
-            self?.isRunning = false
+            self.isRunning = false
         }
     }
 

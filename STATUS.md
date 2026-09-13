@@ -19,7 +19,7 @@ Letzte Aktualisierung: 2026-09-13.
 - **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
   weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
   manuell über den Xcode Organizer.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 195 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 198 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
   Vorschlagskette/Discogs).
@@ -95,7 +95,12 @@ Für Tracks ohne saubere Artist/Title-Tags. Vier Stufen, jede darf die vorige
    jeder Datei darin.
 3. **`DuplicateMatcher`** — getaggter Zwilling in der Bibliothek, gefunden
    über Dauer (±2 s) plus Dateigrösse bzw. Namensähnlichkeit. Verlässlichste
-   Offline-Quelle, weil die Tags vom Nutzer selbst kuratiert sind.
+   Offline-Quelle, weil die Tags vom Nutzer selbst kuratiert sind. Gesucht
+   wird über die **ganze** Bibliothek (`DatabaseService.taggedTracks()`), nicht
+   nur in der offenen Quelle — der wichtigste Fall ist ja gerade die rohe
+   Kopie im Download-Ordner und die saubere im Album-Ordner. Deshalb
+   überstimmt **Discogs einen Zwilling nicht**: dessen Wert bleibt stehen, der
+   Katalogwert wird Alternative, und die Uneinigkeit kostet 0.1 Confidence.
 4. **`DiscogsResolver`** — Gegenprüfung gegen api.discogs.com. Policy
    `off` / `whenUncertain` (Default) / `always`; „unsicher" heisst unklare
    Reihenfolge, schwacher Trenner, fehlendes Kernfeld oder ein angefordertes

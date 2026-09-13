@@ -481,6 +481,73 @@ final class MetadataResolverChainTests: XCTestCase {
         XCTAssertTrue(title.alternatives.contains { $0.value == "Mekong Delta" })
     }
 
+    func test_catalog_doesNotOverrideALibraryTwin() async {
+        // Die Tags des Zwillings hat der Nutzer selbst gesetzt — ein fremder
+        // Katalog ist keine höhere Instanz.
+        let twin = makeTrack("/lib/x.mp3", title: "Phantom (Dub Edit)", artist: "Skudge",
+                             duration: 371, fileSize: 42)
+        let orphan = makeTrack("/dl/skudge - phantom.mp3", duration: 371, fileSize: 42)
+        let catalog = FakeCatalog(matches: [
+            CatalogMatch(artist: "Skudge", title: "Phantom (Original Mix)", score: 0.95)
+        ])
+        let resolver = MetadataResolver(
+            catalog: catalog,
+            options: .init(fields: MetadataField.core, policy: .always)
+        )
+        let context = MetadataContext(pattern: nil, duplicates: DuplicateMatcher(tracks: [twin]))
+        let proposal = await resolver.proposal(for: orphan, context: context)
+
+        let title = try! XCTUnwrap(proposal.suggestion(for: .title))
+        XCTAssertEqual(title.value, "Phantom (Dub Edit)")
+        XCTAssertEqual(title.source, .libraryDuplicate)
+        XCTAssertTrue(proposal.notes.contains(.libraryTwinKept))
+        XCTAssertTrue(title.alternatives.contains { $0.value == "Phantom (Original Mix)" },
+                      "Der Katalogwert bleibt als Alternative erreichbar")
+    }
+
+    func test_catalogDisagreement_costsTheTwinSomeConfidence() async {
+        let twin = makeTrack("/lib/x.mp3", title: "Phantom (Dub Edit)", artist: "Skudge",
+                             duration: 371, fileSize: 42)
+        let orphan = makeTrack("/dl/skudge - phantom.mp3", duration: 371, fileSize: 42)
+        let context = MetadataContext(pattern: nil, duplicates: DuplicateMatcher(tracks: [twin]))
+
+        let offline = MetadataResolver(options: .init(fields: MetadataField.core, policy: .off))
+        let undisputed = await offline.proposal(for: orphan, context: context)
+
+        let catalog = FakeCatalog(matches: [
+            CatalogMatch(artist: "Skudge", title: "Phantom (Original Mix)", score: 0.95)
+        ])
+        let checked = MetadataResolver(
+            catalog: catalog,
+            options: .init(fields: MetadataField.core, policy: .always)
+        )
+        let disputed = await checked.proposal(for: orphan, context: context)
+
+        let before = try! XCTUnwrap(undisputed.suggestion(for: .title)?.confidence)
+        let after = try! XCTUnwrap(disputed.suggestion(for: .title)?.confidence)
+        XCTAssertLessThan(after, before, "Uneinigkeit bleibt Uneinigkeit, auch wenn der Zwilling gewinnt")
+    }
+
+    func test_catalogAgreement_raisesTheTwinsConfidence() async {
+        let twin = makeTrack("/lib/x.mp3", title: "Phantom", artist: "Skudge",
+                             duration: 371, fileSize: 42)
+        let orphan = makeTrack("/dl/skudge - phantom.mp3", duration: 371, fileSize: 42)
+        let catalog = FakeCatalog(matches: [
+            CatalogMatch(artist: "Skudge", title: "Phantom", score: 0.95)
+        ])
+        let resolver = MetadataResolver(
+            catalog: catalog,
+            options: .init(fields: MetadataField.core, policy: .always)
+        )
+        let context = MetadataContext(pattern: nil, duplicates: DuplicateMatcher(tracks: [twin]))
+        let proposal = await resolver.proposal(for: orphan, context: context)
+
+        let title = try! XCTUnwrap(proposal.suggestion(for: .title))
+        XCTAssertEqual(title.value, "Phantom")
+        XCTAssertEqual(SuggestionConfidence.level(title.confidence), .high)
+        XCTAssertTrue(proposal.notes.contains(.catalogConfirmed))
+    }
+
     // MARK: Confidence
 
     /// Kontext mit einem einstimmigen, gut belegten Ordner-Schema.

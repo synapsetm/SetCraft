@@ -72,17 +72,18 @@ final class MetadataFixStore {
         let runner = MetadataFixRunner(settings: settings, cache: library.catalogCache)
         estimatedSeconds = runner.estimatedSeconds(trackCount: tracks.count)
 
-        // Gelernt wird aus **allen** Tracks der Quelle: die getaggten
-        // Geschwister sind das Lehrmaterial, und genau die sind nicht dabei,
-        // wenn nur die unvollständigen betrachtet werden.
-        let context = runner.context(
-            folderTracks: library.tracks,
-            library: library.tracks
-        )
-
         runTask = Task { [weak self] in
+            guard let self else { return }
+            // Gelernt wird aus **allen** Tracks der Quelle: die getaggten
+            // Geschwister sind das Lehrmaterial, und genau die sind nicht dabei,
+            // wenn nur die unvollständigen betrachtet werden. Der
+            // Zwillings-Abgleich schaut darüber hinaus in die ganze Bibliothek.
+            let context = runner.context(
+                folderTracks: self.library.tracks,
+                library: await self.library.taggedTracksAcrossLibrary()
+            )
             for await proposal in runner.proposals(for: tracks, context: context) {
-                guard let self, !Task.isCancelled else { break }
+                if Task.isCancelled { break }
                 self.processed += 1
                 // Den ersten Katalog-Fehler zeigen, statt ihn nur als Notiz an
                 // jeder einzelnen Zeile zu vermerken — der Grund steht dort.
@@ -92,7 +93,7 @@ final class MetadataFixStore {
                 guard proposal.hasChanges else { continue }
                 self.proposals.append(proposal)
             }
-            self?.isRunning = false
+            self.isRunning = false
         }
     }
 

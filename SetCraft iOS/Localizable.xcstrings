@@ -183,6 +183,16 @@
         }
       }
     },
+    "Discogs disagrees — kept your library’s value" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discogs widerspricht — Wert aus deiner Bibliothek behalten"
+          }
+        }
+      }
+    },
     "Discogs not queried" : {
       "localizations" : {
         "de" : {
