@@ -291,12 +291,18 @@ struct MetadataFixSheet: View {
 private struct ProposalCard: View {
     @Binding var proposal: MetadataProposal
 
+    /// Breite der Markierungsspalte (Datei-Symbol bzw. Checkbox). Fix, damit
+    /// Dateiname, Feldnamen und Notizzeile auf derselben Kante beginnen.
+    static let markerWidth: CGFloat = 16
+    static let markerSpacing: CGFloat = 8
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
+            HStack(spacing: Self.markerSpacing) {
                 Image(systemName: "doc")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .frame(width: Self.markerWidth, alignment: .leading)
                 Text(proposal.url.lastPathComponent)
                     .font(.system(.caption, design: .monospaced))
                     .lineLimit(1)
@@ -313,6 +319,7 @@ private struct ProposalCard: View {
                 Text(proposal.notes.map(noteText).joined(separator: " · "))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .padding(.leading, Self.markerWidth + Self.markerSpacing)
             }
         }
         .padding(10)
@@ -346,10 +353,11 @@ private struct FieldRow: View {
     @Binding var field: FieldSuggestion
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: ProposalCard.markerSpacing) {
             Toggle("", isOn: $field.isAccepted)
                 .labelsHidden()
                 .toggleStyle(.checkbox)
+                .frame(width: ProposalCard.markerWidth, alignment: .leading)
 
             Text(fieldName(field.field))
                 .font(.caption)
