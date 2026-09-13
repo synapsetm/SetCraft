@@ -4,7 +4,7 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-12.
+Letzte Aktualisierung: 2026-09-13.
 
 ---
 
@@ -19,9 +19,10 @@ Letzte Aktualisierung: 2026-09-12.
 - **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
   weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
   manuell über den Xcode Organizer.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 91 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 178 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
-  Mix-Heuristik).
+  Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
+  Vorschlagskette/Discogs).
 - **Build (Mac):** `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
   xcodebuild -project SetCraft.xcodeproj -scheme SetCraft -destination
   'platform=macOS' build` — sauber.
@@ -70,6 +71,58 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
   Möglich, weil sich auf eine von aussen gereichte Datei ein Security-Scoped
   Bookmark erzeugen lässt — auf ihr *Verzeichnis* dagegen nicht, das bräuchte
   eine explizite Freigabe per Picker.
+
+### Tag-Ergänzung aus Dateinamen (beide Plattformen)
+Für Tracks ohne saubere Artist/Title-Tags. Vier Stufen, jede darf die vorige
+überstimmen, die Confidence wandert mit (`SetCraftCore/Metadata/`):
+
+1. **`FilenameParser`** — zerlegt „Artist - Title (Mix)", räumt Rip-Reste
+   (Seiten-URLs, `[320kbps]`, `(WEB)`), Tracknummern, Vinyl-Positionen und
+   Label-Katalognummern weg. Mix-Version und `feat.` bleiben **im Titel**
+   (Serato/Rekordbox zeigen nur den Titel), werden aber separat ausgewiesen.
+2. **`PatternLearner`** — lernt das Namensschema eines Ordners aus den
+   Dateien, die **schon** Tags haben, und richtet die untagged Geschwister
+   danach aus. Damit ist „Title - Artist" auflösbar, was aus einem Dateinamen
+   allein nicht geht. Minimum: drei Belege, 75 % Zustimmung.
+   `FolderContext` liefert zusätzlich Album/Artist/Jahr aus dem Ordnernamen
+   und Album/Label/Jahr aus einstimmigen Geschwister-Tags.
+3. **`DuplicateMatcher`** — getaggter Zwilling in der Bibliothek, gefunden
+   über Dauer (±2 s) plus Dateigrösse bzw. Namensähnlichkeit. Verlässlichste
+   Offline-Quelle, weil die Tags vom Nutzer selbst kuratiert sind.
+4. **`DiscogsResolver`** — Gegenprüfung gegen api.discogs.com. Policy
+   `off` / `whenUncertain` (Default) / `always`; „unsicher" heisst unklare
+   Reihenfolge, schwacher Trenner, fehlendes Kernfeld oder ein angefordertes
+   Feld, das offline leer bleibt.
+
+Gefüllt werden Artist, Titel, Album, Label, Jahr. **Genre bewusst nicht** —
+Discogs-Styles würden eine kuratierte Spalte überschreiben. BPM/Key kommen
+weiter aus der Audio-Analyse.
+
+**Geschrieben wird nie automatisch.** Ein Review-Sheet (macOS) bzw.
+-Screen (iOS) zeigt pro Feld Ist-Wert, Vorschlag, Quelle und Verlässlichkeit;
+vorausgewählt ist nur, was fehlt und als sicher gilt. Das Übernehmen läuft
+durch `applyMetadata` und damit den bestehenden Save-Pfad (Scope-Token,
+Serialisierung, Active-Track-Guard).
+
+**Discogs-Eigenheiten, die die Architektur bestimmen:**
+- Die Suche arbeitet auf **Release**-Ebene und liefert Artist/Titel nur
+  zusammengeklebt („The Persuader - Stockholm"). Die Tracklist gibt es erst
+  über `GET /releases/{id}` → **zwei Requests pro Track**. Deshalb werden die
+  Suchtreffer erst ohne weiteren Request vorsortiert und nur die besten
+  aufgelöst.
+- Rate-Limit: 60/min mit Token, 25/min ohne (Token optional, nur für Cover
+  nötig). `DiscogsClient` hält ein gleitendes Minutenfenster mit Marge ein,
+  liest `X-Discogs-Ratelimit-Remaining` und folgt `Retry-After` bei 429.
+  Der **User-Agent ist Pflicht** — generische Werte drosselt Discogs härter,
+  ohne es in den Headern zu zeigen.
+- Antworten landen roh im SQLite-Cache (Migration `v6`, 30 Tage), damit ein
+  zweiter Lauf über denselben Ordner kein Budget kostet.
+- **Dauer-Abgleich ist der wichtigste Gegencheck** (±5 s bestätigt, >20 s
+  wertet ab) — ohne ihn landet der Radio Edit als Extended Mix in den Tags.
+  Discogs füllt `duration` aber nicht immer; dann kann der Schutz nicht
+  greifen und der Vorschlag bleibt entsprechend niedriger bewertet.
+- Lizenz: die genutzten Felder sind CC0, Bilder/Marktplatzdaten wären
+  „Restricted Data" (nicht kommerziell) — für dieses Projekt unkritisch.
 
 ### Player
 - macOS: fixe Waveform, beweglicher Playhead; iOS: Center-Playhead, Waveform
@@ -217,3 +270,11 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
 - **Multi-Source-Aggregation** („Alle Tracks" über mehrere Ordner).
 - **Phase 5c / SFBAudioEngine** (Ogg Vorbis, schnelleres FLAC) — erst bei Bedarf.
 - **Waveform-Prefetch-Throttling** bei sehr großen Libraries (TaskGroup-Limit).
+- **Discogs-Token im Klartext** in den App-Einstellungen (`UserDefaults`).
+  Für einen Read-only-Token auf einen offenen Katalog vertretbar, gehört aber
+  in den Keychain, sobald es eine Keychain-Schicht gibt.
+- **Audio-Fingerprinting** als fünfte Stufe (ShazamKit nativ bzw.
+  Chromaprint/AcoustID). Erkennt den Track am Klang statt am Namen und wäre
+  damit die einzige Quelle, die bei völlig kryptischen Dateinamen trägt.
+- **Kein ISRC/MBID** in den geschriebenen Tags — Discogs liefert keine, damit
+  fehlt eine stabile Aufnahme-ID für späteres Re-Matching.

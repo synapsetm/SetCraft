@@ -361,6 +361,16 @@ SQLite-Cache hinter `TrackStore` (GRDB). Optional SFBAudioEngine als Decoder-Sch
 schnelleres FLAC). Ggf. Umstellung auf Weg B. iOS-Target (iPhone) anlegen, plattformspezifische Stellen
 mit `#if os(...)` kapseln (Dateizugriff via Document Picker, `AVAudioSession`).
 
+**Phase 5d — Tag-Ergänzung aus Dateinamen**
+Vierstufige Vorschlagskette in `SetCraftCore/Metadata/`: Dateiname parsen →
+Namensschema des Ordners aus den getaggten Geschwistern lernen → getaggten
+Zwilling in der Bibliothek suchen → gegen Discogs prüfen (Policy
+`off`/`whenUncertain`/`always`). Ergebnis sind **Vorschläge**, die der Nutzer
+in einem Review-Sheet (macOS) bzw. -Screen (iOS) feldweise bestätigt;
+geschrieben wird über den bestehenden Save-Pfad. Felder: Artist, Titel,
+Album, Label, Jahr — Genre bewusst nicht. Details und Discogs-Eigenheiten
+(zwei Requests pro Track, Rate-Limit, Dauer-Abgleich) in `STATUS.md`.
+
 ---
 
 ## 8. Offene Punkte (bewusst später)
