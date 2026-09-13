@@ -51,12 +51,8 @@ public struct ParsedFilename: Sendable, Equatable {
 
     /// Für den Katalog-Abgleich: „Artist Title" ohne Mix-Klammer.
     public var searchQuery: String {
-        let bareTitle = title.replacingOccurrences(
-            of: #"\s*[\(\[][^\)\]]*[\)\]]\s*$"#,
-            with: "",
-            options: .regularExpression
-        )
-        return [artist, bareTitle.isEmpty ? title : bareTitle]
+        let bare = FilenameParser.withoutTrailingBracket(title)
+        return [artist, bare]
             .filter { !$0.isEmpty }
             .joined(separator: " ")
     }

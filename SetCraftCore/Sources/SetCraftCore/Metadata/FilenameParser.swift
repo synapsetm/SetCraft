@@ -200,6 +200,17 @@ public enum FilenameParser {
     }
 
     /// „feat. X", „ft. X", „featuring X" bis zur nächsten Klammer.
+    /// Titel ohne abschliessende Klammer. Fuer Katalog-Suchen: eine Fassung
+    /// mit (Extended Mix) findet sich dort unter dem nackten Titel.
+    public static func withoutTrailingBracket(_ title: String) -> String {
+        let stripped = title.replacingOccurrences(
+            of: #"\s*[\(\[][^\)\]]*[\)\]]\s*$"#,
+            with: "",
+            options: .regularExpression
+        ).trimmingCharacters(in: .whitespaces)
+        return stripped.isEmpty ? title : stripped
+    }
+
     static func featuredArtist(in text: String) -> String? {
         guard let match = text.range(
             of: #"\b(feat\.?|ft\.?|featuring)\s+[^\(\)\[\]]+"#,

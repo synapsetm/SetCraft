@@ -87,6 +87,16 @@ public actor DatabaseService {
                 t.add(column: "kind", .text).notNull().defaults(to: SourceKind.folder.rawValue)
             }
         }
+        // v6: Cache fuer Katalog-Antworten (Discogs). Eigene Tabelle, weil die
+        // Lebensdauer eine andere ist als die der Track-Zeilen: Katalogdaten
+        // haengen nicht am mtime einer Datei, sondern altern nach Zeit.
+        m.registerMigration("v6_catalog_cache") { db in
+            try db.create(table: "catalog_cache") { t in
+                t.column("key", .text).primaryKey()
+                t.column("payload", .blob).notNull()
+                t.column("cached_at", .double).notNull()
+            }
+        }
         return m
     }()
 
@@ -192,5 +202,45 @@ public actor DatabaseService {
         _ = try await dbQueue.write { db in
             try FolderRecord.deleteOne(db, key: id)
         }
+    }
+    // MARK: - Katalog-Cache
+
+    public func loadCatalogResponse(key: String, maxAge: TimeInterval) async throws -> Data? {
+        let row = try await dbQueue.read { db in
+            try CachedCatalogResponse.fetchOne(db, key: key)
+        }
+        guard let row else { return nil }
+        guard Date().timeIntervalSince1970 - row.cached_at <= maxAge else { return nil }
+        return row.payload
+    }
+
+    public func saveCatalogResponse(_ data: Data, key: String) async throws {
+        let row = CachedCatalogResponse(key: key, payload: data)
+        try await dbQueue.write { db in
+            try row.save(db)
+        }
+    }
+
+    /// Raeumt abgelaufene Antworten weg. Wird beim Start angestossen, damit die
+    /// Datei nicht unbegrenzt waechst.
+    public func pruneCatalogCache(olderThan maxAge: TimeInterval) async throws {
+        let cutoff = Date().timeIntervalSince1970 - maxAge
+        try await dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM catalog_cache WHERE cached_at < ?", arguments: [cutoff])
+        }
+    }
+}
+
+/// Der DB-Actor ist der Katalog-Cache. Fehler werden hier geschluckt: ein
+/// kaputter Cache darf eine Katalog-Abfrage nicht verhindern, er kostet dann
+/// nur einen Request.
+extension DatabaseService: CatalogResponseCache {
+
+    public func cachedResponse(forKey key: String, maxAge: TimeInterval) async -> Data? {
+        try? await loadCatalogResponse(key: key, maxAge: maxAge)
+    }
+
+    public func store(_ data: Data, forKey key: String) async {
+        try? await saveCatalogResponse(data, key: key)
     }
 }

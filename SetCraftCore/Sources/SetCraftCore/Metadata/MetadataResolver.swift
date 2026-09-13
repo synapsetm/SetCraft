@@ -136,7 +136,7 @@ public struct MetadataResolver: Sendable {
             if shouldCheckCatalog(candidates: candidates, parsed: parsed, track: track) {
                 let query = CatalogQuery(
                     artist: candidates[.artist]?.value ?? parsed.artist,
-                    title: bareTitle(candidates[.title]?.value ?? parsed.title),
+                    title: FilenameParser.withoutTrailingBracket(candidates[.title]?.value ?? parsed.title),
                     mixVersion: parsed.mixVersion,
                     catalogNumber: parsed.catalogNumber,
                     year: candidates[.year].flatMap { Int($0.value) },
@@ -328,15 +328,5 @@ public struct MetadataResolver: Sendable {
         case .label:  return track.label
         case .year:   return track.year.map(String.init) ?? ""
         }
-    }
-
-    /// Titel ohne abschliessende Klammer — so sucht man in Katalogen besser.
-    private func bareTitle(_ title: String) -> String {
-        let stripped = title.replacingOccurrences(
-            of: #"\s*[\(\[][^\)\]]*[\)\]]\s*$"#,
-            with: "",
-            options: .regularExpression
-        )
-        return stripped.isEmpty ? title : stripped
     }
 }
