@@ -1,0 +1,199 @@
+import Foundation
+
+/// Tag-Felder, die die Metadaten-Kette ergänzen darf.
+///
+/// Genre fehlt bewusst: Discogs' `styles` wären verlockend („Deep House" statt
+/// „Electronic"), würden aber eine vom Nutzer kuratierte Spalte überschreiben.
+/// BPM und Key sind ebenfalls nicht dabei — die kommen aus der Audio-Analyse,
+/// nicht aus einem Katalog.
+public enum MetadataField: String, Sendable, CaseIterable, Codable {
+    case artist
+    case title
+    case album
+    case label
+    case year
+
+    /// Ohne diese Felder ergibt die ganze Übung keinen Sinn.
+    public static let core: Set<MetadataField> = [.artist, .title]
+    public static let all: Set<MetadataField> = Set(allCases)
+}
+
+/// Woher ein Vorschlag kommt. Die Reihenfolge entspricht der Stufenfolge der
+/// Kette, nicht der Verlässlichkeit.
+public enum SuggestionSource: String, Sendable, Codable {
+    /// Reines Dateinamen-Parsing.
+    case filename
+    /// Dateiname, aber mit dem im Ordner gelernten Schema ausgerichtet.
+    case folderPattern
+    /// Ordnername (`Artist - Album (1999)`).
+    case folderName
+    /// Getaggter Zwilling in der eigenen Bibliothek.
+    case libraryDuplicate
+    /// Katalog-Abgleich (Discogs).
+    case catalog
+}
+
+/// Vorschlag für **ein** Feld.
+public struct FieldSuggestion: Sendable, Equatable, Identifiable {
+    public var field: MetadataField
+    /// Vorgeschlagener Wert. `year` steht hier als Dezimalstring.
+    public var value: String
+    /// Was aktuell in der Datei steht (leer = fehlt).
+    public var currentValue: String
+    public var source: SuggestionSource
+    /// 0…1. Interpretation siehe `SuggestionConfidence`.
+    public var confidence: Double
+    /// Im Review-Sheet vorausgewählt. Nur dort `true`, wo ein Wert **fehlt**
+    /// und die Confidence trägt — bestehende Werte überschreibt niemand
+    /// versehentlich.
+    public var isAccepted: Bool
+
+    public var id: MetadataField { field }
+
+    public init(
+        field: MetadataField,
+        value: String,
+        currentValue: String,
+        source: SuggestionSource,
+        confidence: Double,
+        isAccepted: Bool
+    ) {
+        self.field = field
+        self.value = value
+        self.currentValue = currentValue
+        self.source = source
+        self.confidence = confidence
+        self.isAccepted = isAccepted
+    }
+
+    /// Der Vorschlag würde einen bestehenden Wert ersetzen.
+    public var isOverwrite: Bool {
+        !currentValue.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// Vorschlag und Bestand sind praktisch dasselbe — nichts zu tun.
+    public var isRedundant: Bool {
+        isOverwrite && TextSimilarity.similarity(value, currentValue) >= 0.98
+    }
+}
+
+/// Confidence-Stufen für die Anzeige. Die Schwellen liegen hier, damit UI und
+/// Auto-Auswahl dieselbe Skala benutzen.
+public enum SuggestionConfidence: String, Sendable {
+    case high
+    case medium
+    case low
+
+    public static func level(_ value: Double) -> SuggestionConfidence {
+        if value >= 0.85 { return .high }
+        if value >= 0.65 { return .medium }
+        return .low
+    }
+
+    /// Ab hier wird ein **fehlendes** Feld vorausgewählt.
+    public static let autoAcceptThreshold = 0.75
+}
+
+/// Maschinenlesbare Randnotiz zu einem Vorschlag. Die Übersetzung passiert im
+/// UI-Layer — `SetCraftCore` hat keinen String-Katalog.
+public enum ProposalNote: String, Sendable, CaseIterable {
+    /// Es gibt keinen Hinweis, welche Seite Artist und welche Titel ist.
+    case orderAmbiguous
+    /// Getrennt wurde nur an einem nackten Bindestrich.
+    case weakSeparator
+    /// Gar kein Trenner — Artist konnte nicht bestimmt werden.
+    case noSeparator
+    /// Das Ordner-Schema hat die Reihenfolge geklärt.
+    case folderPatternApplied
+    /// Ordner-Schema war „Title - Artist", die Seiten wurden getauscht.
+    case folderPatternSwapped
+    /// Tags von einem getaggten Zwilling übernommen.
+    case libraryDuplicate
+    /// Bit-identische Datei gefunden.
+    case identicalFileFound
+    /// Der Katalog bestätigt den Offline-Vorschlag.
+    case catalogConfirmed
+    /// Der Katalog widerspricht — sein Wert steht im Vorschlag, der Offline-Wert
+    /// bleibt als Bestand sichtbar.
+    case catalogCorrected
+    /// Katalog wurde gefragt, kennt den Track aber nicht.
+    case catalogNoMatch
+    /// Mehrere plausible Katalog-Treffer; genommen wurde der beste.
+    case catalogAmbiguous
+    /// Katalog-Abfrage fiel wegen Rate-Limit oder Netzfehler aus.
+    case catalogUnavailable
+    /// Katalog wurde nach Policy nicht gefragt.
+    case catalogNotChecked
+}
+
+/// Vollständiger Vorschlag für **einen** Track.
+public struct MetadataProposal: Sendable, Identifiable {
+    /// Die Datei ist die Identität — `Track.id` wird pro Scan neu vergeben.
+    public var url: URL
+    /// Zustand, wie er beim Bauen des Vorschlags in der Bibliothek stand.
+    public var track: Track
+    /// Was der Parser (ggf. nach Ordner-Schema) aus dem Namen gelesen hat.
+    public var parsed: ParsedFilename
+    /// Vorschläge pro Feld, stabil sortiert nach `MetadataField.allCases`.
+    public var fields: [FieldSuggestion]
+    public var notes: [ProposalNote]
+    /// Kennung des Katalog-Treffers, falls einer verwendet wurde
+    /// (z. B. `discogs:release/1#B2`) — landet als Provenienz im Log.
+    public var catalogReference: String?
+
+    public var id: URL { url }
+
+    public init(
+        url: URL,
+        track: Track,
+        parsed: ParsedFilename,
+        fields: [FieldSuggestion] = [],
+        notes: [ProposalNote] = [],
+        catalogReference: String? = nil
+    ) {
+        self.url = url
+        self.track = track
+        self.parsed = parsed
+        self.fields = fields
+        self.notes = notes
+        self.catalogReference = catalogReference
+    }
+
+    /// Niedrigste Confidence der tatsächlich angehakten Felder — danach
+    /// sortiert das Review-Sheet, damit Wackelkandidaten oben stehen.
+    public var confidence: Double {
+        let relevant = fields.filter { !$0.isRedundant }
+        guard !relevant.isEmpty else { return 1.0 }
+        return relevant.map(\.confidence).min() ?? 0
+    }
+
+    public var confidenceLevel: SuggestionConfidence {
+        SuggestionConfidence.level(confidence)
+    }
+
+    /// Es gibt überhaupt etwas zu entscheiden.
+    public var hasChanges: Bool {
+        fields.contains { !$0.isRedundant }
+    }
+
+    public func suggestion(for field: MetadataField) -> FieldSuggestion? {
+        fields.first { $0.field == field }
+    }
+
+    /// Baut den Track, der geschrieben werden soll — nur angehakte Felder
+    /// wandern hinein. Alles andere (BPM, Key, Rating, Kommentar) bleibt
+    /// unangetastet.
+    public func applied(to base: Track) -> Track {
+        var result = base
+        for suggestion in fields where suggestion.isAccepted && !suggestion.value.isEmpty {
+            switch suggestion.field {
+            case .artist: result.artist = suggestion.value
+            case .title:  result.title = suggestion.value
+            case .album:  result.album = suggestion.value
+            case .label:  result.label = suggestion.value
+            case .year:   result.year = Int(suggestion.value) ?? result.year
+            }
+        }
+        return result
+    }
+}
