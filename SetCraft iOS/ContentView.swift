@@ -73,6 +73,9 @@ private struct LibraryScreen: View {
     /// und die auf die Rückfrage warten.
     @State private var pendingMixAnalysis: [Track] = []
     @State private var showMixAnalysisConfirm = false
+    /// Lauf der Tag-Ergaenzung. Pro Aufruf neu gebaut, damit ein zweites
+    /// Oeffnen nicht die Vorschlaege des letzten Laufs zeigt.
+    @State private var fixStore: MetadataFixStore?
 
     var body: some View {
         NavigationStack {
@@ -144,6 +147,16 @@ private struct LibraryScreen: View {
             case .edit(let track):
                 TagEditSheet(track: track) { updated in
                     Task { await libraryStore.updateTrack(updated) }
+                }
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { fixStore != nil },
+            set: { if !$0 { fixStore = nil } }
+        )) {
+            if let fixStore {
+                MetadataFixSheet(store: fixStore) {
+                    self.fixStore = nil
                 }
             }
         }
@@ -388,6 +401,15 @@ private struct LibraryScreen: View {
                         requestAnalyze(libraryStore.tracks)
                     } label: {
                         Label("Analyze all", systemImage: "wand.and.stars")
+                    }
+                    Button {
+                        fixStore = MetadataFixStore(library: libraryStore)
+                    } label: {
+                        let missing = libraryStore.tracksMissingTags.count
+                        Label(
+                            missing > 0 ? "Complete tags (\(missing))" : "Complete tags",
+                            systemImage: "text.badge.checkmark"
+                        )
                     }
                     Button(role: .destructive) {
                         showResetConfirm = true

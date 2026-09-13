@@ -147,6 +147,27 @@ final class LibraryStore {
         self.repository = repository
     }
 
+    /// Tracks, bei denen Artist oder Titel fehlt — die Kundschaft der
+    /// Metadaten-Ergaenzung.
+    var tracksMissingTags: [Track] {
+        tracks.filter { $0.title.isEmpty || $0.artist.isEmpty }
+    }
+
+    /// Der DB-Actor dient der Metadaten-Kette als Cache fuer Katalog-Antworten.
+    var catalogCache: CatalogResponseCache { database }
+
+    /// Uebernimmt die angehakten Felder eines Vorschlags und schreibt sie ueber
+    /// den normalen Save-Pfad zurueck. Liefert `false`, wenn der Track nicht
+    /// mehr in der Liste steht oder der Vorschlag nichts aendert.
+    @discardableResult
+    func applyMetadata(_ proposal: MetadataProposal) async -> Bool {
+        guard let idx = tracks.firstIndex(where: { $0.url == proposal.url }) else { return false }
+        let updated = proposal.applied(to: tracks[idx])
+        guard updated != tracks[idx] else { return false }
+        await updateTrack(updated)
+        return true
+    }
+
     func isAnalyzing(trackID: UUID) -> Bool {
         analyzing.contains(trackID)
     }
@@ -199,7 +220,9 @@ final class LibraryStore {
     /// URL des aktuell ausgewählten Folders über die Bookmark-Resolution in
     /// `scopes` — das ist die einzige Stelle, an der die echte Filesystem-URL
     /// der Quelle vorliegt (FolderRecord.url ist nur ein Anzeige-Pfad-String).
-    private var selectedFolderURL: URL? {
+    /// Nicht `private`, weil der `MetadataFixStore` den Ordner braucht, um
+    /// dessen Namensschema zu lernen.
+    var selectedFolderURL: URL? {
         scopes.activeURL
     }
 
