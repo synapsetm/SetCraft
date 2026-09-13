@@ -32,8 +32,17 @@ struct MetadataFixSheet: View {
                 if store.proposals.isEmpty {
                     emptySection
                 } else {
-                    ForEach($store.proposals) { $proposal in
-                        ProposalSection(proposal: $proposal)
+                    // Eine Karte pro Track statt einer List-Section: Sections
+                    // trennen im Inset-Stil nur durch etwas Abstand, und bei
+                    // Karten mit fünf Feldern verschwimmt das. Die Karte mit
+                    // eigenem Hintergrund zieht dieselbe Grenze wie auf dem Mac.
+                    Section {
+                        ForEach($store.proposals) { $proposal in
+                            ProposalCard(proposal: $proposal)
+                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                        }
                     }
                 }
             }
@@ -107,6 +116,20 @@ struct MetadataFixSheet: View {
             Toggle("Discogs options", isOn: $showOptions)
                 .font(.footnote)
 
+            // Der Token gehört zu den Discogs-Einstellungen, nicht zur
+            // Feldauswahl — deshalb hier und nicht unter „Zu ergänzende Felder".
+            if showOptions {
+                HStack {
+                    Text("Personal access token")
+                        .font(.footnote)
+                    Spacer()
+                    SecureField("optional", text: $discogsToken)
+                        .multilineTextAlignment(.trailing)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+            }
+
             if let error = store.lastError {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .font(.footnote)
@@ -119,16 +142,6 @@ struct MetadataFixSheet: View {
 
     private var optionsSection: some View {
         Section {
-            HStack {
-                Text("Personal access token")
-                    .font(.footnote)
-                Spacer()
-                SecureField("optional", text: $discogsToken)
-                    .multilineTextAlignment(.trailing)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            }
-
             ForEach(MetadataField.allCases, id: \.rawValue) { field in
                 Toggle(fieldName(field), isOn: binding(for: field))
                     .disabled(MetadataField.core.contains(field))
@@ -257,28 +270,41 @@ struct MetadataFixSheet: View {
 
 // MARK: - Ein Vorschlag
 
-private struct ProposalSection: View {
+private struct ProposalCard: View {
     @Binding var proposal: MetadataProposal
 
     var body: some View {
-        Section {
-            ForEach($proposal.fields) { $field in
-                FieldRow(field: $field)
-            }
-        } header: {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "doc")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                 Text(proposal.url.lastPathComponent)
                     .font(.system(.caption2, design: .monospaced))
                     .lineLimit(1)
                     .truncationMode(.middle)
-                Spacer()
+                Spacer(minLength: 6)
                 ConfidenceDot(confidence: proposal.confidence)
             }
-        } footer: {
+
+            Divider()
+
+            ForEach($proposal.fields) { $field in
+                FieldRow(field: $field)
+            }
+
             if !proposal.notes.isEmpty {
                 Text(proposal.notes.map(noteText).joined(separator: " · "))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .padding(12)
+        .background(
+            Color(uiColor: .secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: 12)
+        )
     }
 
     private func noteText(_ note: ProposalNote) -> String {
@@ -290,12 +316,12 @@ private struct ProposalSection: View {
         case .folderPatternSwapped: return String(localized: "Folder pattern: sides swapped")
         case .libraryDuplicate:     return String(localized: "Tags from a duplicate in your library")
         case .identicalFileFound:   return String(localized: "Identical file found in your library")
-        case .catalogConfirmed:     return String(localized: "Confirmed by Discogs")
-        case .catalogCorrected:     return String(localized: "Corrected by Discogs")
         case .artistsSplitUsingLibrary:
             return String(localized: "Split into several artists using names from your library")
         case .catalogOverruled:     return String(localized: "Discogs suggests another version — kept the derived value")
         case .libraryTwinKept:      return String(localized: "Discogs disagrees — kept your library’s value")
+        case .catalogConfirmed:     return String(localized: "Confirmed by Discogs")
+        case .catalogCorrected:     return String(localized: "Corrected by Discogs")
         case .catalogNoMatch:       return String(localized: "Not found on Discogs")
         case .catalogAmbiguous:     return String(localized: "Several plausible Discogs matches")
         case .catalogUnavailable:   return String(localized: "Discogs was unreachable")
