@@ -176,42 +176,49 @@ struct MetadataFixSheet: View {
     // MARK: - Fuss
 
     private var footer: some View {
-        HStack(spacing: 10) {
-            Group {
-                Button("Select all missing") { model.setAllAccepted(true, onlyMissingValues: true) }
-                Button("Only high confidence") { model.acceptHighConfidenceOnly() }
-                Button("Clear selection") { model.setAllAccepted(false, onlyMissingValues: false) }
-            }
-            .disabled(model.proposals.isEmpty)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Group {
+                    Button("Select all missing") { model.setAllAccepted(true, onlyMissingValues: true) }
+                    Button("Only high confidence") { model.acceptHighConfidenceOnly() }
+                    Button("Clear selection") { model.setAllAccepted(false, onlyMissingValues: false) }
+                }
+                .disabled(model.proposals.isEmpty)
 
-            Spacer()
+                Spacer()
 
-            // Worauf sich Zwillings-Abgleich und Interpreten-Trennung stützen.
-            // Steht hier, weil es den ganzen Lauf betrifft und nicht einzelne
-            // Zeilen — und weil 0 sofort erklärt, warum beide Stufen schweigen.
-            if model.didRun {
-                Text("Library: \(model.libraryCandidateCount) tagged tracks · \(model.knownArtistCount) artists")
-                    .font(.caption)
-                    .foregroundStyle(model.libraryCandidateCount == 0 ? .orange : .secondary)
-                    .help("Source for the duplicate match and for splitting concatenated artists. Scan the folders that hold your properly tagged files once, so they land in the library.")
+                Button("Apply") {
+                    model.applyAccepted()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.acceptedFieldCount == 0)
             }
 
-            if let error = model.lastError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(1)
-            }
+            // Statuszeile: was übernommen würde, und worauf sich
+            // Zwillings-Abgleich und Interpreten-Trennung stützen. Beides
+            // betrifft den ganzen Lauf, nicht einzelne Zeilen.
+            HStack(spacing: 8) {
+                Text("\(model.acceptedTrackCount) tracks · \(model.acceptedFieldCount) fields")
+                    .foregroundStyle(.secondary)
 
-            Text("\(model.acceptedTrackCount) tracks · \(model.acceptedFieldCount) fields")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                if model.didRun {
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Text("Library: \(model.libraryCandidateCount) tagged tracks · \(model.knownArtistCount) artists")
+                        .foregroundStyle(model.libraryCandidateCount == 0 ? .orange : .secondary)
+                        .help("Source for the duplicate match and for splitting concatenated artists. Scan the folders that hold your properly tagged files once, so they land in the library.")
+                }
 
-            Button("Apply") {
-                model.applyAccepted()
+                Spacer()
+
+                if let error = model.lastError {
+                    Text(error)
+                        .foregroundStyle(.red)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(model.acceptedFieldCount == 0)
+            .font(.caption)
         }
         .padding(12)
     }
