@@ -198,6 +198,9 @@ public enum ProposalNote: String, Sendable, CaseIterable {
     /// Der Katalog widerspricht — sein Wert steht im Vorschlag, der Offline-Wert
     /// bleibt als Bestand sichtbar.
     case catalogCorrected
+    /// Der Katalog schlägt etwas anderes vor, der hergeleitete Wert bleibt
+    /// aber stehen — typisch bei Bootlegs und Edits, die Discogs nicht kennt.
+    case catalogOverruled
     /// Der Katalog widerspricht dem Zwilling aus der Bibliothek — dessen Wert
     /// bleibt stehen, der Katalogwert steht als Alternative daneben.
     case libraryTwinKept

@@ -332,7 +332,10 @@ final class MetadataResolverChainTests: XCTestCase {
         XCTAssertEqual(proposal.catalogReference, "discogs:release/42#A1")
     }
 
-    func test_catalogCorrection_replacesValueAndFlagsIt() async {
+    func test_catalogResolvesSwappedSides() async {
+        // „Title - Artist" ist aus dem Dateinamen nicht entscheidbar. Kennt der
+        // Katalog beide Werte über Kreuz, hat er die Frage beantwortet — hier
+        // gewinnt er, obwohl die Werte sich widersprechen.
         let catalog = FakeCatalog(matches: [
             CatalogMatch(artist: "Rhythim Is Rhythim", title: "Strings Of Life", score: 0.9,
                          reference: "discogs:release/7#A")
@@ -346,6 +349,7 @@ final class MetadataResolverChainTests: XCTestCase {
             context: emptyContext()
         )
         XCTAssertEqual(proposal.suggestion(for: .artist)?.value, "Rhythim Is Rhythim")
+        XCTAssertEqual(proposal.suggestion(for: .title)?.value, "Strings Of Life")
         XCTAssertEqual(proposal.suggestion(for: .artist)?.source, .catalog)
         XCTAssertTrue(proposal.notes.contains(.catalogCorrected))
     }
@@ -423,9 +427,9 @@ final class MetadataResolverChainTests: XCTestCase {
         )
     }
 
-    func test_correction_keepsDerivedValueAsAlternative() async {
-        // Bootleg: Discogs kennt den Remix nicht und schlägt einen anderen vor.
-        // Der Dateiname hatte recht — der Wert muss erreichbar bleiben.
+    func test_derivedValueAndCatalogValue_areInterchangeable() async {
+        // Bootleg: Discogs kennt den Remix nicht. Unser Wert steht vorne, der
+        // Katalogwert daneben — und der Wechsel geht in beide Richtungen.
         let catalog = FakeCatalog(matches: [
             CatalogMatch(artist: "Paul van Dyk",
                          title: "For An Angel (Terry Lee Brown Jnr Remix)",
@@ -440,16 +444,16 @@ final class MetadataResolverChainTests: XCTestCase {
             context: emptyContext()
         )
         var title = try! XCTUnwrap(proposal.suggestion(for: .title))
-        XCTAssertEqual(title.value, "For An Angel (Terry Lee Brown Jnr Remix)")
-        let derived = try! XCTUnwrap(title.alternatives.first { $0.value.contains("Phaxe") })
-
-        // Zurückschalten — und der Katalogwert bleibt seinerseits erreichbar.
-        title.select(derived)
         XCTAssertEqual(title.value, "For An Angel (Phaxe Remix)")
-        XCTAssertTrue(title.alternatives.contains { $0.value.contains("Terry Lee Brown") })
+        let fromCatalog = try! XCTUnwrap(title.alternatives.first { $0.source == .catalog })
+
+        title.select(fromCatalog)
+        XCTAssertEqual(title.value, "For An Angel (Terry Lee Brown Jnr Remix)")
+        XCTAssertTrue(title.alternatives.contains { $0.value.contains("Phaxe") })
 
         proposal.fields[0] = title
-        XCTAssertEqual(proposal.suggestion(for: title.field)?.value, "For An Angel (Phaxe Remix)")
+        XCTAssertEqual(proposal.suggestion(for: title.field)?.value,
+                       "For An Angel (Terry Lee Brown Jnr Remix)")
     }
 
     func test_weakerStage_survivesAsAlternative() async {
@@ -558,7 +562,7 @@ final class MetadataResolverChainTests: XCTestCase {
         return MetadataContext.build(folderTracks: siblings, library: [])
     }
 
-    func test_contradiction_neverReachesHighConfidence() async {
+    func test_contradiction_keepsTheDerivedValue() async {
         // Bootleg-Lage: der Dateiname hat recht, Discogs liefert einen sehr gut
         // passenden Treffer auf eine andere Fassung.
         let catalog = FakeCatalog(matches: [
@@ -575,28 +579,101 @@ final class MetadataResolverChainTests: XCTestCase {
             context: confidentPatternContext()
         )
         let title = try! XCTUnwrap(proposal.suggestion(for: .title))
-        XCTAssertEqual(title.source, .catalog)
+        XCTAssertEqual(title.value, "For An Angel (Phaxe Remix)")
+        XCTAssertEqual(title.source, .folderPattern)
+        XCTAssertTrue(proposal.notes.contains(.catalogOverruled))
+        XCTAssertTrue(title.alternatives.contains { $0.value.contains("Terry Lee Brown") },
+                      "Der Katalogwert bleibt als Alternative erreichbar")
         XCTAssertNotEqual(SuggestionConfidence.level(title.confidence), .high,
-                          "Ein Widerspruch darf nie als sicher durchgehen")
-        XCTAssertFalse(title.isAccepted, "…und schon gar nicht vorausgewählt sein")
-        XCTAssertFalse(title.alternatives.isEmpty, "Der Dateiname-Wert bleibt erreichbar")
+                          "Uneinigkeit bleibt Uneinigkeit")
     }
 
-    func test_contradiction_costsMoreAgainstAStrongerStage() async {
+    func test_catalogWins_whenItLooksLikeASpellingFix() async {
+        // Die Download-Seite hat das ø verschluckt — nur der Katalog kann es
+        // zurückgeben.
         let catalog = FakeCatalog(matches: [
-            CatalogMatch(artist: "Somebody", title: "Some Other Title", score: 0.9)
+            CatalogMatch(artist: "Ikøn", title: "Higher Dimension", score: 0.9)
         ])
         let resolver = MetadataResolver(
             catalog: catalog,
             options: .init(fields: MetadataField.core, policy: .always)
         )
-        let track = makeTrack("/m/Artist - Original Title.mp3")
+        let proposal = await resolver.proposal(
+            for: makeTrack("/m/IK N - Higher Dimension.mp3"),
+            context: emptyContext()
+        )
+        let artist = try! XCTUnwrap(proposal.suggestion(for: .artist))
+        XCTAssertEqual(artist.value, "Ikøn")
+        XCTAssertEqual(artist.source, .catalog)
+        XCTAssertTrue(artist.alternatives.contains { $0.value == "IK N" })
+    }
+
+    func test_catalogWins_whenItAddsAMissingMixVersion() async {
+        let catalog = FakeCatalog(matches: [
+            CatalogMatch(artist: "Len Faki", title: "Mekong Delta (Extended Mix)", score: 0.9)
+        ])
+        let resolver = MetadataResolver(
+            catalog: catalog,
+            options: .init(fields: MetadataField.core, policy: .always)
+        )
+        let proposal = await resolver.proposal(
+            for: makeTrack("/m/Len Faki - Mekong Delta.mp3"),
+            context: emptyContext()
+        )
+        XCTAssertEqual(proposal.suggestion(for: .title)?.value, "Mekong Delta (Extended Mix)")
+    }
+
+    func test_derivedWins_whenItIsMoreSpecificThanTheCatalog() async {
+        // Unsere Fassung nennt den Remix, die Tracklist nicht — dann sind wir
+        // spezifischer, nicht falsch.
+        let catalog = FakeCatalog(matches: [
+            CatalogMatch(artist: "Len Faki", title: "Mekong Delta", score: 0.9)
+        ])
+        let resolver = MetadataResolver(
+            catalog: catalog,
+            options: .init(fields: MetadataField.core, policy: .always)
+        )
+        let proposal = await resolver.proposal(
+            for: makeTrack("/m/Len Faki - Mekong Delta Phaxe Remix.mp3"),
+            context: emptyContext()
+        )
+        XCTAssertEqual(proposal.suggestion(for: .title)?.value, "Mekong Delta (Phaxe Remix)")
+    }
+
+    func test_contradictionRule_inIsolation() {
+        typealias R = MetadataResolver
+        // Fassungen verschieden → unsere.
+        XCTAssertFalse(R.catalogWinsContradiction(
+            field: .title, ours: "Track (Phaxe Remix)", theirs: "Track (Astrix Remix)"))
+        // Fassung nur bei uns → unsere.
+        XCTAssertFalse(R.catalogWinsContradiction(
+            field: .title, ours: "Track (Phaxe Remix)", theirs: "Track"))
+        // Fassung nur im Katalog → seine.
+        XCTAssertTrue(R.catalogWinsContradiction(
+            field: .title, ours: "Track", theirs: "Track (Original Mix)"))
+        // Artist: Schreibweise → seine.
+        XCTAssertTrue(R.catalogWinsContradiction(field: .artist, ours: "IK N", theirs: "Ikøn"))
+        // Artist: wildfremd → unsere.
+        XCTAssertFalse(R.catalogWinsContradiction(field: .artist, ours: "Skudge", theirs: "Planewalker"))
+    }
+
+    func test_contradiction_costsMoreAgainstAStrongerStage() async {
+        // Schreibweisen-Fall (der Katalog gewinnt) — aber je überzeugter die
+        // überstimmte Stufe war, desto weniger sicher ist das Ergebnis.
+        let catalog = FakeCatalog(matches: [
+            CatalogMatch(artist: "Ikøn", title: "Higher Dimension", score: 0.9)
+        ])
+        let resolver = MetadataResolver(
+            catalog: catalog,
+            options: .init(fields: MetadataField.core, policy: .always)
+        )
+        let track = makeTrack("/m/IK N - Higher Dimension.mp3")
 
         let weak = await resolver.proposal(for: track, context: emptyContext())
         let strong = await resolver.proposal(for: track, context: confidentPatternContext())
 
-        let weakConfidence = try! XCTUnwrap(weak.suggestion(for: .title)?.confidence)
-        let strongConfidence = try! XCTUnwrap(strong.suggestion(for: .title)?.confidence)
+        let weakConfidence = try! XCTUnwrap(weak.suggestion(for: .artist)?.confidence)
+        let strongConfidence = try! XCTUnwrap(strong.suggestion(for: .artist)?.confidence)
         XCTAssertLessThan(strongConfidence, weakConfidence,
                           "Ein einstimmiges Ordner-Schema zu überstimmen muss teurer sein")
     }

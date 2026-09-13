@@ -19,7 +19,7 @@ Letzte Aktualisierung: 2026-09-13.
 - **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
   weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
   manuell über den Xcode Organizer.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 198 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 202 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
   Vorschlagskette/Discogs).
@@ -110,6 +110,22 @@ Gefüllt werden Artist, Titel, Album, Label, Jahr — Album/Label/Jahr können
 dabei nur vom Zwilling oder aus Discogs kommen. **Genre bewusst nicht** —
 Discogs-Styles würden eine kuratierte Spalte überschreiben. BPM/Key kommen
 weiter aus der Audio-Analyse.
+
+**Wer gewinnt bei Widerspruch?** Der **hergeleitete Wert**, nicht der Katalog:
+der Dateiname beschreibt die Datei, die vorliegt, der Katalog einen Eintrag,
+der eine andere Fassung sein kann. Drei Ausnahmen, alle mit Belegen aus echten
+Läufen (`MetadataResolver.catalogWinsContradiction`):
+
+1. **Schreibweise** — die Werte sind fast gleich (≥ 0.6 Ähnlichkeit). Dann hat
+   der Katalog das Zeichen, das die Download-Seite verschluckt hat: „IK N" → „Ikøn".
+2. **Ergänzung** — unser Titel trägt keine Mix-Bezeichnung, der Katalog schon.
+3. **Vertauschte Seiten** — der Katalog kennt unsere beiden Werte über Kreuz.
+   Genau die Frage „Artist - Title oder Title - Artist?" kann ein Dateiname
+   nicht beantworten, ein Katalog schon.
+
+Tragen **beide** eine Mix-Bezeichnung und sind die verschieden, gewinnt immer
+unsere — das ist der Bootleg-Fall. Ein Zwilling aus der Bibliothek wird
+ohnehin nie überstimmt.
 
 **Confidence** (0…1, Skala dokumentiert an `SuggestionConfidence`): Dateiname
 0.55, mit geklärter Reihenfolge 0.75, Ordner-Schema 0.60–0.90, Zwilling

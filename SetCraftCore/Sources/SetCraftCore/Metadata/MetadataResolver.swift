@@ -260,6 +260,16 @@ public struct MetadataResolver: Sendable {
         var confirmed = false
         var corrected = false
         var twinKept = false
+        var derivedKept = false
+
+        // Sonderfall vertauschte Reihenfolge: ob „Artist - Title" oder
+        // „Title - Artist" gilt, kann ein Dateiname allein nicht sagen
+        // (`ParsedFilename.orderIsAmbiguous`). Kennt der Katalog unsere beiden
+        // Werte über Kreuz, hat er genau diese Frage beantwortet — dann
+        // gewinnt er, egal was die Konfliktregel sonst sagen würde.
+        let sidesAreSwapped = !best.artist.isEmpty && !best.title.isEmpty
+            && TextSimilarity.similarity(candidates[.artist]?.value ?? "", best.title) >= 0.85
+            && TextSimilarity.similarity(candidates[.title]?.value ?? "", best.artist) >= 0.85
 
         // Mehrere gleich gute Treffer: dann ist schon die Auswahl des Releases
         // eine Wette. Das schlägt auf alles durch, was aus diesem Treffer kommt.
@@ -316,12 +326,26 @@ public struct MetadataResolver: Sendable {
                 candidates[field] = existing
                 return
             }
-            // In beiden Fällen zählt die **Schreibweise des Katalogs**: bei
-            // Übereinstimmung meinen beide denselben Track, und dann ist die
-            // Katalogfassung die saubere — sie setzt die Klammern richtig.
-            // „Mama India Outside The (Universe Remix)" und „Mama India
-            // (Outside The Universe Remix)" sind für unser Ähnlichkeitsmass
-            // identisch; nur eine der beiden gehört in den Tag.
+            // Bei Übereinstimmung zählt die **Schreibweise des Katalogs**: beide
+            // meinen denselben Track, und die Katalogfassung setzt die Klammern
+            // richtig. „Mama India Outside The (Universe Remix)" und „Mama
+            // India (Outside The Universe Remix)" sind für unser
+            // Ähnlichkeitsmass identisch; nur eine gehört in den Tag.
+            //
+            // Bei Widerspruch entscheidet `catalogWinsContradiction` — und da
+            // gewinnt im Regelfall der Dateiname.
+            let catalogWins = agrees
+                || sidesAreSwapped
+                || Self.catalogWinsContradiction(field: field, ours: existing.value, theirs: value)
+
+            guard catalogWins else {
+                derivedKept = true
+                existing.confidence = max(0.6, existing.confidence - Self.twinDisagreementPenalty)
+                existing.remember(value: value, source: .catalog, confidence: gapFillConfidence)
+                candidates[field] = existing
+                return
+            }
+
             var replacement = Candidate(
                 value: value,
                 source: .catalog,
@@ -342,6 +366,8 @@ public struct MetadataResolver: Sendable {
 
         if twinKept {
             notes.append(.libraryTwinKept)
+        } else if derivedKept {
+            notes.append(.catalogOverruled)
         } else if corrected {
             notes.append(.catalogCorrected)
         } else if confirmed {
@@ -351,6 +377,49 @@ public struct MetadataResolver: Sendable {
     }
 
     // MARK: - Helpers
+
+    /// Wessen Wert bei einem Widerspruch vorgeschlagen wird.
+    ///
+    /// Grundhaltung: **der hergeleitete Wert gewinnt.** Der Dateiname
+    /// beschreibt die Datei, die tatsächlich vorliegt; der Katalog beschreibt
+    /// einen Eintrag, der eine *andere Fassung* sein kann. Bei Bootlegs, Edits
+    /// und Promos kennt Discogs die Fassung gar nicht und trifft trotzdem
+    /// hervorragend auf das Original — das ist kein Grund, den richtigen Titel
+    /// zu überschreiben.
+    ///
+    /// Zwei Ausnahmen, beide mit Belegen aus echten Läufen:
+    ///
+    /// 1. **Schreibweise.** Die Werte sind fast gleich. Dann hat der Katalog
+    ///    das Zeichen, das die Download-Seite verschluckt hat: aus „Ikøn" wird
+    ///    im Dateinamen „IK N", und nur der Katalog kann das zurückgeben.
+    /// 2. **Ergänzung.** Unser Titel trägt keine Mix-Bezeichnung, der Katalog
+    ///    schon. Dann fehlt uns Information, statt dass wir widersprechen.
+    ///
+    /// Umgekehrt gilt: tragen **beide** eine Mix-Bezeichnung und sind die
+    /// verschieden, reden sie von zwei Fassungen — dann zählt unsere, denn
+    /// die beschreibt die Datei.
+    static func catalogWinsContradiction(field: MetadataField, ours: String, theirs: String) -> Bool {
+        if field == .title {
+            let ourMix = FilenameParser.mixVersion(in: ours) ?? ""
+            let theirMix = FilenameParser.mixVersion(in: theirs) ?? ""
+
+            if !ourMix.isEmpty, !theirMix.isEmpty {
+                // Verschiedene Fassungen → unsere. Nur wenn die Bezeichnungen
+                // im Kern dieselben sind, ist es eine Schreibweisenfrage.
+                guard TextSimilarity.similarity(ourMix, theirMix) >= 0.7 else { return false }
+            } else if !ourMix.isEmpty {
+                return false            // wir sind spezifischer als der Katalog
+            } else if !theirMix.isEmpty {
+                return true             // der Katalog kennt die Fassung, wir nicht
+            }
+        }
+        return TextSimilarity.similarity(ours, theirs) >= Self.spellingVariantThreshold
+    }
+
+    /// Ab dieser Ähnlichkeit halten wir einen abweichenden Katalogwert für
+    /// dieselbe Bezeichnung in sauberer Schreibweise statt für einen anderen
+    /// Track.
+    static let spellingVariantThreshold = 0.6
 
     /// Obergrenze für einen Wert, der einer Offline-Stufe **widerspricht**.
     /// Liegt bewusst unter `SuggestionConfidence`-Schwelle für „hoch": ein

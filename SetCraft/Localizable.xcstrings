@@ -243,6 +243,16 @@
         }
       }
     },
+    "Discogs suggests another version — kept the derived value" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discogs schlägt eine andere Fassung vor — hergeleiteten Wert behalten"
+          }
+        }
+      }
+    },
     "Discogs was unreachable" : {
       "localizations" : {
         "de" : {
