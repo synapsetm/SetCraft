@@ -333,6 +333,12 @@ Serialisierung, Active-Track-Guard).
   `lsregister -u <pfad>` und `lsregister -f -R /Applications/SetCraft.app`.
   Welche Version wirklich läuft: About-Panel bzw.
   `ps -p $(pgrep -x SetCraft) -o comm=`.
+- Build-Status ohne Browser: `scripts/asc-status.sh` (App Store Connect API,
+  ES256-JWT über `openssl`, weil PyJWT/`cryptography` nicht installiert sind).
+  Zeigt Verarbeitungsstand, Ablauf und ob der Build ein Icon trägt.
+  Das graue Platzhalter-Icon in der ASC-Kopfzeile kommt daher, dass an der
+  App-Store-Version 1.0 (PREPARE_FOR_SUBMISSION) kein Build hängt — bei reiner
+  TestFlight-Verteilung normal, kein Build-Fehler.
 - iOS-TestFlight: `exportArchive` bricht am Cloud-Signing-Stolperstein ab
   („No signing certificate iOS Distribution found") — Workaround: Upload
   manuell über Xcode Organizer. Verhält sich nicht reproduzierbar.

@@ -89,6 +89,9 @@ beat-matched chops.
   DMG and pushes the Sparkle appcast in one go. See `docs/DISTRIBUTION.md`.
 - **TestFlight pipeline** (iOS): `scripts/release-ios.sh` archives, exports
   and uploads to App Store Connect using an ASC API Key.
+  `scripts/asc-status.sh` answers "did my build make it?" from the terminal —
+  processing state, expiry and whether the build carries an app icon, straight
+  from the App Store Connect API.
 - **About panel** with full license and copyright listings for the bundled
   open-source libraries and a link back to the repo (GPL §6 compliant).
 
