@@ -67,9 +67,36 @@ final class ArtistNamesTests: XCTestCase {
         XCTAssertNil(ArtistNames.split("Some Unknown Duo", usingKnownNames: library))
     }
 
-    func test_partialCoverage_isRejected() {
-        // „Luca Antolini" ist bekannt, „Mystery Guest" nicht → keine Zerlegung.
-        XCTAssertNil(ArtistNames.split("Luca Antolini Mystery Guest", usingKnownNames: library))
+    func test_onlyOneNameKnown_stillSplits() {
+        // Der Normalfall in einer frisch gescannten Bibliothek: „Luca Antolini"
+        // steht schon da, „Mystery Guest" noch nicht.
+        XCTAssertEqual(
+            ArtistNames.split("Luca Antolini Mystery Guest", usingKnownNames: library),
+            ["Luca Antolini", "Mystery Guest"]
+        )
+        // Auch andersherum, wenn der bekannte Name hinten steht.
+        XCTAssertEqual(
+            ArtistNames.split("Mystery Guest Will Clarke", usingKnownNames: library),
+            ["Mystery Guest", "Will Clarke"]
+        )
+    }
+
+    func test_singleWordRemainder_isNotSplitOff() {
+        // „Skudge" allein wäre ein zu dünner zweiter Interpret.
+        XCTAssertNil(ArtistNames.split("Luca Antolini Skudge", usingKnownNames: library))
+    }
+
+    func test_threeWordName_withKnownFirstWord_staysWhole() {
+        // Selbst wenn „Paul" für sich bekannt ist: beide Teile müssten zwei
+        // Wörter haben, „Paul" hat eines.
+        let known = ArtistNames.knownNames(from: [
+            Track(url: URL(fileURLWithPath: "/m/x.mp3"), artist: "Paul")
+        ])
+        XCTAssertNil(ArtistNames.split("Paul van Dyk", usingKnownNames: known))
+    }
+
+    func test_nothingKnown_isNeverSplit() {
+        XCTAssertNil(ArtistNames.split("Some Unknown Other Duo", usingKnownNames: [:]))
     }
 
     func test_join_usesTheBeatportStyleSeparator() {

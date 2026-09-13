@@ -102,8 +102,41 @@ public enum ArtistNames {
             }
         }
 
-        guard let parts = best[words.count], parts.count >= 2 else { return nil }
-        return parts
+        if let parts = best[words.count], parts.count >= 2 {
+            return parts
+        }
+        return splitAtKnownPrefixOrSuffix(words, known: known)
+    }
+
+    /// Zweite Stufe: nur **einer** der beiden Namen ist bekannt.
+    ///
+    /// In einer frisch gescannten Bibliothek ist das der Normalfall — „Luca
+    /// Antolini" steht schon in anderen Dateien, „Andrea Montorsi" noch nicht.
+    /// Der Rest wird dann als zweiter Interpret genommen.
+    ///
+    /// Eng geführt, damit keine einteiligen Namen zerschnitten werden:
+    /// - genau **zwei** Teile,
+    /// - **beide** mindestens zwei Wörter lang — das rettet „Paul van Dyk",
+    ///   auch wenn „Paul" für sich bekannt wäre,
+    /// - mindestens einer der beiden Teile ist ein bekannter Name.
+    private static func splitAtKnownPrefixOrSuffix(
+        _ words: [String],
+        known: [String: String]
+    ) -> [String]? {
+        guard words.count >= 4 else { return nil }
+
+        for cut in 2...(words.count - 2) {
+            let left = words[0..<cut].joined(separator: " ")
+            let right = words[cut...].joined(separator: " ")
+
+            if let display = known[TextSimilarity.normalize(left)] {
+                return [display, right]
+            }
+            if let display = known[TextSimilarity.normalize(right)] {
+                return [left, display]
+            }
+        }
+        return nil
     }
 
     /// Setzt eine bekannte Namensliste zum Tag-Wert zusammen.

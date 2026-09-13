@@ -19,7 +19,7 @@ Letzte Aktualisierung: 2026-09-13.
 - **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
   weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
   manuell über den Xcode Organizer.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 217 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 220 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
   Vorschlagskette/Discogs).
@@ -128,8 +128,11 @@ Underscore, aus „Luca Antolini, Andrea Montorsi" wird
 `Luca_Antolini_Andrea_Montorsi` — die Grenze ist weg. Wiederhergestellt wird
 sie mit Wissen von aussen, zuerst aus der **eigenen Bibliothek**: stehen beide
 Namen dort schon in anderen Dateien, ist die Zerlegung eindeutig (wortweises
-DP, lückenlose Abdeckung, wenigste Teile gewinnen). Ist der ganze String selbst
-ein bekannter Name, wird nie zerlegt — „Paul van Dyk" bleibt ganz.
+DP, lückenlose Abdeckung, wenigste Teile gewinnen). Ist nur **einer** der
+beiden bekannt — der Normalfall in einer frisch gescannten Bibliothek —, gilt
+der Rest als zweiter Interpret; dann aber nur bei genau zwei Teilen, die beide
+mindestens zwei Wörter haben. Ist der ganze String selbst ein bekannter Name,
+wird nie zerlegt — „Paul van Dyk" bleibt ganz, auch wenn „Paul" bekannt ist.
 
 Beide Stufen hängen an der Bibliothek. Ist sie leer — weil die sauber
 getaggten Ordner nie als Quelle gescannt wurden —, können sie prinzipiell
