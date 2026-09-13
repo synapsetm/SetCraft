@@ -202,8 +202,11 @@ struct MetadataFixSheet: View {
                     .foregroundStyle(.secondary)
 
                 if model.didRun {
-                    Text("·")
-                        .foregroundStyle(.tertiary)
+                    // Senkrechter Strich wie in der Statuszeile der
+                    // Hauptansicht (`LibraryView.statusSeparator`) — die beiden
+                    // Leisten sollen gleich aussehen.
+                    Divider()
+                        .frame(height: 12)
                     Text("Library: \(model.libraryCandidateCount) tagged tracks · \(model.knownArtistCount) artists")
                         .foregroundStyle(model.libraryCandidateCount == 0 ? .orange : .secondary)
                         .help("Source for the duplicate match and for splitting concatenated artists. Scan the folders that hold your properly tagged files once, so they land in the library.")
