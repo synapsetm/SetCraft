@@ -11,10 +11,19 @@ import OSLog
 public struct MetadataContext: Sendable {
     public var pattern: NamingPattern?
     public var duplicates: DuplicateMatcher
+    /// Interpreten-Namen aus der Bibliothek (`normalisiert → Schreibweise`).
+    /// Damit lässt sich ein Artist-String ohne Trennzeichen wieder in seine
+    /// Teile zerlegen — siehe `ArtistNames.split(_:usingKnownNames:)`.
+    public var knownArtists: [String: String]
 
-    public init(pattern: NamingPattern?, duplicates: DuplicateMatcher) {
+    public init(
+        pattern: NamingPattern?,
+        duplicates: DuplicateMatcher,
+        knownArtists: [String: String] = [:]
+    ) {
         self.pattern = pattern
         self.duplicates = duplicates
+        self.knownArtists = knownArtists
     }
 
     /// `folderTracks` sind die Dateien des betrachteten Ordners (Lehrmaterial
@@ -23,7 +32,8 @@ public struct MetadataContext: Sendable {
     public static func build(folderTracks: [Track], library: [Track]) -> MetadataContext {
         MetadataContext(
             pattern: PatternLearner.learn(from: folderTracks),
-            duplicates: DuplicateMatcher(tracks: library)
+            duplicates: DuplicateMatcher(tracks: library),
+            knownArtists: ArtistNames.knownNames(from: library)
         )
     }
 }
@@ -117,6 +127,23 @@ public struct MetadataResolver: Sendable {
             if let year = twin.year {
                 put(&candidates, .year, String(year), .libraryDuplicate, match.confidence)
             }
+        }
+
+        // ── Mehrere Interpreten ohne Trennzeichen ──────────────────────────
+        // `Luca_Antolini_Andrea_Montorsi` — die Download-Seite hat das Komma
+        // gefressen. Wiederherstellen kann das nur Wissen von aussen; das
+        // billigste ist die eigene Bibliothek.
+        if let artist = candidates[.artist],
+           artist.source != .libraryDuplicate,
+           !ArtistNames.hasExplicitSeparator(artist.value),
+           let parts = ArtistNames.split(artist.value, usingKnownNames: context.knownArtists) {
+            notes.append(.artistsSplitUsingLibrary)
+            var updated = artist
+            // Erst den neuen Wert setzen, dann den alten merken: `remember`
+            // lehnt einen Wert ab, der dem aktuellen entspricht.
+            updated.value = ArtistNames.join(parts)
+            updated.remember(value: artist.value, source: artist.source, confidence: artist.confidence)
+            candidates[.artist] = updated
         }
 
         // ── Stufe 4: Katalog als Gegenprüfung ──────────────────────────────

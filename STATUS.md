@@ -19,7 +19,7 @@ Letzte Aktualisierung: 2026-09-13.
 - **iOS-Release:** 1.2 (Build 14) auf TestFlight. `exportArchive` scheitert
   weiterhin am Cloud-Signing (s. u.), der Upload lief deshalb wie gehabt
   manuell über den Xcode Organizer.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 202 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 215 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
   Vorschlagskette/Discogs).
@@ -110,6 +110,23 @@ Gefüllt werden Artist, Titel, Album, Label, Jahr — Album/Label/Jahr können
 dabei nur vom Zwilling oder aus Discogs kommen. **Genre bewusst nicht** —
 Discogs-Styles würden eine kuratierte Spalte überschreiben. BPM/Key kommen
 weiter aus der Audio-Analyse.
+
+**Mehrere Interpreten** (`ArtistNames`): geschrieben wird **ein** `TPE1`-Frame
+mit `, ` als Trenner — so liefert es Beatport, und Serato wie Rekordbox zeigen
+den String ohnehin unverändert. Normalisiert wird nur, wo die Struktur
+*bekannt* ist: aus Discogs' Artist-Liste (Aufzählungs-Verbinder `&`/`and` →
+`, `, Beziehungs-Verbinder wie `feat.`/`vs.` bleiben wortwörtlich) oder aus
+einer Zerlegung anhand bekannter Namen. Ein roher Dateiname wird nie
+angefasst — „Above & Beyond" ist **ein** Interpret, und das ist aus dem String
+allein nicht zu erkennen.
+
+Der harte Fall: Download-Seiten ersetzen jedes Sonderzeichen durch einen
+Underscore, aus „Luca Antolini, Andrea Montorsi" wird
+`Luca_Antolini_Andrea_Montorsi` — die Grenze ist weg. Wiederhergestellt wird
+sie mit Wissen von aussen, zuerst aus der **eigenen Bibliothek**: stehen beide
+Namen dort schon in anderen Dateien, ist die Zerlegung eindeutig (wortweises
+DP, lückenlose Abdeckung, wenigste Teile gewinnen). Ist der ganze String selbst
+ein bekannter Name, wird nie zerlegt — „Paul van Dyk" bleibt ganz.
 
 **Wer gewinnt bei Widerspruch?** Der **hergeleitete Wert**, nicht der Katalog:
 der Dateiname beschreibt die Datei, die vorliegt, der Katalog einen Eintrag,

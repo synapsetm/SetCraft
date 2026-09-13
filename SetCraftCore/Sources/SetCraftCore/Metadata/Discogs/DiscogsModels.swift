@@ -79,8 +79,13 @@ enum Discogs {
 
 extension Array where Element == Discogs.Artist {
 
-    /// Baut den Artist-String so zusammen, wie er auf dem Release steht —
-    /// inklusive der Verbinder („A & B", „A feat. B").
+    /// Baut den Artist-String aus der Artist-Liste des Releases.
+    ///
+    /// Hier ist die Struktur **bekannt** — Discogs liefert die Interpreten
+    /// einzeln plus den Verbinder. Reine Aufzählungen („&", „and", leer)
+    /// werden deshalb auf SetCrafts Trennzeichen `, ` normalisiert; Verbinder,
+    /// die eine Beziehung ausdrücken („feat.", „vs.", „presents"), bleiben
+    /// wortwörtlich stehen, weil sie Bedeutung tragen.
     ///
     /// Discogs hängt an mehrfach vergebene Künstlernamen eine Nummer:
     /// „Sabre (2)". Die gehört nicht in ein Tag und wird entfernt.
@@ -90,8 +95,12 @@ extension Array where Element == Discogs.Artist {
             let name = (artist.anv?.isEmpty == false ? artist.anv : artist.name) ?? ""
             result += Discogs.stripDisambiguation(name)
             if index < count - 1 {
-                let join = artist.join?.trimmingCharacters(in: .whitespaces) ?? ""
-                result += join.isEmpty ? ", " : " \(join) "
+                let join = (artist.join ?? "").trimmingCharacters(in: .whitespaces)
+                if ArtistNames.enumerationJoins.contains(join.lowercased()) {
+                    result += ArtistNames.separator
+                } else {
+                    result += " \(join) "
+                }
             }
         }
         return result.trimmingCharacters(in: .whitespaces)

@@ -198,6 +198,9 @@ public enum ProposalNote: String, Sendable, CaseIterable {
     /// Der Katalog widerspricht — sein Wert steht im Vorschlag, der Offline-Wert
     /// bleibt als Bestand sichtbar.
     case catalogCorrected
+    /// Ein Artist-String ohne Trennzeichen wurde anhand bekannter Namen aus
+    /// der Bibliothek in mehrere Interpreten zerlegt.
+    case artistsSplitUsingLibrary
     /// Der Katalog schlägt etwas anderes vor, der hergeleitete Wert bleibt
     /// aber stehen — typisch bei Bootlegs und Edits, die Discogs nicht kennt.
     case catalogOverruled

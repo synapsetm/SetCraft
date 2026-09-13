@@ -245,6 +245,39 @@ final class MetadataResolverChainTests: XCTestCase {
         XCTAssertEqual(proposal.suggestion(for: .title)?.value, "Crescendolls")
     }
 
+    func test_concatenatedArtists_areSplitUsingTheLibrary() async {
+        // Die Download-Seite hat das Komma gefressen; beide Namen stehen aber
+        // in anderen Dateien der Bibliothek.
+        let libraryTracks = [
+            makeTrack("/lib/a.mp3", title: "Some Track", artist: "Luca Antolini", duration: 300),
+            makeTrack("/lib/b.mp3", title: "Other Track", artist: "Andrea Montorsi", duration: 310)
+        ]
+        let context = MetadataContext.build(folderTracks: [], library: libraryTracks)
+        let resolver = MetadataResolver(options: .init(fields: MetadataField.core, policy: .off))
+        let proposal = await resolver.proposal(
+            for: makeTrack("/dl/Luca Antolini Andrea Montorsi - Crave The Dark Extended Mix.mp3"),
+            context: context
+        )
+
+        let artist = try! XCTUnwrap(proposal.suggestion(for: .artist))
+        XCTAssertEqual(artist.value, "Luca Antolini, Andrea Montorsi")
+        XCTAssertTrue(proposal.notes.contains(.artistsSplitUsingLibrary))
+        XCTAssertTrue(artist.alternatives.contains { $0.value == "Luca Antolini Andrea Montorsi" },
+                      "Die ungetrennte Fassung bleibt erreichbar")
+        XCTAssertEqual(proposal.suggestion(for: .title)?.value, "Crave The Dark (Extended Mix)")
+    }
+
+    func test_unknownArtists_areLeftAlone() async {
+        let context = MetadataContext.build(folderTracks: [], library: [])
+        let resolver = MetadataResolver(options: .init(fields: MetadataField.core, policy: .off))
+        let proposal = await resolver.proposal(
+            for: makeTrack("/dl/Luca Antolini Andrea Montorsi - Crave The Dark.mp3"),
+            context: context
+        )
+        XCTAssertEqual(proposal.suggestion(for: .artist)?.value, "Luca Antolini Andrea Montorsi")
+        XCTAssertFalse(proposal.notes.contains(.artistsSplitUsingLibrary))
+    }
+
     // MARK: Katalog-Policy
 
     func test_policyOff_neverAsksCatalog() async {

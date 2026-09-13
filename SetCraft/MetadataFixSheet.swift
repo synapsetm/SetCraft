@@ -311,6 +311,8 @@ private struct ProposalCard: View {
         case .identicalFileFound:   return String(localized: "Identical file found in your library")
         case .catalogConfirmed:     return String(localized: "Confirmed by Discogs")
         case .catalogCorrected:     return String(localized: "Corrected by Discogs")
+        case .artistsSplitUsingLibrary:
+            return String(localized: "Split into several artists using names from your library")
         case .catalogOverruled:     return String(localized: "Discogs suggests another version — kept the derived value")
         case .libraryTwinKept:      return String(localized: "Discogs disagrees — kept your library’s value")
         case .catalogNoMatch:       return String(localized: "Not found on Discogs")

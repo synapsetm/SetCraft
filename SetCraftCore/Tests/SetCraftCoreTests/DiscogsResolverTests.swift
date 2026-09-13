@@ -406,7 +406,26 @@ final class DiscogsClientTests: XCTestCase {
          "artists":[{"name":"Sabre (2)","anv":"","join":"&"},{"name":"Stray","anv":"","join":""}]}
         """
         let release = try JSONDecoder().decode(Discogs.Release.self, from: Data(json.utf8))
-        XCTAssertEqual((release.artists ?? []).joinedName, "Sabre & Stray")
+        // „&" ist eine Aufzählung → SetCrafts Trennzeichen.
+        XCTAssertEqual((release.artists ?? []).joinedName, "Sabre, Stray")
+    }
+
+    func test_enumerationJoin_becomesTheTagSeparator() throws {
+        let json = """
+        {"id":5,"title":"X","tracklist":[],
+         "artists":[{"name":"Luca Antolini","anv":"","join":"&"},{"name":"Andrea Montorsi","anv":"","join":""}]}
+        """
+        let release = try JSONDecoder().decode(Discogs.Release.self, from: Data(json.utf8))
+        XCTAssertEqual((release.artists ?? []).joinedName, "Luca Antolini, Andrea Montorsi")
+    }
+
+    func test_relationshipJoin_isKeptVerbatim() throws {
+        let json = """
+        {"id":5,"title":"X","tracklist":[],
+         "artists":[{"name":"Disclosure","anv":"","join":"feat."},{"name":"Sam Smith","anv":"","join":""}]}
+        """
+        let release = try JSONDecoder().decode(Discogs.Release.self, from: Data(json.utf8))
+        XCTAssertEqual((release.artists ?? []).joinedName, "Disclosure feat. Sam Smith")
     }
 
     func test_artistNameVariationWins() throws {

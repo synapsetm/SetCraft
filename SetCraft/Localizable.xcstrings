@@ -1614,6 +1614,16 @@
         }
       }
     },
+    "Split into several artists using names from your library" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anhand bekannter Namen aus der Bibliothek in mehrere Interpreten getrennt"
+          }
+        }
+      }
+    },
     "Start" : {
       "localizations" : {
         "de" : {
