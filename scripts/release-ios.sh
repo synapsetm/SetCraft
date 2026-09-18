@@ -97,7 +97,7 @@ if [ "${SKIP_L10N_CHECK:-0}" = "1" ]; then
 else
     log "Lokalisierung pruefen"
     if ! python3 "$PROJECT_ROOT/scripts/check-localization.py" --target ios; then
-        echo "\033[1;31m✖ Lokalisierung unvollstaendig (s. o.). Beheben, oder mit SKIP_L10N_CHECK=1 bewusst uebergehen.\033[0m" >&2
+        printf '\n\033[1;31m✖ Lokalisierung unvollstaendig (s. o.). Beheben, oder mit SKIP_L10N_CHECK=1 bewusst uebergehen.\033[0m\n' >&2
         exit 1
     fi
 fi
