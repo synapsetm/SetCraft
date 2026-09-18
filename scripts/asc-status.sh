@@ -56,13 +56,30 @@ app_id="$(jq -r '.data[0].id // empty' <<<"$app_json")"
 [ -n "$app_id" ] || fail "Keine App mit Bundle-ID $bundle_id gefunden."
 jq -r '.data[0] | "   \(.attributes.name)  (id \(.id))"' <<<"$app_json"
 
+# Apple liefert `uploadedDate` in Cupertino-Zeit samt Offset (z. B.
+# ...T11:53:14-07:00). Einfach abzuschneiden macht daraus eine Uhrzeit, zu der
+# hier niemand hochgeladen hat — deshalb pro Zeile nach lokal umrechnen.
+# Das erledigt `date`, nicht jq: dessen mktime ignoriert den geparsten Offset
+# und liegt um die eigene Zonendifferenz daneben.
+to_local() {
+    local stamp="${1//[[:space:]]/}"
+    # %z will den Offset ohne Doppelpunkt.
+    stamp="$(sed -E 's/([+-][0-9]{2}):([0-9]{2})$/\1\2/' <<<"$stamp")"
+    date -jf "%Y-%m-%dT%H:%M:%S%z" "$stamp" "+%Y-%m-%d %H:%M" 2>/dev/null \
+        || printf '%s' "$1"
+}
+
 log "Builds (neueste zuerst)"
-api "/v1/builds?filter%5Bapp%5D=$app_id&limit=$limit&sort=-version" | jq -r '
-    .data[] | .attributes as $a
-    | "   Build \($a.version)  \($a.processingState)"
-      + "  hochgeladen \($a.uploadedDate[:16] | sub("T"; " "))"
-      + (if $a.expired then "  [abgelaufen]" else "" end)
-      + (if $a.iconAssetToken then "" else "  [OHNE ICON]" end)'
+while IFS=$'\t' read -r version state uploaded expired has_icon; do
+    [ -n "$version" ] || continue
+    printf '   Build %-4s %-12s hochgeladen %s%s%s\n' \
+        "$version" "$state" "$(to_local "$uploaded")" \
+        "$([ "$expired" = "true" ] && printf '  [abgelaufen]')" \
+        "$([ "$has_icon" = "false" ] && printf '  [OHNE ICON]')"
+done < <(api "/v1/builds?filter%5Bapp%5D=$app_id&limit=$limit&sort=-version" | jq -r '
+    .data[] | .attributes
+    | [.version, .processingState, .uploadedDate,
+       (.expired | tostring), (.iconAssetToken != null | tostring)] | @tsv')
 
 log "App-Store-Versionen"
 versions="$(api "/v1/apps/$app_id/appStoreVersions?limit=5")"
