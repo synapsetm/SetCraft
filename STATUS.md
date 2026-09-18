@@ -263,6 +263,14 @@ Serialisierung, Active-Track-Guard).
   Organizer-Umweg durch. Einmalige Einrichtung der Signatur:
   `scripts/asc-setup-signing.sh`. Build-Status ohne Browser:
   `scripts/asc-status.sh`. Gemeinsame Auth in `scripts/asc-auth.sh`.
+- **Lokalisierungs-Gate**: beide Release-Skripte rufen zwischen Archive und
+  Export `scripts/check-localization.py --target macos|ios`. Ein fehlender
+  deutscher String bricht den Release ab, bevor etwas notarisiert oder zu
+  App Store Connect hochgeladen wird — beim iOS-Weg ist die Build-Nummer nach
+  dem Upload verbrannt. Blockierend sind fehlende `de`-Einträge, schiefe
+  Platzhalter, „ß", Keys ohne Katalogeintrag und abweichende Übersetzungen
+  zwischen den Plattformen; Karteileichen und `de` == Key bei Einzelbegriffen
+  („Album") bleiben Hinweise. `SKIP_L10N_CHECK=1` übergeht das Gate bewusst.
 - About-Panel mit vollständigen Lizenz-Credits (GPL §6).
 - Lokalisiert (EN + DE, Auto-Switch). Dark Mode als Default.
 
@@ -378,6 +386,12 @@ Serialisierung, Active-Track-Guard).
 
 - `xcode-select` zeigt auf CommandLineTools → jeder `xcodebuild`/`xcrun`-Aufruf
   braucht `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+- **`.stringsdata` sind flüchtig**: ein `clean` des einen Targets räumt die
+  Daten des anderen mit weg, und Release-Builds legen woanders ab als Debug.
+  Wer das nicht bedenkt, bekommt vom Lokalisierungs-Check reihenweise falsche
+  Karteileichen gemeldet. `check-localization.py` sucht die Daten deshalb
+  selbst über alle Konfigurationen und bricht ab, wenn sie älter sind als die
+  Quellen — statt einen veralteten Stand als sauber zu melden.
 - Sparkle-CLI (`generate_keys`, `generate_appcast`) liegt in DerivedData; für
   `release.sh` ggf. `SPARKLE_BIN_DIR` explizit setzen.
 - Nach jedem Build/Release-Lauf registriert LaunchServices die Kopien aus
