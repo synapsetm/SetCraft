@@ -18,10 +18,11 @@ Letzte Aktualisierung: 2026-09-13 (Release v1.3-15).
   Waveform und die Scope-/Beenden-Korrekturen (s. u.).
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 16) in TestFlight, Status `VALID`. Bringt den
-  nicht-blockierenden Track-Load samt Prefetch des nächsten Tracks.
-  `exportArchive` läuft seit dem Signing-Setup (s. u.) ohne Organizer durch.
-  Build-Nummern laufen ab hier auseinander: iOS 16, Mac weiter 15.
+- **iOS-Release:** 1.3 (Build 17) in TestFlight. Bringt den nicht-blockierenden
+  Track-Load samt gedrosseltem Prefetch und den abgefangenen `connect`-Crash.
+  Build 17 lief erstmals komplett über `scripts/release-ios.sh` — Archive,
+  Export, Upload in einem Lauf, ohne Organizer.
+  Build-Nummern laufen ab hier auseinander: iOS 17, Mac weiter 15.
 - **Tests:** `swift test` im `SetCraftCore`-Paket grün — 222 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
@@ -271,6 +272,22 @@ Serialisierung, Active-Track-Guard).
   Hintergrund — das schliesst die Lücke beim Auto-Advance. Der alte
   iCloud-Sonderfall („gleich noch mal versuchen") entfällt; stattdessen zeigt
   die Library-Zeile einen Spinner.
+
+  Nachtrag: die erste Fassung konnte sich selbst im Weg stehen. `cancel()` auf
+  den Task brach nur das `await` ab, die Materialisierung lief weiter, und die
+  Queue war `.concurrent` — zwanzig schnelle Skips starteten zwanzig parallele
+  Voll-Downloads. Jetzt zwei **serielle** Queues, getrennt nach Dringlichkeit
+  (`prefetch` userInitiated für den angetippten Track, `prefetchAhead` utility
+  für die Vorausschau): höchstens zwei Downloads gleichzeitig, und die
+  Spekulation steht dem Tap nie im Weg. Ein laufender Open lässt sich nicht
+  unterbrechen — was das Abbruch-Flag rettet, ist die Warteschlange: wer
+  abgehängt wurde, bevor er dran war, überträgt kein einziges Byte.
+- **`AVAudioEngine.connect` als Absturzquelle:** Die klassische
+  `connect(_:to:format:)` meldet ein Format, mit dem sie nichts anfangen kann,
+  als Objective-C-Exception — Swift kann die nicht fangen, der Prozess stirbt.
+  Bei einer Bibliothek aus fremden Dateien real. iOS/macOS 27 bietet dieselbe
+  Verbindung mit `error:`; unter `#available` genutzt (Deployment-Target bleibt
+  26.5), fällt ein unverdauliches Format ins `catch` des Aufrufers.
 - **NAS/SMB-Tag-Writes:** `.itemReplacementDirectory` + `replaceItemAt`
   scheitern auf SMB (setattrlist/xattr → ENOTSUP/EPERM, Sandbox-Scope). Fix in
   `TagLibTrackStore.save`: Sibling-Temp im selben Verzeichnis, `replaceItemAt`
