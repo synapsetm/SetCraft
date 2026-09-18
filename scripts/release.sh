@@ -92,6 +92,7 @@ require_cmd codesign
 require_cmd ditto
 require_cmd git
 require_cmd gh
+require_cmd python3
 
 if ! security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
     die "Kein 'Developer ID Application'-Zertifikat im Keychain. Siehe docs/DISTRIBUTION.md."
@@ -173,6 +174,21 @@ xcodebuild \
     DEVELOPMENT_TEAM="$TEAM_ID" \
     CODE_SIGN_STYLE=Automatic \
     archive
+
+# ---------- 1b) Lokalisierung pruefen -----------------------------------------
+
+# Bewusst NACH dem Archive: das Skript liest die vom Compiler erzeugten
+# .stringsdata, die es vorher gar nicht gibt. Und bewusst VOR dem Export —
+# ein fehlender deutscher String soll auffliegen, bevor irgendetwas
+# notarisiert oder veroeffentlicht wird.
+if [ "${SKIP_L10N_CHECK:-0}" = "1" ]; then
+    log "Lokalisierung: uebersprungen (SKIP_L10N_CHECK=1)"
+else
+    log "Lokalisierung pruefen"
+    if ! python3 "$PROJECT_ROOT/scripts/check-localization.py" --target macos; then
+        die "Lokalisierung unvollstaendig (s. o.). Beheben, oder mit SKIP_L10N_CHECK=1 bewusst uebergehen."
+    fi
+fi
 
 # ---------- 2) Export ---------------------------------------------------------
 

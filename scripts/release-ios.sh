@@ -86,6 +86,22 @@ xcodebuild \
     CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
     archive
 
+# ---------- 1b) Lokalisierung pruefen -----------------------------------------
+
+# Bewusst NACH dem Archive: das Skript liest die vom Compiler erzeugten
+# .stringsdata, die es vorher gar nicht gibt. Und bewusst VOR dem Export —
+# ein fehlender deutscher String soll auffliegen, bevor ein IPA bei
+# App Store Connect landet, wo die Build-Nummer verbrannt ist.
+if [ "${SKIP_L10N_CHECK:-0}" = "1" ]; then
+    log "Lokalisierung: uebersprungen (SKIP_L10N_CHECK=1)"
+else
+    log "Lokalisierung pruefen"
+    if ! python3 "$PROJECT_ROOT/scripts/check-localization.py" --target ios; then
+        echo "\033[1;31m✖ Lokalisierung unvollstaendig (s. o.). Beheben, oder mit SKIP_L10N_CHECK=1 bewusst uebergehen.\033[0m" >&2
+        exit 1
+    fi
+fi
+
 # ---------- 2) Export IPA --------------------------------------------------
 
 # Manuelles Signieren gegen das Zertifikat + Profil aus asc-setup-signing.sh.

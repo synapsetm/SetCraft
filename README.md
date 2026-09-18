@@ -168,8 +168,16 @@ HTTP stub built from real API responses.
 ### 4) Localisation check
 
 ```bash
-python3 scripts/check-localization.py     # both targets must be built first
+python3 scripts/check-localization.py                 # both targets
+python3 scripts/check-localization.py --target ios    # one target only
 ```
+
+Build the target(s) first — the script reads the `.stringsdata` the compiler
+emits. It exits non-zero on a blocking finding, and also when the build data
+is missing or older than the sources, so it never reports a stale state as
+clean. Both release scripts run it after the archive and before the export,
+so an untranslated string aborts the release before anything is notarised or
+uploaded (`SKIP_L10N_CHECK=1` overrides it deliberately).
 
 ---
 

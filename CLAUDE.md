@@ -123,17 +123,29 @@ Tooltips im Infinitiv („Markierten Track aus der Bibliothek laden"), Schweizer
 statt „ß"** („Grösse", „Schliessen"). Fachbegriffe bleiben englisch: Track, Player,
 Tempo, BPM, Key.
 
-**Prüfen** (beide Targets vorher bauen, das Skript liest die vom Compiler
-extrahierten `.stringsdata`):
+**Prüfen** (das betroffene Target vorher bauen, das Skript liest die vom
+Compiler extrahierten `.stringsdata`):
 
 ```sh
-python3 scripts/check-localization.py
+python3 scripts/check-localization.py                 # beide Targets
+python3 scripts/check-localization.py --target ios    # nur iOS
 ```
 
 Gemeldet werden fehlende `de`-Einträge, nicht zusammenpassende Platzhalter,
 „ß" statt „ss", Karteileichen, Keys ohne Katalogeintrag — und Fälle, in denen
 macOS und iOS denselben Key unterschiedlich übersetzen. Letzteres ist der
 häufigste Fehler, weil die Kataloge getrennt sind.
+
+**Der Rückgabewert taugt als Gate:** 0 = sauber, 1 = blockierender Befund
+**oder** fehlende bzw. veraltete Build-Daten. Rein informative Kategorien
+(Karteileichen, `de` == Key bei Einzelbegriffen wie „Album") lassen ihn in
+Ruhe. Sind die `.stringsdata` älter als die Quellen, bricht das Skript ab,
+statt einen veralteten Stand als sauber zu melden.
+
+**Beide Release-Skripte prüfen das automatisch** — nach dem Archive, vor dem
+Export. Ein fehlender deutscher String bricht den Release ab, bevor etwas
+notarisiert oder zu App Store Connect hochgeladen wird. Bewusst übergehen:
+`SKIP_L10N_CHECK=1 ./scripts/release.sh`.
 
 ---
 
