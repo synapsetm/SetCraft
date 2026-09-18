@@ -18,11 +18,10 @@ Letzte Aktualisierung: 2026-09-13 (Release v1.3-15).
   Waveform und die Scope-/Beenden-Korrekturen (s. u.).
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 16) archiviert unter
-  `build/ios/SetCraft-iOS.xcarchive`. `exportArchive` scheitert weiterhin am
-  Cloud-Signing (Ursache geklärt, s. u.) — der Upload zu TestFlight muss von
-  Hand über den Xcode Organizer laufen. Build-Nummern laufen ab hier
-  auseinander: iOS 16, Mac weiter 15.
+- **iOS-Release:** 1.3 (Build 16) in TestFlight, Status `VALID`. Bringt den
+  nicht-blockierenden Track-Load samt Prefetch des nächsten Tracks.
+  `exportArchive` läuft seit dem Signing-Setup (s. u.) ohne Organizer durch.
+  Build-Nummern laufen ab hier auseinander: iOS 16, Mac weiter 15.
 - **Tests:** `swift test` im `SetCraftCore`-Paket grün — 222 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
@@ -340,19 +339,17 @@ Serialisierung, Active-Track-Guard).
   Das graue Platzhalter-Icon in der ASC-Kopfzeile kommt daher, dass an der
   App-Store-Version 1.0 (PREPARE_FOR_SUBMISSION) kein Build hängt — bei reiner
   TestFlight-Verteilung normal, kein Build-Fehler.
-- iOS-TestFlight: `exportArchive` bricht am Cloud-Signing ab. Ursache ist
-  nicht Sprunghaftigkeit, sondern schlicht ein **fehlendes Zertifikat**:
-  `security find-identity -v -p codesigning` listet nur „Apple Development"
-  und „Developer ID Application" (letzteres ist der Mac-Weg an Store vorbei)
-  — eine **Apple-Distribution-Identität gibt es lokal gar nicht**. Also
-  versucht `exportArchive` Cloud-Signing, und dabei kommt
-  „Cloud signing permission error · You haven't been given access to
-  cloud-managed distribution certificates": der **ASC-API-Key** trägt dafür
-  die falsche Rolle (nötig ist Admin oder App Manager, ein Developer-Key
-  reicht nicht). Zwei Wege: entweder den Key hochstufen, oder einmalig in
-  Xcode → Settings → Accounts → Manage Certificates → „+" → **Apple
-  Distribution** anlegen, dann findet der Export eine lokale Identität und
-  braucht das Cloud-Signing nicht mehr. Bis dahin: Organizer.
+- iOS-TestFlight: Der Cloud-Signing-Abbruch ist **behoben** (2026-09-18).
+  Ursache war kein sprunghaftes Verhalten, sondern eine fehlende Identität:
+  lokal existierte nur „Apple Development" und „Developer ID Application",
+  also wich `exportArchive` auf Cloud-Signing aus — und dafür hat der
+  ASC-API-Key die falsche Rolle. `scripts/asc-setup-signing.sh` legt jetzt
+  Apple-Distribution-Zertifikat und passendes App-Store-Profil an (idempotent,
+  `--list` zeigt nur den Ist-Zustand); `ExportOptions-iOS.plist` signiert
+  manuell dagegen. Der Organizer-Umweg entfällt. Nebenbefund: ein reguläres
+  Distribution-Zertifikat darf der Key sehr wohl anlegen — die Rollenprüfung
+  greift nur bei den *cloud-managed*. Zertifikat und Profil laufen
+  2027-09-18 ab. Details in `docs/DISTRIBUTION.md` §8.1.
 - Rating-Kommentar-Token-Format: `★★★★☆ | <rest>` (menschenlesbar in Serato +
   Rekordbox), Round-Trip in `RatingPrefix.parse/format`.
 - WAV ist als Tag-Ziel schwach → UI-Warnung im Edit-Sheet, Write läuft durch.
@@ -372,9 +369,6 @@ Serialisierung, Active-Track-Guard).
 ## Offene Punkte
 
 - **iCloud-Sync der Library** zwischen Mac und iPhone (App Group + CloudKit).
-- **Cloud-Signing für iOS-TestFlight** reproduzierbar machen — Ursache steht
-  oben, zu tun ist eines von beidem: ASC-API-Key auf Admin/App Manager
-  hochstufen, oder lokal ein Apple-Distribution-Zertifikat anlegen.
 - **WAV-Tagging** tiefer lösen (aktuell nur UI-Warnung).
 - **Crates / Playlists / Suche / History** (SQLite-Basis steht).
 - **Metal-Renderer** für die Waveform (Canvas reicht aktuell).

@@ -23,8 +23,6 @@
 set -euo pipefail
 
 readonly BUNDLE_ID_DEFAULT="ch.buehler.beat.SetCraft.iOS"
-readonly ASC_ENV_FILE="$HOME/.appstoreconnect/setcraft.env"
-readonly API="https://api.appstoreconnect.apple.com"
 
 bundle_id="$BUNDLE_ID_DEFAULT"
 limit=5
@@ -43,52 +41,12 @@ fail() { printf '\033[1;31m%s\033[0m\n' "$*" >&2; exit 1; }
 
 # ---------- Auth --------------------------------------------------------------
 
-if [ -f "$ASC_ENV_FILE" ]; then
-    # shellcheck disable=SC1090
-    source "$ASC_ENV_FILE"
-fi
-: "${ASC_API_KEY_ID:?ASC_API_KEY_ID fehlt (ENV oder ~/.appstoreconnect/setcraft.env)}"
-: "${ASC_API_ISSUER_ID:?ASC_API_ISSUER_ID fehlt (ENV oder ~/.appstoreconnect/setcraft.env)}"
+# Key-ID, Issuer-ID, JWT und der curl-Wrapper `asc_api` kommen aus dem
+# gemeinsamen Helfer — dieselbe Auth wie in asc-create-distribution-cert.sh.
+# shellcheck source=scripts/asc-auth.sh
+source "$(dirname "${BASH_SOURCE[0]}")/asc-auth.sh"
 
-readonly KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_API_KEY_ID}.p8"
-[ -f "$KEY_PATH" ] || fail "Private Key nicht gefunden: $KEY_PATH"
-
-# ES256-JWT. Die Signatur kommt von openssl als DER-Sequenz und muss fuer JWS in
-# rohe r||s (2x32 Byte) umgeschrieben werden — dafuer ein paar Zeilen Python,
-# weil weder PyJWT noch `cryptography` auf dem Rechner installiert sind.
-token="$(ASC_KEY="$KEY_PATH" KID="$ASC_API_KEY_ID" ISS="$ASC_API_ISSUER_ID" python3 - <<'PY'
-import base64, json, os, subprocess, time
-
-def b64(raw: bytes) -> bytes:
-    return base64.urlsafe_b64encode(raw).rstrip(b"=")
-
-header  = b64(json.dumps({"alg": "ES256", "kid": os.environ["KID"], "typ": "JWT"}).encode())
-payload = b64(json.dumps({"iss": os.environ["ISS"],
-                          "iat": int(time.time()),
-                          "exp": int(time.time()) + 600,
-                          "aud": "appstoreconnect-v1"}).encode())
-signing_input = header + b"." + payload
-
-der = subprocess.run(["openssl", "dgst", "-sha256", "-sign", os.environ["ASC_KEY"]],
-                     input=signing_input, capture_output=True, check=True).stdout
-
-# DER: SEQUENCE { INTEGER r, INTEGER s } -> r||s, je auf 32 Byte aufgefuellt.
-i = 2 if der[1] < 0x80 else 3
-parts = []
-for _ in range(2):
-    assert der[i] == 0x02, "unerwartete DER-Struktur"
-    length = der[i + 1]
-    parts.append(der[i + 2:i + 2 + length].lstrip(b"\x00").rjust(32, b"\x00"))
-    i += 2 + length
-
-print((signing_input + b"." + b64(b"".join(parts))).decode())
-PY
-)"
-
-api() {
-    curl -fsS -H "Authorization: Bearer $token" "$API$1" \
-        || fail "API-Aufruf fehlgeschlagen: $1"
-}
+api() { asc_api "$1" || fail "API-Aufruf fehlgeschlagen: $1"; }
 
 # ---------- Abfragen ----------------------------------------------------------
 

@@ -88,6 +88,9 @@ xcodebuild \
 
 # ---------- 2) Export IPA --------------------------------------------------
 
+# Manuelles Signieren gegen das Zertifikat + Profil aus asc-setup-signing.sh.
+# Bewusst ohne -allowProvisioningUpdates: bei automatischem Signieren weicht
+# xcodebuild auf Cloud-Signing aus, wofuer der API-Key die Rolle nicht hat.
 log "IPA exportieren …"
 rm -rf "$EXPORT_DIR"
 
@@ -96,7 +99,6 @@ xcodebuild \
     -archivePath "$ARCHIVE_PATH" \
     -exportOptionsPlist "$EXPORT_OPTIONS_PLIST" \
     -exportPath "$EXPORT_DIR" \
-    -allowProvisioningUpdates \
     -authenticationKeyPath "$KEY_PATH" \
     -authenticationKeyID "$ASC_API_KEY_ID" \
     -authenticationKeyIssuerID "$ASC_API_ISSUER_ID"

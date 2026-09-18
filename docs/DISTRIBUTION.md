@@ -234,38 +234,59 @@ Die Build-Nummer kommt aus dem pbxproj und lässt sich per
 
 ENV-Variablen überschreiben die Datei, falls nötig.
 
-### 8.1) Cloud-Signing-Stolperstein — tritt bei jedem Build auf
+### 8.1) Distribution-Signatur einrichten (einmalig)
 
-`xcodebuild -exportArchive -allowProvisioningUpdates` bricht mit dem
-API-Key (Rolle *App Manager*) reproduzierbar ab:
+Vor dem ersten Release einmal:
+
+```sh
+./scripts/asc-setup-signing.sh
+```
+
+Das Skript legt an, was der Export braucht, und überspringt, was schon da ist:
+
+1. ein **Apple-Distribution-Zertifikat** (CSR lokal erzeugt, über die ASC-API
+   signiert, als PKCS#12 in den Login-Schlüsselbund importiert),
+2. ein **App-Store-Provisioning-Profil** „SetCraft iOS App Store", das genau
+   dieses Zertifikat enthält, abgelegt unter
+   `~/Library/Developer/Xcode/UserData/Provisioning Profiles/`.
+
+Ist-Zustand ansehen, ohne etwas anzulegen: `./scripts/asc-setup-signing.sh --list`.
+
+Der private Schlüssel liegt in `~/.appstoreconnect/certificates/` (0600).
+**Mitsichern** — ohne ihn ist das Zertifikat auf einem neuen Rechner wertlos
+und muss neu angelegt werden. Apple erlaubt zwei Distribution-Zertifikate pro
+Account; das Skript legt deshalb kein zweites an, sondern bricht ab.
+
+Zertifikat und Profil laufen nach einem Jahr ab (aktuell bis **2027-09-18**).
+Danach das Skript erneut laufen lassen.
+
+#### Warum nicht einfach automatisches Signieren?
+
+Weil es reproduzierbar scheitert:
 
 ```
 error: exportArchive Cloud signing permission error
-error: exportArchive No signing certificate "iOS Distribution" found
+  You haven't been given access to cloud-managed distribution certificates.
 ```
 
-Das Archive selbst ist zu diesem Zeitpunkt **fertig und gültig** — es
-scheitert nur der Export. Der Weg drumherum:
+Die Ursache ist nicht Sprunghaftigkeit, sondern eine fehlende Identität:
+`security find-identity -v -p codesigning` zeigte nur „Apple Development" und
+„Developer ID Application" — Letzteres ist der Mac-Weg am Store vorbei und für
+iOS nutzlos. Ohne lokale Distribution-Identität weicht `xcodebuild` auf
+Cloud-Signing aus, und dafür trägt der ASC-API-Key die falsche Rolle: nötig
+wäre Admin oder App Manager.
 
-```sh
-open build/ios/SetCraft-iOS.xcarchive
-```
+Interessant dabei: ein **reguläres** Distribution-Zertifikat darf der Key sehr
+wohl anlegen — die Rollenprüfung greift nur bei den *cloud-managed*. Deshalb
+kommt `asc-setup-signing.sh` ohne Rollenänderung aus.
 
-Im Xcode Organizer „Distribute App" → „App Store Connect" → „Upload",
-Signing automatisch verwalten lassen. Dort klappt es, weil Xcode die
-Distribution-Cert über den angemeldeten Account zieht statt über den
-API-Key.
+`ExportOptions-iOS.plist` signiert entsprechend **manuell**
+(`signingStyle: manual`, `signingCertificate: Apple Distribution`,
+`provisioningProfiles` → „SetCraft iOS App Store"). Damit fragt der Export das
+Cloud-Signing gar nicht erst, und der Umweg über den Xcode Organizer entfällt.
 
-Verifiziert über mehrere Releases hinweg (zuletzt 1.2-14): der „danach
-klappt es automatisch"-Pfad funktioniert **nicht** — die Cert landet aus
-dem Organizer-Upload nicht dauerhaft in der lokalen Keychain.
-
-Zwei mögliche Dauerlösungen, bisher nicht ausprobiert:
-
-1. API-Key-Rolle in App Store Connect auf **Admin** hochstufen
-   (Users & Access → Integrations → Team Keys → Edit).
-2. Distribution-Cert manuell in die Keychain installieren und in
-   `ExportOptions-iOS.plist` / pbxproj auf manuelles Signieren wechseln.
+Verifiziert am 2026-09-18 mit Build 1.3-16: `** EXPORT SUCCEEDED **`, IPA
+signiert mit `Apple Distribution: Beat Buehler (D75S77JA58)`.
 
 ### 8.2) Was Apple sonst erwartet
 

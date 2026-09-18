@@ -2,17 +2,28 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- TestFlight / App Store Distribution. Xcode managed Automatic Signing
-	     mit -allowProvisioningUpdates legt Apple-Distribution-Cert und
-	     App-Store-Provisioning-Profil bei Bedarf selbst an. -->
+	<!-- TestFlight / App Store Distribution.
+
+	     Bewusst MANUAL signing: bei `automatic` weicht xcodebuild auf
+	     Cloud-Signing aus und scheitert daran, dass der ASC-API-Key keinen
+	     Zugriff auf cloud-managed Distribution-Zertifikate hat. Mit dem
+	     lokalen Zertifikat und dem passenden Profil (beides legt
+	     scripts/asc-setup-signing.sh an) braucht es das gar nicht. -->
 	<key>method</key>
 	<string>app-store-connect</string>
 	<key>destination</key>
 	<string>export</string>
 	<key>signingStyle</key>
-	<string>automatic</string>
+	<string>manual</string>
 	<key>teamID</key>
 	<string>D75S77JA58</string>
+	<key>signingCertificate</key>
+	<string>Apple Distribution</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>ch.buehler.beat.SetCraft.iOS</key>
+		<string>SetCraft iOS App Store</string>
+	</dict>
 	<!-- Symbol-Upload an App Store Connect für Crash-Symbolication. -->
 	<key>uploadSymbols</key>
 	<true/>
