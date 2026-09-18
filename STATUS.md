@@ -236,11 +236,18 @@ Serialisierung, Active-Track-Guard).
 - iOS: Lock-Screen / Control-Center / AirPods über `MPRemoteCommandCenter` +
   `MPNowPlayingInfoCenter`; `AVAudioSession`-Interruption + Route-Change;
   Background-Audio; Player-Swipe für Track-Wechsel.
+- iOS: Track-Load blockiert den MainActor nicht. Die Datei wird vorab auf
+  einer eigenen Queue materialisiert (`AVAudioEnginePlayer.prefetch`), der
+  nächste Track der Queue schon während der laufenden Wiedergabe. Relevant
+  bei Quellen über FileProvider (iCloud, NAS/SMB via Files-App) — s. u.
 
 ### Distribution
 - macOS: `scripts/release.sh` — Build → Notarize → DMG → GitHub-Release →
   Sparkle-Appcast (`docs/appcast.xml`, GitHub Pages) in einem Lauf.
-- iOS: `scripts/release-ios.sh` → TestFlight (ASC API Key).
+- iOS: `scripts/release-ios.sh` → TestFlight (ASC API Key), läuft ohne
+  Organizer-Umweg durch. Einmalige Einrichtung der Signatur:
+  `scripts/asc-setup-signing.sh`. Build-Status ohne Browser:
+  `scripts/asc-status.sh`. Gemeinsame Auth in `scripts/asc-auth.sh`.
 - About-Panel mit vollständigen Lizenz-Credits (GPL §6).
 - Lokalisiert (EN + DE, Auto-Switch). Dark Mode als Default.
 
@@ -248,6 +255,22 @@ Serialisierung, Active-Track-Guard).
 
 ## Wichtige gelöste Probleme (Ergebnis-Referenz)
 
+- **Blockierender Track-Load (iOS):** `AVAudioFile(forReading:)` kehrt bei
+  einer Datei aus dem FileProvider erst zurück, wenn der Provider sie
+  vollständig lokal materialisiert hat — bei iCloud wie bei einem NAS/SMB-Share
+  aus der Files-App. `PlayerStore.load` rief das synchron auf dem MainActor:
+  im Heim-WLAN unauffällig, über Mobilfunk/VPN mehrere Sekunden eingefrorene
+  UI, bei jedem Tap und jedem Auto-Advance. Fix: `AVAudioEnginePlayer.prefetch`
+  macht denselben Open vorab auf einer eigenen `DispatchQueue` (bewusst nicht
+  auf dem Cooperative Pool — ein sekundenlang blockierter Thread gehört nicht
+  in dessen enges Budget) und verwirft das Ergebnis; der Load danach trifft auf
+  die lokale Kopie. `load()` bleibt synchroner Einstieg und startet einen Task,
+  die Aufrufer ändern sich nicht. Schneller Track-Wechsel canceled den
+  vorherigen Load, damit dessen spätes Ergebnis den neueren nicht überschreibt.
+  `prefetchNeighbor()` holt den nächsten Track der `playbackQueue` im
+  Hintergrund — das schliesst die Lücke beim Auto-Advance. Der alte
+  iCloud-Sonderfall („gleich noch mal versuchen") entfällt; stattdessen zeigt
+  die Library-Zeile einen Spinner.
 - **NAS/SMB-Tag-Writes:** `.itemReplacementDirectory` + `replaceItemAt`
   scheitern auf SMB (setattrlist/xattr → ENOTSUP/EPERM, Sandbox-Scope). Fix in
   `TagLibTrackStore.save`: Sibling-Temp im selben Verzeichnis, `replaceItemAt`
