@@ -153,6 +153,56 @@
         }
       }
     },
+    "Copied %lld; failed for %lld:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld kopiert; %2$lld fehlgeschlagen:"
+          }
+        }
+      }
+    },
+    "Copy Here" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hierher kopieren"
+          }
+        }
+      }
+    },
+    "Copy Tracks" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracks kopieren"
+          }
+        }
+      }
+    },
+    "Copy failed for %lld:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopieren fehlgeschlagen für %lld:"
+          }
+        }
+      }
+    },
+    "Copy to Folder…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Ordner kopieren…"
+          }
+        }
+      }
+    },
     "Corrected by Discogs" : {
       "localizations" : {
         "de" : {
@@ -629,6 +679,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Auf Updates prüfen…"
+          }
+        }
+      }
+    },
+    "Choose a folder to copy %lld tracks into." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle einen Ordner, in den %lld Tracks kopiert werden sollen."
+          }
+        }
+      }
+    },
+    "Choose a folder to copy 1 track into." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle einen Ordner, in den 1 Track kopiert werden soll."
           }
         }
       }

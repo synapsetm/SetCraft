@@ -723,6 +723,59 @@ final class LibraryViewModel {
         }
     }
 
+    /// Kopiert eine Auswahl von Tracks in einen Zielordner. Geschwister von
+    /// `moveTracks(_:to:)`, nur ohne den Abbau der Quelle — und deshalb
+    /// deutlich einfacher: `copyItem` kann Volume-Grenzen von sich aus, der
+    /// Vergleich same-volume/cross-volume entfällt.
+    ///
+    /// Konflikte (`fileExists` am Ziel) werden wie beim Move übersprungen und
+    /// gesammelt gemeldet; der ErrorChip macht die Liste voll lesbar. Bewusst
+    /// kein automatisches Umbenennen („Track 2.mp3") — in einer DJ-Bibliothek
+    /// ist eine stille Dublette schlimmer als eine klare Meldung.
+    @MainActor
+    func copyTracks(_ tracks: [Track], to folder: URL) {
+        let fm = FileManager.default
+        // Quell-Dateien liegen in der aktiven Quelle — deren Scope muss über
+        // den ganzen Lauf offen bleiben.
+        let token = scopes.tokenForActiveSource()
+        Task { [weak self, tracks, folder, token] in
+            defer { token?.release() }
+            var failures: [String] = []
+            var copiedCount = 0
+            for track in tracks {
+                let src = track.url.standardizedFileURL
+                let dst = folder.appendingPathComponent(src.lastPathComponent)
+                // In den eigenen Ordner kopieren hiesse, die Datei über sich
+                // selbst zu legen.
+                if src == dst.standardizedFileURL { continue }
+                if fm.fileExists(atPath: dst.path) {
+                    failures.append("‘\(src.lastPathComponent)’: already exists at destination")
+                    continue
+                }
+                do {
+                    try fm.copyItem(at: src, to: dst)
+                    copiedCount += 1
+                } catch {
+                    failures.append("‘\(src.lastPathComponent)’: \(error.localizedDescription)")
+                }
+            }
+            await MainActor.run { [weak self] in
+                if !failures.isEmpty {
+                    let header = copiedCount > 0
+                        ? String(localized: "Copied \(copiedCount); failed for \(failures.count):")
+                        : String(localized: "Copy failed for \(failures.count):")
+                    self?.lastWriteError = ([header] + failures).joined(separator: "\n")
+                }
+                // Nur nötig, wenn das Ziel die gerade angezeigte Quelle ist —
+                // das lässt sich hier nicht sicher sagen, und ein Refresh ist
+                // billig.
+                if copiedCount > 0 {
+                    self?.scheduleRefresh()
+                }
+            }
+        }
+    }
+
     // MARK: - Löschen
 
     /// Verschiebt die Tracks in den Papierkorb und nimmt sie aus der Liste.

@@ -342,6 +342,10 @@ struct LibraryView: View {
                 moveToFolder(ids)
             }
             .disabled(ids.isEmpty)
+            Button("Copy to Folder…") {
+                copyToFolder(ids)
+            }
+            .disabled(ids.isEmpty)
             Divider()
             Button("Delete…", role: .destructive) {
                 requestDelete(ids)
@@ -710,6 +714,27 @@ struct LibraryView: View {
 
         guard panel.runModal() == .OK, let folder = panel.url else { return }
         library.moveTracks(tracks, to: folder)
+    }
+
+    /// Kopiert die selektierten Tracks per NSOpenPanel-Folder-Pick. Wie
+    /// `moveToFolder(_:)`, nur bleibt die Quelle stehen — siehe
+    /// `copyTracks(_:to:)`.
+    private func copyToFolder(_ ids: Set<Track.ID>) {
+        let tracks = library.tracks.filter { ids.contains($0.id) }
+        guard !tracks.isEmpty else { return }
+
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.title = String(localized: "Copy Tracks")
+        panel.prompt = String(localized: "Copy Here")
+        panel.message = tracks.count == 1
+            ? String(localized: "Choose a folder to copy 1 track into.")
+            : String(localized: "Choose a folder to copy \(tracks.count) tracks into.")
+
+        guard panel.runModal() == .OK, let folder = panel.url else { return }
+        library.copyTracks(tracks, to: folder)
     }
 
     /// Sammelt die Selektion ein und öffnet die Papierkorb-Rückfrage. Gelöscht

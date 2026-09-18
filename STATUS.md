@@ -69,6 +69,13 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
   aus der Dauer) nimmt der automatische Pfad von BPM/Key-Analyse **und**
   Waveform-Prefetch aus — über einen ganzen Mix sind beide Werte wenig wert,
   kosten aber Minuten und viel Speicher. Ausdrückliches Re-Analyze fragt nach.
+- **In Ordner verschieben / kopieren** (macOS-Kontextmenü, Ordner-Auswahl per
+  `NSOpenPanel`): Move macht same-volume ein atomares `moveItem`,
+  cross-volume `copyItem` + `removeItem`; Copy lässt die Quelle stehen und
+  braucht die Unterscheidung nicht. Beide überspringen Namenskonflikte am Ziel
+  und melden sie gesammelt — bewusst kein stilles Umbenennen, eine Dublette in
+  der Bibliothek ist schlimmer als eine klare Meldung. Auf iOS gibt es beides
+  nicht.
 - **Löschen** (macOS-Kontextmenü, iOS-Swipe): in den Papierkorb, nach
   Rückfrage. Wo es keinen Papierkorb gibt (SMB/NAS), kommt eine zweite,
   ausdrückliche Rückfrage fürs endgültige Löschen.
