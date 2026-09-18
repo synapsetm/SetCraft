@@ -692,6 +692,16 @@
         }
       }
     },
+    "Loading track" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Track wird geladen"
+          }
+        }
+      }
+    },
     "Looking for suggestions…" : {
       "localizations" : {
         "de" : {
@@ -1290,16 +1300,6 @@
     },
     "Track" : {
       "shouldTranslate" : false
-    },
-    "Track is loading from iCloud — try again in a moment." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Track wird aus iCloud geladen — gleich noch mal versuchen."
-          }
-        }
-      }
     },
     "Tracks" : {
       "localizations" : {

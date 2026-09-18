@@ -208,6 +208,7 @@ private struct LibraryScreen: View {
                         track: track,
                         isCurrent: isCurrent,
                         isPlaying: isCurrent && playerStore.isPlaying,
+                        isLoading: playerStore.loadingURL == track.url,
                         isAnalyzing: libraryStore.isAnalyzing(trackID: track.id),
                         // Master-Tempo gilt für jeden Track, der geöffnet wird
                         // — die Liste zeigt also durchgehend, wie die Tonarten

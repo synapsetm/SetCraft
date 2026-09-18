@@ -23,6 +23,11 @@ final class PlayerStore {
     var currentWaveform: WaveformData?
     var isLoadingWaveform: Bool = false
 
+    /// URL des Tracks, der gerade auf das Gerät geholt wird — also zwischen
+    /// Tap und erstem Ton. Bei einer NAS-Quelle über VPN sind das mehrere
+    /// Sekunden; die Library-Zeile zeigt solange einen Spinner.
+    var loadingURL: URL?
+
     let engine: AVAudioEnginePlayer
 
     /// Wird vom AppBootstrap nachträglich gesetzt — kreuzweise Initialisierung
@@ -41,6 +46,8 @@ final class PlayerStore {
     private let session: AudioSessionManager
     private let waveformCache: WaveformCache
     private var waveformTask: Task<Void, Never>?
+    private var loadTask: Task<Void, Never>?
+    private var prefetchTask: Task<Void, Never>?
 
     /// Snapshot der Track-Reihenfolge zum Zeitpunkt des letzten manuellen
     /// Tap (oder Folder-Wechsels). Skip Forward/Back folgt dieser Queue,
@@ -154,16 +161,41 @@ final class PlayerStore {
     /// `snapshotQueue: true` (Default für manuelle Taps) friert die aktuelle
     /// Sortierung als Playback-Queue ein; `next()`/`previous()` rufen mit
     /// `false`, damit Skips innerhalb dieser Queue bleiben.
+    ///
+    /// Synchroner Einstieg, echte Arbeit im Task — genau wie `loadWaveform`.
+    /// So bleiben die Aufrufer (Tap in der Liste, Auto-Advance, Skip vom
+    /// Lock-Screen) unverändert, während das Warten auf die Datei den
+    /// MainActor nicht mehr blockiert.
     func load(_ track: Track, snapshotQueue: Bool = true) {
-        // iCloud-Datei, die noch nicht runtergeladen ist: AVAudioFile würde
-        // mit kryptischem Fehler abbrechen. Download anstoßen, klaren
-        // Hinweis zeigen — Nutzer triggert das Laden noch mal, sobald die
-        // Datei lokal ist.
-        if !isLocallyAvailable(track.url) {
-            try? FileManager.default.startDownloadingUbiquitousItem(at: track.url)
-            lastError = String(localized: "Track is loading from iCloud — try again in a moment.")
-            return
+        // Schneller Track-Wechsel: der vorherige Load hängt womöglich noch
+        // am Materialisieren. Abbrechen, sonst überschreibt sein später
+        // eintreffendes Ergebnis den neueren Track.
+        loadTask?.cancel()
+        loadTask = Task { [weak self] in
+            await self?.performLoad(track, snapshotQueue: snapshotQueue)
         }
+    }
+
+    private func performLoad(_ track: Track, snapshotQueue: Bool) async {
+        loadingURL = track.url
+        lastError = nil
+
+        // Datei ggf. erst auf das Gerät holen. Betrifft iCloud-Platzhalter
+        // genauso wie Tracks von einem SMB/NAS-Share aus der Files-App:
+        // beide kommen über den FileProvider, und `AVAudioFile` würde beim
+        // Öffnen blockieren, bis die Datei vollständig da ist.
+        if isUbiquitousPlaceholder(track.url) {
+            // Für iCloud der dokumentierte Weg, den Download anzustossen;
+            // der koordinierte Read danach wartet auf dessen Ende.
+            try? FileManager.default.startDownloadingUbiquitousItem(at: track.url)
+        }
+        await AVAudioEnginePlayer.prefetch(url: track.url)
+
+        // Währenddessen kann ein neuerer Tap dazwischengekommen sein — dann
+        // gehört die Anzeige bereits ihm, und wir treten kommentarlos ab.
+        guard !Task.isCancelled, loadingURL == track.url else { return }
+        loadingURL = nil
+
         do {
             try session.activate()
             try engine.load(url: track.url)
@@ -178,6 +210,8 @@ final class PlayerStore {
             engine.play()
             loadWaveform(for: track.url)
             nowPlaying?.update()
+            // Nächsten Track schon holen, während dieser läuft.
+            prefetchNeighbor()
             // Markiert die Datei im TagLibTrackStore als aktiv → parallele
             // Tag-Writes auf diesen Track werden serialisiert (gequeued bis
             // zum nächsten Track-Wechsel).
@@ -191,13 +225,33 @@ final class PlayerStore {
         }
     }
 
-    private func isLocallyAvailable(_ url: URL) -> Bool {
+    /// Holt den nächsten Track der Queue auf das Gerät, während der aktuelle
+    /// noch läuft. Über Mobilfunk/VPN ist das der Unterschied zwischen
+    /// nahtlosem Auto-Advance und mehreren Sekunden Stille am Trackende.
+    ///
+    /// Läuft mit Hintergrund-Priorität und ohne Ergebnis: schlägt der
+    /// Prefetch fehl, merkt das niemand — `performLoad` holt die Datei dann
+    /// eben beim Laden selbst.
+    private func prefetchNeighbor() {
+        prefetchTask?.cancel()
+        guard let next = neighborInQueue(offset: 1) else { return }
+        let url = next.url
+        prefetchTask = Task.detached(priority: .background) {
+            await AVAudioEnginePlayer.prefetch(url: url)
+        }
+    }
+
+    /// `true`, wenn die Datei ein iCloud-Platzhalter ist, also noch gar nicht
+    /// lokal liegt. Nur für den `startDownloadingUbiquitousItem`-Anstoss —
+    /// ob eine FileProvider-Datei (NAS) schon da ist, sagt das nicht, dafür
+    /// gibt es diese Auskunft schlicht nicht.
+    private func isUbiquitousPlaceholder(_ url: URL) -> Bool {
         let values = try? url.resourceValues(forKeys: [
             .isUbiquitousItemKey,
             .ubiquitousItemDownloadingStatusKey
         ])
-        guard let values, values.isUbiquitousItem == true else { return true }
-        return values.ubiquitousItemDownloadingStatus == .current
+        guard let values, values.isUbiquitousItem == true else { return false }
+        return values.ubiquitousItemDownloadingStatus != .current
     }
 
     /// Primärer Play-Pfad. Wird auch aus Lock-Screen / AirPods-Commands +

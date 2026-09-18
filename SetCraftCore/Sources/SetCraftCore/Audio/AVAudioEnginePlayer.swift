@@ -2,6 +2,18 @@ import AVFoundation
 import Foundation
 import Observation
 
+/// Eigene Queue fürs Materialisieren von Dateien. Bewusst **nicht** der
+/// Cooperative Pool von Swift Concurrency: das Öffnen einer FileProvider-
+/// Datei blockiert den Thread, bis der Provider sie geliefert hat — über
+/// Mobilfunk/VPN sekundenlang. Auf dem Cooperative Pool würde das dessen
+/// eng begrenzte Threads belegen. `.concurrent`, damit ein laufender
+/// Prefetch des nächsten Tracks einen Tap des Nutzers nicht ausbremst.
+private let audioPrefetchQueue = DispatchQueue(
+    label: "ch.buehler.beat.SetCraft.audio-prefetch",
+    qos: .utility,
+    attributes: .concurrent
+)
+
 @MainActor
 @Observable
 public final class AVAudioEnginePlayer: AudioEngine {
@@ -121,6 +133,45 @@ public final class AVAudioEnginePlayer: AudioEngine {
     }
 
     // MARK: - AudioEngine
+
+    /// Holt die Datei auf das Gerät, ohne den MainActor zu blockieren.
+    ///
+    /// `AVAudioFile(forReading:)` kehrt bei einer Datei, die über den
+    /// FileProvider kommt (iCloud Drive, aber genauso ein SMB/NAS-Share aus
+    /// der Files-App), erst zurück, wenn der Provider sie vollständig lokal
+    /// materialisiert hat. Im Heim-WLAN fällt das nicht auf; über Mobilfunk
+    /// oder VPN sind das mehrere Sekunden — auf dem MainActor also ein
+    /// eingefrorenes UI.
+    ///
+    /// Genau dieser blockierende Open passiert hier auf `audioPrefetchQueue`
+    /// und wird sofort wieder verworfen. Das anschliessende `load(url:)` auf
+    /// dem MainActor trifft dann auf die lokale Kopie und kehrt sofort zurück.
+    ///
+    /// Der `NSFileCoordinator` ist derselbe Weg, den `FolderScanner.collect`
+    /// beim Verzeichnis-Lesen geht: er gibt dem Provider die Gelegenheit, die
+    /// Datei bereitzustellen, statt uns einen Platzhalter unterzuschieben.
+    ///
+    /// Bei einer lokalen Datei kostet der Aufruf nur den Open — kein
+    /// Sonderfall nötig.
+    public nonisolated static func prefetch(url: URL) async {
+        await withCheckedContinuation { continuation in
+            audioPrefetchQueue.async {
+                var coordinatorError: NSError?
+                NSFileCoordinator().coordinate(
+                    readingItemAt: url,
+                    options: [],
+                    error: &coordinatorError
+                ) { coordinatedURL in
+                    // Öffnen genügt — dabei materialisiert der Provider.
+                    // Das AVAudioFile verlässt diese Closure nie, überquert
+                    // also keine Isolationsgrenze (es ist nicht Sendable);
+                    // der eigentliche Load baut es ohnehin neu auf.
+                    _ = try? AVAudioFile(forReading: coordinatedURL)
+                }
+                continuation.resume()
+            }
+        }
+    }
 
     public func load(url: URL) throws {
         stopPlayback()

@@ -21,6 +21,10 @@ struct TrackRowView: View {
     let isCurrent: Bool
     /// Engine spielt aktuell ab. Steuert nur das Icon (play vs. pause).
     let isPlaying: Bool
+    /// Track wird gerade auf das Gerät geholt — zwischen Tap und erstem
+    /// Ton. Bei einer NAS-Quelle über VPN dauert das spürbar, deshalb ein
+    /// Spinner an der Stelle des Play-Indikators.
+    var isLoading: Bool = false
     let isAnalyzing: Bool
     /// Klingende Tonart bei gesetztem Master-Tempo. Reiner Anzeigewert —
     /// in die Datei geht immer `track.key`.
@@ -49,7 +53,12 @@ struct TrackRowView: View {
 
     @ViewBuilder private var playIndicator: some View {
         ZStack {
-            if isCurrent {
+            if isLoading {
+                ProgressView()
+                    .controlSize(.mini)
+                    .tint(.orange)
+                    .accessibilityLabel("Loading track")
+            } else if isCurrent {
                 Image(systemName: isPlaying ? "play.fill" : "pause.fill")
                     .font(.system(size: 12))
                     .foregroundStyle(.orange)
