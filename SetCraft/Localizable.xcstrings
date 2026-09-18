@@ -40,6 +40,16 @@
         }
       }
     },
+    "‘%@’: already exists at destination — skipped." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“: existiert am Ziel bereits — übersprungen."
+          }
+        }
+      }
+    },
     "‘%@’ already exists in this folder — skipped." : {
       "localizations" : {
         "de" : {
@@ -1185,6 +1195,16 @@
         }
       }
     },
+    "Move failed for %lld:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verschieben fehlgeschlagen für %lld:"
+          }
+        }
+      }
+    },
     "Move Here" : {
       "localizations" : {
         "de" : {
@@ -1221,6 +1241,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "„%@“ in den Papierkorb legen?"
+          }
+        }
+      }
+    },
+    "Moved %lld; failed for %lld:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld verschoben; %2$lld fehlgeschlagen:"
           }
         }
       }

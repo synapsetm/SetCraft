@@ -689,7 +689,9 @@ final class LibraryViewModel {
                     continue // schon im Zielordner
                 }
                 if fm.fileExists(atPath: dst.path) {
-                    failures.append("‘\(src.lastPathComponent)’: already exists at destination")
+                    failures.append(String(
+                        localized: "‘\(src.lastPathComponent)’: already exists at destination — skipped."
+                    ))
                     continue
                 }
                 let sameVolume = (try? src.resourceValues(forKeys: [.volumeURLKey]).volume)
@@ -712,8 +714,8 @@ final class LibraryViewModel {
             await MainActor.run { [weak self] in
                 if !failures.isEmpty {
                     let header = movedCount > 0
-                        ? "Moved \(movedCount); failed for \(failures.count):"
-                        : "Move failed for \(failures.count):"
+                        ? String(localized: "Moved \(movedCount); failed for \(failures.count):")
+                        : String(localized: "Move failed for \(failures.count):")
                     self?.lastWriteError = ([header] + failures).joined(separator: "\n")
                 }
                 if movedCount > 0 {
@@ -749,7 +751,9 @@ final class LibraryViewModel {
                 // selbst zu legen.
                 if src == dst.standardizedFileURL { continue }
                 if fm.fileExists(atPath: dst.path) {
-                    failures.append("‘\(src.lastPathComponent)’: already exists at destination")
+                    failures.append(String(
+                        localized: "‘\(src.lastPathComponent)’: already exists at destination — skipped."
+                    ))
                     continue
                 }
                 do {
