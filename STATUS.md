@@ -23,6 +23,13 @@ Letzte Aktualisierung: 2026-09-13 (Release v1.3-15).
   Build 17 lief erstmals komplett über `scripts/release-ios.sh` — Archive,
   Export, Upload in einem Lauf, ohne Organizer.
   Build-Nummern laufen ab hier auseinander: iOS 17, Mac weiter 15.
+- **Sprachmodus:** Swift 6 in der gesamten Codebasis — Core über
+  `swift-tools-version: 6.0`, die App-Targets über `SWIFT_VERSION = 6.0`.
+  Dazu `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` und
+  `SWIFT_APPROACHABLE_CONCURRENCY`. Offen bleibt die Plattform-Untergrenze von
+  `SetCraftCore` (`.macOS(.v14)` / `.iOS(.v17)`), die deutlich unter dem
+  Deployment-Target der Apps (26.5) liegt und dort moderne APIs nur mit
+  `#available` zugänglich macht.
 - **Tests:** `swift test` im `SetCraftCore`-Paket grün — 222 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
