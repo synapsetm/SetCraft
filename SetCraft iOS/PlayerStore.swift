@@ -232,12 +232,17 @@ final class PlayerStore {
     /// Läuft mit Hintergrund-Priorität und ohne Ergebnis: schlägt der
     /// Prefetch fehl, merkt das niemand — `performLoad` holt die Datei dann
     /// eben beim Laden selbst.
+    ///
+    /// `cancel()` greift hier wirklich: die Vorausschau läuft auf einer
+    /// eigenen seriellen Queue, und wer abgehängt wird, bevor er dran war,
+    /// überträgt kein einziges Byte. Beim schnellen Durchskippen bleibt es
+    /// so bei zwei Downloads statt einem pro übersprungenem Track.
     private func prefetchNeighbor() {
         prefetchTask?.cancel()
         guard let next = neighborInQueue(offset: 1) else { return }
         let url = next.url
         prefetchTask = Task.detached(priority: .background) {
-            await AVAudioEnginePlayer.prefetch(url: url)
+            await AVAudioEnginePlayer.prefetchAhead(url: url)
         }
     }
 
