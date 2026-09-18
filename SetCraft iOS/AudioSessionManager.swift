@@ -16,7 +16,12 @@ import Foundation
 final class AudioSessionManager {
     private let session = AVAudioSession.sharedInstance()
     private var activated = false
-    private var observers: [NSObjectProtocol] = []
+    /// `nonisolated(unsafe)`, weil `deinit` nicht MainActor-isoliert ist und
+    /// die Tokens zum Abmelden trotzdem braucht. Unbedenklich: `deinit` läuft
+    /// erst, wenn keine Referenz mehr auf das Objekt existiert — dann kann
+    /// niemand mehr nebenläufig auf `observers` zugreifen. Genau der Fall,
+    /// für den es das Attribut gibt.
+    nonisolated(unsafe) private var observers: [NSObjectProtocol] = []
 
     /// Nutzer setzen diese Closures vom `PlayerStore` aus, damit
     /// Interruption-Begin = pause, Interruption-End (mit `.shouldResume`)

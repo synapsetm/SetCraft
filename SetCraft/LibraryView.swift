@@ -828,7 +828,14 @@ private struct ErrorChip: View {
 
 /// Sortier-Helfer für Optional-Spalten: `KeyPathComparator` möchte einen
 /// `Comparable`-Pfad, `Optional` ist aber nicht von Haus aus Comparable.
-extension Track {
+///
+/// `nonisolated`, weil das Target mit `SWIFT_DEFAULT_ACTOR_ISOLATION =
+/// MainActor` baut und diese Properties sonst implizit MainActor-isoliert
+/// wären. Ein KeyPath auf eine isolierte Property ist nicht `Sendable` —
+/// `KeyPathComparator.keyPath` verlangt aber genau das. Sachlich gehört hier
+/// ohnehin nichts auf den MainActor: reine Ableitungen auf einem Sendable
+/// Value-Type, ohne jeden UI-Bezug.
+nonisolated extension Track {
     /// BPM zum Sortieren: nil sortiert ganz nach unten (-1).
     var bpmSortable: Double { bpm ?? -1 }
     /// Key zum Sortieren: Camelot-String (z. B. "8A"), nil → "" (oben).
