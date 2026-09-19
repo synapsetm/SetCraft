@@ -21,9 +21,20 @@ Befund oder fehlende/veraltete Build-Daten. Rein informative Kategorien
 import argparse, collections, glob, json, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DERIVED_GLOB = os.path.expanduser(
-    "~/Library/Developer/Xcode/DerivedData/SetCraft-*/Build/Intermediates.noindex/SetCraft.build"
-)
+# Zwei Orte, weil Xcode Archive-Builds woanders ablegt als normale. Der zweite
+# Pfad ist der wichtigere: beide Release-Skripte pruefen zwischen Archive und
+# Export, und ohne ihn sah das Gate nie die .stringsdata des Archives, das es
+# absichert — sondern Reste des letzten normalen Builds. Genau die veraltete
+# Datenlage, die dieses Skript eigentlich melden soll.
+DERIVED_GLOBS = [
+    os.path.expanduser(
+        "~/Library/Developer/Xcode/DerivedData/SetCraft-*/Build/Intermediates.noindex/SetCraft.build"
+    ),
+    os.path.expanduser(
+        "~/Library/Developer/Xcode/DerivedData/SetCraft-*/Build/Intermediates.noindex"
+        "/ArchiveIntermediates/*/IntermediateBuildFilesPath/SetCraft.build"
+    ),
+]
 
 # name, Katalog, Xcode-Target-Verzeichnis, Quellordner (fuer die Aktualitaetspruefung)
 TARGETS = {
@@ -52,12 +63,13 @@ def stringsdata_dir(target_build_dir):
     sondern nehmen, was zuletzt geschrieben wurde.
     """
     best, best_mtime = None, -1.0
-    for base in glob.glob(DERIVED_GLOB):
-        pattern = os.path.join(base, "*", target_build_dir, "Objects-normal", "*", "*.stringsdata")
-        for f in glob.glob(pattern):
-            m = os.path.getmtime(f)
-            if m > best_mtime:
-                best, best_mtime = os.path.dirname(f), m
+    for derived_glob in DERIVED_GLOBS:
+        for base in glob.glob(derived_glob):
+            pattern = os.path.join(base, "*", target_build_dir, "Objects-normal", "*", "*.stringsdata")
+            for f in glob.glob(pattern):
+                m = os.path.getmtime(f)
+                if m > best_mtime:
+                    best, best_mtime = os.path.dirname(f), m
     return best, best_mtime
 
 
