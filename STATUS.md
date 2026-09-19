@@ -4,7 +4,7 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-13 (Release v1.3-15).
+Letzte Aktualisierung: 2026-09-19 (iOS 1.3-18 in TestFlight, Mac weiter v1.3-15).
 
 ---
 
@@ -18,11 +18,16 @@ Letzte Aktualisierung: 2026-09-13 (Release v1.3-15).
   Waveform und die Scope-/Beenden-Korrekturen (s. u.).
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 17) in TestFlight. Bringt den nicht-blockierenden
-  Track-Load samt gedrosseltem Prefetch und den abgefangenen `connect`-Crash.
-  Build 17 lief erstmals komplett über `scripts/release-ios.sh` — Archive,
-  Export, Upload in einem Lauf, ohne Organizer.
-  Build-Nummern laufen ab hier auseinander: iOS 17, Mac weiter 15.
+- **iOS-Release:** 1.3 (Build 18) in TestFlight. Bringt die korrigierte
+  Playhead-Latenz (s. u.), den Swift-6-Sprachmodus der App-Targets, „copy to
+  folder" im macOS-Kontextmenü und das Lokalisierungs-Gate in beiden
+  Release-Skripten. Build 17 brachte den nicht-blockierenden Track-Load samt
+  gedrosseltem Prefetch und den abgefangenen `connect`-Crash; er lief erstmals
+  komplett über `scripts/release-ios.sh` — Archive, Export, Upload in einem
+  Lauf, ohne Organizer.
+  Build-Nummern laufen auseinander: iOS 18, Mac weiter 15. **Der Mac hat den
+  Playhead-Fix noch nicht ausgeliefert** — er sitzt im gemeinsamen Core und
+  wartet nur auf den nächsten `release.sh`-Lauf.
 - **Sprachmodus:** Swift 6 in der gesamten Codebasis — Core über
   `swift-tools-version: 6.0`, die App-Targets über `SWIFT_VERSION = 6.0`.
   Dazu `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` und
@@ -373,6 +378,10 @@ Serialisierung, Active-Track-Guard).
     in einer 60-Hz-`TimelineView` wie der Mac. `pause()` merkt sich die hörbare
     statt der gerenderten Position — sonst übersprang „Weiter" den gepufferten
     Vorlauf, den `playerNode.stop()` verwirft.
+  - **Am Gerät bestätigt** (1.3-18, 2026-09-19): synchron über AirPlay *und*
+    lokale Ausgabe, Pause/Weiter ohne Sprung. Dass AirPlay stimmt, ist der
+    Beleg für die `max()`-Konstruktion: die Funkstrecke kennt dort nur die
+    `AVAudioSession`, nicht der Node.
 - **MP3-Decode-Fallback:** `AVAudioFile` wirft bei manchen MP3-Headern
   `_GenericObjCError 0` → `AVAssetReader`-Fallback (CoreMedia-Decoder,
   native Sample-Rate, kein Resampling).
