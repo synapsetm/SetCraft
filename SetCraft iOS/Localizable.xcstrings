@@ -692,6 +692,16 @@
         }
       }
     },
+    "Loading library…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliothek wird geladen…"
+          }
+        }
+      }
+    },
     "Loading track" : {
       "localizations" : {
         "de" : {
@@ -981,6 +991,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bewertung"
+          }
+        }
+      }
+    },
+    "Reading the folder. With many tracks over a mobile connection this can take a moment." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ordner wird gelesen. Bei vielen Tracks über Mobilfunk kann das einen Moment dauern."
           }
         }
       }

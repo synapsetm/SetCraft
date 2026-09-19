@@ -184,7 +184,21 @@ private struct LibraryScreen: View {
 
     @ViewBuilder
     private func trackList(for folder: FolderRecord) -> some View {
-        if libraryStore.tracks.isEmpty && !libraryStore.isScanning {
+        if libraryStore.tracks.isEmpty && libraryStore.isScanning {
+            // Bis der erste Track eintrifft, gab es hier eine leere `List` —
+            // ein blankes Nichts, das beim App-Start über Mobilfunk wie eine
+            // eingefrorene App aussah. Das Listing selbst läuft inzwischen
+            // nicht mehr auf dem MainActor, der Spinner dreht sich also auch.
+            ContentUnavailableView {
+                Label {
+                    Text("Loading library…")
+                } icon: {
+                    ProgressView()
+                }
+            } description: {
+                Text("Reading the folder. With many tracks over a mobile connection this can take a moment.")
+            }
+        } else if libraryStore.tracks.isEmpty && !libraryStore.isScanning {
             let base = String(localized: "The folder “\(folder.name)” contains no recognized audio files.")
             let detail = libraryStore.lastError.map { "\n\n\($0)" } ?? ""
             ContentUnavailableView(
