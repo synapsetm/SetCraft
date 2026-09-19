@@ -93,6 +93,12 @@ final class PlayerStore {
     var position: TimeInterval { engine.position }
     var duration: TimeInterval { engine.duration }
 
+    /// Wie `position`, aber bei jedem Zugriff frisch aus `lastRenderTime`
+    /// gerechnet statt im 30-Hz-Timer stehengeblieben. Für die Waveform, die
+    /// in einer `TimelineView` mit 60 Hz neu zeichnet — sonst ruckelt der
+    /// Playhead in Zweier-Schritten und hinkt bis zu 33 ms nach.
+    var livePosition: TimeInterval { engine.livePosition }
+
     /// Aktuelle Wiedergabe-Rate (1.0 = original). ±8 % typischer DJ-Bereich;
     /// AVAudioUnitTimePitch klemmt hart auf 0.5…2.0.
     var currentRate: Double { engine.rate }

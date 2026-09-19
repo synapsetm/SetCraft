@@ -53,46 +53,76 @@ public final class AVAudioEnginePlayer: AudioEngine {
     /// unverändert.
     public var onPlaybackEnded: (() -> Void)?
 
-    /// Frischer Position-Read mit Render-Drift-Korrektur. `currentFrame()`
-    /// liefert die Sample-Position **bei `playerNode.lastRenderTime`** — also
-    /// die Vergangenheit (bis zu eine Render-Buffer-Länge ~10 ms her). Bei
-    /// aktiver Wiedergabe ist seit lastRenderTime real-time-Zeit verstrichen,
-    /// in der weitere Samples wiedergegeben wurden. Ohne diese Korrektur
-    /// hinkt der Playhead konsistent hinter dem hörbaren Audio her.
+    /// Die Position, die der Nutzer in diesem Moment **hört** — nicht die,
+    /// die der PlayerNode schon in den Graphen geschoben hat.
     ///
-    /// Korrektur: (host-now − lastRenderTime) × engine.rate Sekunden auf
-    /// die Rendered-Position addieren. Wird vom Waveform-Renderer in einer
-    /// `TimelineView(.periodic)` 60 × pro Sekunde aufgerufen.
+    /// `playerTime(forNodeTime: lastRenderTime).sampleTime` liefert die
+    /// Sample-Position `S` des letzten Render-Zyklus. Zwei Dinge liegen
+    /// zwischen `S` und dem Lautsprecher, und beide zeigen in die **Zukunft**:
+    ///
+    /// 1. `lastRenderTime.hostTime` ist nicht der Moment des Renderns, sondern
+    ///    die anvisierte Ausgabezeit des gerade gerenderten Buffers. Gemessen
+    ///    auf macOS liegt sie konstant **14–22 ms in der Zukunft**. Die Differenz
+    ///    muss darum **signiert** bleiben — ein Clamp auf 0 macht die Korrektur
+    ///    zu totem Code, weil `now >= hostTime` während der Wiedergabe nie gilt.
+    /// 2. `outputLatency` ist die Strecke von diesem Node bis zur Emission:
+    ///    TimePitch-Verarbeitung (gemessen 93 ms), Mixer und Hardware-Buffer,
+    ///    bei Bluetooth zusätzlich die Funkstrecke (AirPods 150–200 ms).
+    ///
+    /// Also: hörbar ist `S − (hostTime − now) − outputLatency`, in Audio-Sekunden
+    /// über `rate` skaliert. Beide Terme werden **abgezogen**; sie zu addieren
+    /// schob die Anzeige um deren doppelten Betrag nach vorn — genau das war
+    /// der „Waveform läuft dem Ton voraus"-Befund.
     public var livePosition: TimeInterval {
+        audiblePosition() ?? position
+    }
+
+    /// Gemeinsame Rechnung für `livePosition`, den 30-Hz-Timer und `pause()`.
+    /// Gibt `nil` zurück, solange nichts läuft oder noch kein Render-Zyklus
+    /// stattgefunden hat.
+    private func audiblePosition() -> TimeInterval? {
         guard isPlaying,
               let lastRender = playerNode.lastRenderTime,
               let playerTimeAtRender = playerNode.playerTime(forNodeTime: lastRender)
-        else { return position }
+        else { return nil }
 
         let renderedSamples = seekFrame + playerTimeAtRender.sampleTime
         let renderedSeconds = TimeInterval(renderedSamples) / sampleRate
 
-        // Drift seit dem letzten Render-Callback aufholen.
+        // Signierter Abstand zur anvisierten Ausgabezeit: positiv, wenn sie
+        // noch aussteht (Normalfall), negativ, wenn sie verstrichen ist.
         let nowHostTime = mach_absolute_time()
-        let elapsedSeconds: TimeInterval
-        if nowHostTime >= lastRender.hostTime {
-            let hostDelta = nowHostTime - lastRender.hostTime
-            elapsedSeconds = AVAudioTime.seconds(forHostTime: hostDelta)
+        let untilPresentation: TimeInterval
+        if lastRender.hostTime >= nowHostTime {
+            untilPresentation = AVAudioTime.seconds(forHostTime: lastRender.hostTime - nowHostTime)
         } else {
-            elapsedSeconds = 0
+            untilPresentation = -AVAudioTime.seconds(forHostTime: nowHostTime - lastRender.hostTime)
         }
 
-        // Plus PlayerNode-Output-Presentation-Latency: das ist die Zeit vom
-        // gerade gerenderten Sample des PlayerNode bis zur hörbaren Ausgabe
-        // an der Hardware. Sie summiert TimePitch-Verarbeitung (~93 ms),
-        // Mixer und Hardware-Buffer (~203 ms). `engine.outputNode.outputPresentationLatency`
-        // würde nur den Hardware-Anteil zählen und die TimePitch-Latenz
-        // unter den Tisch fallen lassen — die Anzeige hinkte dann um genau
-        // diese Differenz hinter dem hörbaren Audio her.
-        let presentationLatency = playerNode.outputPresentationLatency
-
-        let projected = renderedSeconds + (elapsedSeconds + presentationLatency) * rate
+        let projected = renderedSeconds - (untilPresentation + outputLatency) * rate
         return min(max(0, projected), duration)
+    }
+
+    /// Zeit vom PlayerNode-Output bis zur hörbaren Emission.
+    ///
+    /// `playerNode.outputPresentationLatency` ist die semantisch richtige Größe
+    /// und deckt auf dem Mac alles ab (93 ms TimePitch + 1 ms Hardware; das
+    /// `outputNode`-Pendant allein kennt die TimePitch-Latenz nicht).
+    ///
+    /// Auf iOS ist nicht verlässlich, ob der Node die Route kennt — über
+    /// Bluetooth liegen dort 150–200 ms Funkstrecke, die `AVAudioSession`
+    /// in `outputLatency` ausweist. Darum das **Maximum** beider Schätzungen
+    /// derselben Strecke: das greift die Quelle ab, die von der Route weiß,
+    /// ohne sie doppelt zu zählen.
+    private var outputLatency: TimeInterval {
+        let nodeLatency = playerNode.outputPresentationLatency
+        #if os(iOS)
+        let session = AVAudioSession.sharedInstance()
+        let sessionLatency = session.outputLatency + session.ioBufferDuration + timePitch.latency
+        return max(nodeLatency, sessionLatency)
+        #else
+        return nodeLatency
+        #endif
     }
 
     // Stored properties, damit @Observable die Änderungen mitbekommt und
@@ -280,9 +310,12 @@ public final class AVAudioEnginePlayer: AudioEngine {
 
     public func pause() {
         guard isPlaying else { return }
-        if let frame = currentFrame() {
-            seekFrame = frame
-            position = TimeInterval(frame) / sampleRate
+        // Bewusst die HÖRBARE Position, nicht die gerenderte: `playerNode.stop()`
+        // verwirft den gepufferten Vorlauf, der nie zu hören war. Vom gerenderten
+        // Frame aus fortzusetzen überspränge genau diesen Vorlauf.
+        if let secs = audiblePosition() {
+            seekFrame = AVAudioFramePosition(secs * sampleRate)
+            position = secs
         }
         playerNode.stop()
         isPlaying = false
@@ -349,13 +382,6 @@ public final class AVAudioEnginePlayer: AudioEngine {
         }
     }
 
-    private func currentFrame() -> AVAudioFramePosition? {
-        guard let lastRender = playerNode.lastRenderTime,
-              let playerTime = playerNode.playerTime(forNodeTime: lastRender)
-        else { return nil }
-        return seekFrame + playerTime.sampleTime
-    }
-
     private func handlePlaybackFinished() {
         guard let file = audioFile else { return }
         // Only act if we played through to the end (not stopped by a seek/pause)
@@ -387,9 +413,12 @@ public final class AVAudioEnginePlayer: AudioEngine {
         positionTimer = nil
     }
 
+    /// Speist die @Observable-`position` mit derselben hörbaren Position wie
+    /// `livePosition`. Damit sind Zeitanzeige, Mini-Player, Now-Playing und die
+    /// iOS-Waveform latenz-korrigiert, ohne dass jeder Leser das wissen muss;
+    /// `livePosition` bleibt der Weg für alles, was feiner als 30 Hz tickt.
     private func tickPosition() {
-        guard isPlaying, let frame = currentFrame() else { return }
-        let secs = TimeInterval(frame) / sampleRate
-        position = min(max(0, secs), duration)
+        guard isPlaying, let secs = audiblePosition() else { return }
+        position = secs
     }
 }

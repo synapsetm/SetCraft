@@ -343,10 +343,36 @@ Serialisierung, Active-Track-Guard).
   Endlosschleife ohne Weg zurück in die App. `isHandlingTerminationPrompt`
   unterbricht das, gelöst wird die Sperre beim `didBecomeMainNotification`
   des wiederhergestellten Fensters.
-- **Playhead-Sync (Mac):** korrekt über `playerNode.outputPresentationLatency`
-  (nicht outputNode-only), Waveform-Progress auf Wave-Zeitachse statt
-  `player.duration`, Spalten-Aggregation per Float-Division. Ergebnis:
-  konstanter ~30-ms-Offset, kein wachsender Drift.
+- **Playhead-Sync (Mac + iOS):** Waveform-Progress auf Wave-Zeitachse statt
+  `player.duration`, Spalten-Aggregation per Float-Division — beides gegen
+  wachsenden Drift. Die **Latenz-Korrektur war bis 2026-09-19 falsch** und ist
+  jetzt gemessen statt vermutet (`AVAudioEnginePlayer.audiblePosition()`):
+  - `lastRenderTime.hostTime` ist **nicht** der Moment des Renderns, sondern die
+    anvisierte Ausgabezeit des Buffers — auf macOS konstant **14–22 ms in der
+    Zukunft**. Der alte Code klammerte `now − hostTime` auf `0`; die ganze
+    Drift-Korrektur war damit toter Code, der Zweig traf während der Wiedergabe
+    nie zu.
+  - Das Vorzeichen war verdreht: Sample `S` ist erst bei
+    `hostTime + outputPresentationLatency` hörbar, die Latenz muss also
+    **abgezogen** werden. Addiert schob sie die Anzeige um den doppelten Betrag
+    nach vorn — der Mac lief ~210 ms voraus, iOS (roher `position`-Wert ohne
+    jede Korrektur) ~110 ms plus die Bluetooth-Funkstrecke.
+  - Gegenprobe: die hörbare Position darf die Wanduhr seit `play()` nie
+    überschreiten. Alte Formel lag **+60…+72 ms darüber** (unmöglich), neue
+    konstant −141 ms darunter = die Anlauf-Strecke (TimePitch 93 ms + HW-Buffer).
+  - Gemessene Latenzen: `playerNode.outputPresentationLatency` = **94 ms**
+    (TimePitch 93 + HW 1,3). Der Kommentar „~203 ms Hardware-Buffer" war
+    erfunden; `outputNode.outputPresentationLatency` ist **1,3 ms** und kennt
+    die TimePitch-Latenz nicht — darum bleibt der PlayerNode die richtige Quelle.
+  - Auf iOS zusätzlich `max(nodeLatency, session.outputLatency +
+    ioBufferDuration + timePitch.latency)`: über Bluetooth liegen 150–200 ms
+    Funkstrecke, die die `AVAudioSession` ausweist. Maximum statt Summe, weil
+    beide dieselbe Strecke schätzen.
+  - `position` (30-Hz-Timer) rechnet jetzt dieselbe Korrektur, damit Zeitanzeige,
+    Mini-Player und Now-Playing mitkommen; die iOS-Waveform liest `livePosition`
+    in einer 60-Hz-`TimelineView` wie der Mac. `pause()` merkt sich die hörbare
+    statt der gerenderten Position — sonst übersprang „Weiter" den gepufferten
+    Vorlauf, den `playerNode.stop()` verwirft.
 - **MP3-Decode-Fallback:** `AVAudioFile` wirft bei manchen MP3-Headern
   `_GenericObjCError 0` → `AVAssetReader`-Fallback (CoreMedia-Decoder,
   native Sample-Rate, kein Resampling).

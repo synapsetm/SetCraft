@@ -139,15 +139,20 @@ struct PlayerScreen: View {
 
     @ViewBuilder
     private var verticalWaveform: some View {
-        WaveformCanvasView(
-            data: store.currentWaveform,
-            position: store.position,
-            duration: store.duration,
-            bpm: store.effectiveBPM,
-            isLoading: store.isLoadingWaveform && store.currentWaveform == nil,
-            onScrub: { store.seek(to: $0) },
-            axis: .vertical
-        )
+        // 60-Hz-Periodic statt des 30-Hz-@Observable-Ticks: erzwingt den
+        // re-eval, damit `livePosition` frisch gelesen wird. Identisch zum
+        // Mac-Pfad in `SetCraft/ContentView.swift`.
+        TimelineView(.periodic(from: .now, by: 1.0 / 60.0)) { _ in
+            WaveformCanvasView(
+                data: store.currentWaveform,
+                position: store.livePosition,
+                duration: store.duration,
+                bpm: store.effectiveBPM,
+                isLoading: store.isLoadingWaveform && store.currentWaveform == nil,
+                onScrub: { store.seek(to: $0) },
+                axis: .vertical
+            )
+        }
     }
 
     @ViewBuilder
@@ -202,14 +207,16 @@ struct PlayerScreen: View {
 
     @ViewBuilder
     private var waveform: some View {
-        WaveformCanvasView(
-            data: store.currentWaveform,
-            position: store.position,
-            duration: store.duration,
-            bpm: store.effectiveBPM,
-            isLoading: store.isLoadingWaveform && store.currentWaveform == nil,
-            onScrub: { store.seek(to: $0) }
-        )
+        TimelineView(.periodic(from: .now, by: 1.0 / 60.0)) { _ in
+            WaveformCanvasView(
+                data: store.currentWaveform,
+                position: store.livePosition,
+                duration: store.duration,
+                bpm: store.effectiveBPM,
+                isLoading: store.isLoadingWaveform && store.currentWaveform == nil,
+                onScrub: { store.seek(to: $0) }
+            )
+        }
     }
 
     @ViewBuilder

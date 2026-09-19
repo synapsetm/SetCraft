@@ -17,9 +17,10 @@ public protocol AudioEngine: AnyObject {
     var isPlaying: Bool { get }
     var position: TimeInterval { get }
     /// Wie `position`, aber auf jedem Zugriff frisch berechnet aus
-    /// `lastRenderTime` — ohne die 30-Hz-Timer-Verzögerung. Für die
-    /// Waveform-Playhead-Anzeige in einer `TimelineView`, damit der
-    /// Cursor synchron zum hörbaren Audio läuft.
+    /// `lastRenderTime` — ohne die 30-Hz-Timer-Verzögerung. Beide Werte sind
+    /// um die Ausgabe-Latenz korrigiert und meinen die **hörbare** Position,
+    /// nicht die gerenderte. Für die Waveform-Playhead-Anzeige in einer
+    /// `TimelineView`, damit der Cursor synchron zum hörbaren Audio läuft.
     var livePosition: TimeInterval { get }
     var duration: TimeInterval { get }
     var loadedURL: URL? { get }
