@@ -479,7 +479,8 @@ final class LibraryViewModel {
         isScanning = true
 
         scanTask = Task { [folder, repository] in
-            let (stream, _) = repository.scan(folder: folder)
+            let (stream, _) = await repository.scan(folder: folder)
+            if Task.isCancelled { return }
             for await track in stream {
                 if Task.isCancelled { break }
                 tracks.append(track)

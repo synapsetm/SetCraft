@@ -1,6 +1,17 @@
 import Foundation
 import OSLog
 
+/// Eigene Queue fürs Verzeichnis-Listing. `FolderScanner.collect` ist
+/// synchron und blockiert, bis der FileProvider das Listing geliefert hat —
+/// bei einem NAS/SMB-Share über Mobilfunk sind das viele Sekunden. Bewusst
+/// **nicht** der Cooperative Pool: ein sekundenlang blockierter Thread gehört
+/// nicht in dessen enges Budget. Dieselbe Begründung wie bei den
+/// Materialisierungs-Queues in `AVAudioEnginePlayer`.
+private let folderScanQueue = DispatchQueue(
+    label: "ch.buehler.beat.SetCraft.folder-scan",
+    qos: .userInitiated
+)
+
 /// Orchestriert das Lesen und Schreiben von Tracks: prüft zuerst den
 /// SQLite-Cache, fällt bei `stale`-Werten (Datei-Modifikationsdatum
 /// passt nicht mehr) auf TagLib zurück. Schreibvorgänge gehen weiterhin
@@ -49,8 +60,20 @@ public actor LibraryRepository: TrackStore {
     /// gesamte TagLib-Leselast. Liefert zusätzlich ein `ScanReport` zurück,
     /// damit die UI bei leerem Ergebnis diagnostisch antworten kann
     /// (typisch: iCloud-Ordner mit noch-nicht-runtergeladenen Dateien).
-    public nonisolated func scan(folder: URL) -> (stream: AsyncStream<Track>, report: ScanReport) {
-        let (urls, report) = FolderScanner.collect(in: folder)
+    ///
+    /// `async`, weil das Listing selbst blockiert: bis 2026-09-19 lief
+    /// `FolderScanner.collect` synchron im Aufrufer, und beide Aufrufer sitzen
+    /// in einem `Task` einer MainActor-isolierten Klasse. Damit blockierte der
+    /// App-Start das UI, solange der FileProvider das Verzeichnis auflistete —
+    /// über Mobilfunk sichtbar eingefroren, und kein Spinner hätte sich drehen
+    /// können. Jetzt läuft `collect` auf `folderScanQueue`, der Aufrufer wartet.
+    public nonisolated func scan(folder: URL) async -> (stream: AsyncStream<Track>, report: ScanReport) {
+        let (urls, report) = await withCheckedContinuation {
+            (continuation: CheckedContinuation<(urls: [URL], report: ScanReport), Never>) in
+            folderScanQueue.async {
+                continuation.resume(returning: FolderScanner.collect(in: folder))
+            }
+        }
         let stream = AsyncStream<Track> { continuation in
             let task = Task.detached(priority: .utility) { [self] in
                 for url in urls {

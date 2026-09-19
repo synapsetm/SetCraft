@@ -548,8 +548,12 @@ final class LibraryStore {
         scanTask?.cancel()
         isScanning = true
         scanDiagnosticActive = false
-        let (stream, report) = repository.scan(folder: folder)
-        scanTask = Task { [weak self] in
+        scanTask = Task { [weak self, repository] in
+            // Das Verzeichnis-Listing wartet jetzt hier, nicht auf dem
+            // MainActor — `isScanning` ist schon gesetzt, die Ladeanzeige
+            // läuft also, während der FileProvider auflistet.
+            let (stream, report) = await repository.scan(folder: folder)
+            if Task.isCancelled { return }
             for await track in stream {
                 if Task.isCancelled { break }
                 // Sobald der erste Track ankommt, eine evtl. von einer
