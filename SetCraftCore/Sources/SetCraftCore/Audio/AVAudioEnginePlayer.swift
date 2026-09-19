@@ -259,6 +259,26 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         return
                     }
 
+                    // iCloud-Platzhalter: den Download anstossen, bevor der
+                    // koordinierte Read darauf wartet.
+                    //
+                    // Diese Abfrage stand bis 2026-09-19 im `PlayerStore` — und
+                    // zwar VOR dem ersten `await`, also synchron auf dem
+                    // MainActor. `resourceValues` geht bei einer
+                    // FileProvider-URL zum Provider; im Flugmodus mit einer
+                    // unerreichbaren NAS kommt sie nicht zurück und hielt das
+                    // ganze UI an, inklusive Scrollen und laufender Spinner.
+                    // Hier liegt sie auf derselben Queue wie die IO, auf die
+                    // sie sich bezieht.
+                    if let values = try? url.resourceValues(forKeys: [
+                        .isUbiquitousItemKey,
+                        .ubiquitousItemDownloadingStatusKey
+                    ]),
+                       values.isUbiquitousItem == true,
+                       values.ubiquitousItemDownloadingStatus != .current {
+                        try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+                    }
+
                     // Die Begründung wird im Closure zu einem String gemacht,
                     // statt den NSError über die Isolationsgrenze zu schicken.
                     var failure: String?

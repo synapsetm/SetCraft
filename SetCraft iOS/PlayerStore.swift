@@ -190,11 +190,12 @@ final class PlayerStore {
         // genauso wie Tracks von einem SMB/NAS-Share aus der Files-App:
         // beide kommen über den FileProvider, und `AVAudioFile` würde beim
         // Öffnen blockieren, bis die Datei vollständig da ist.
-        if isUbiquitousPlaceholder(track.url) {
-            // Für iCloud der dokumentierte Weg, den Download anzustossen;
-            // der koordinierte Read danach wartet auf dessen Ende.
-            try? FileManager.default.startDownloadingUbiquitousItem(at: track.url)
-        }
+        //
+        // Der Platzhalter-Check samt Download-Anstoss liegt bewusst IN
+        // `prefetch` — er fragt Resource-Values beim Provider ab und blockiert
+        // damit selbst. Hier stand er bis 2026-09-19 vor dem ersten `await`
+        // und hielt im Flugmodus das ganze UI an.
+        //
         // Schlägt das Materialisieren fehl (Flugmodus, NAS nicht erreichbar,
         // nur halb übertragene Datei), endet der Load hier MIT Meldung. Vorher
         // wurden beide Fehlerquellen verschluckt: die Engine bekam die Datei
@@ -263,18 +264,6 @@ final class PlayerStore {
         }
     }
 
-    /// `true`, wenn die Datei ein iCloud-Platzhalter ist, also noch gar nicht
-    /// lokal liegt. Nur für den `startDownloadingUbiquitousItem`-Anstoss —
-    /// ob eine FileProvider-Datei (NAS) schon da ist, sagt das nicht, dafür
-    /// gibt es diese Auskunft schlicht nicht.
-    private func isUbiquitousPlaceholder(_ url: URL) -> Bool {
-        let values = try? url.resourceValues(forKeys: [
-            .isUbiquitousItemKey,
-            .ubiquitousItemDownloadingStatusKey
-        ])
-        guard let values, values.isUbiquitousItem == true else { return false }
-        return values.ubiquitousItemDownloadingStatus != .current
-    }
 
     /// Primärer Play-Pfad. Wird auch aus Lock-Screen / AirPods-Commands +
     /// Interruption-End aufgerufen.
