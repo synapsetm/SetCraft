@@ -384,6 +384,15 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         } catch {
                             failure = describe(error as NSError)
                         }
+
+                        // Nur wenn die Datei als vollständig lesbar gilt: eine
+                        // eigene Kopie anlegen, aus der später gespielt wird.
+                        // Noch innerhalb der Koordination, weil der Provider hier
+                        // garantiert Zugriff gewährt — und auf dieser Queue, weil
+                        // Kopieren blockiert.
+                        if failure == nil, PlaybackCache.shared.shouldCache(url) {
+                            PlaybackCache.shared.store(coordinatedURL)
+                        }
                     }
                     if let coordinatorError {
                         // Der Coordinator kommt zuerst: kann er die Datei nicht
@@ -452,7 +461,14 @@ public final class AVAudioEnginePlayer: AudioEngine {
     public func load(url: URL) throws {
         stopPlayback()
 
-        let file = try AVAudioFile(forReading: url)
+        // Aus der Cache-Kopie spielen, wenn es eine gibt: damit hängt die
+        // Wiedergabe nicht mehr am FileProvider und übersteht einen Netzverlust,
+        // ohne stumm weiterzulaufen. `loadedURL` bleibt bewusst die QUELLE — sie
+        // ist die Identität des Tracks für Library, Tag-Writes und Waveform.
+        // `existingCopy` kostet nur einen `stat`, ist auf dem MainActor also
+        // unbedenklich; angelegt wird die Kopie im Prefetch.
+        let playbackURL = PlaybackCache.shared.existingCopy(of: url) ?? url
+        let file = try AVAudioFile(forReading: playbackURL)
         audioFile = file
         loadedURL = url
         duration = TimeInterval(file.length) / file.processingFormat.sampleRate
