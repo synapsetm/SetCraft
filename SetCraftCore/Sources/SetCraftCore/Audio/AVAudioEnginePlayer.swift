@@ -47,10 +47,10 @@ public final class AVAudioEnginePlayer: AudioEngine {
     public private(set) var loadedURL: URL?
 
     /// Wird gefeuert, wenn ein Track natürlich zu Ende gespielt hat
-    /// (nicht bei pause/seek/load). Der iOS-PlayerStore hängt sich
-    /// hier ein, um automatisch zum nächsten Track in der Liste zu
-    /// springen — auf Mac bleibt der Hook ungesetzt, Verhalten dort
-    /// unverändert.
+    /// (nicht bei pause/seek/load). Beide Plattformen hängen sich hier ein,
+    /// um automatisch zum nächsten Track in der Liste zu springen: iOS im
+    /// `PlayerStore`, macOS in `ContentView.onAppear`. Am Listenende bleibt
+    /// die Wiedergabe stehen, statt von vorn zu beginnen.
     public var onPlaybackEnded: (() -> Void)?
 
     /// Die Position, die der Nutzer in diesem Moment **hört** — nicht die,

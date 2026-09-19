@@ -50,6 +50,34 @@ struct ContentView: View {
                 player.originalKey = track.key
                 transport.applyMasterToLoadedTrack()
             }
+            // Auto-Advance: läuft ein Track natürlich aus, den nächsten in der
+            // aktuell angezeigten Sortierung laden — wie auf iOS. Der Hook war
+            // bisher nur dort gesetzt, auf dem Mac blieb die Wiedergabe am
+            // Track-Ende einfach stehen.
+            //
+            // `nextTrack(after:)` liefert am Listenende `nil`; dann bleibt es
+            // stehen, statt von vorn zu beginnen. Die Selektion zieht nur mit,
+            // wenn genau der auslaufende Track ausgewählt war — sonst würde
+            // eine Mehrfachauswahl mitten in der Arbeit verschwinden.
+            player.player.onPlaybackEnded = { [weak player, library] in
+                guard let player,
+                      let finishedURL = player.player.loadedURL,
+                      let next = library.nextTrack(after: finishedURL)
+                else { return }
+                // „Verfolgt" heisst: nichts ausgewählt, oder genau der Track,
+                // der gerade ausgelaufen ist. Eine Auswahl auf einem anderen
+                // Track gehört einer anderen Absicht und bleibt unangetastet.
+                let selected = library.selectedTrackIDs
+                let finishedID = library.tracks.first(where: { $0.url == finishedURL })?.id
+                let wasFollowing = selected.isEmpty
+                    || (selected.count == 1 && selected.first == finishedID)
+                Self.loadIntoPlayer(
+                    next,
+                    player: player,
+                    library: library,
+                    moveSelection: wasFollowing
+                )
+            }
             library.restoreSavedFolders()
             // Dateien aus dem Finder laufen über den AppDelegate statt über
             // `.onOpenURL` — sonst öffnet SwiftUI pro Datei ein neues Fenster.
@@ -301,9 +329,28 @@ struct ContentView: View {
     /// (Selected/Prev/Next): Player füllen, Analyse anstossen, Selektion
     /// in der Library mitziehen, damit die Tabelle auf dem neuen Track steht.
     private func loadIntoPlayer(_ track: Track) {
+        Self.loadIntoPlayer(track, player: player, library: library, moveSelection: true)
+    }
+
+    /// Statische Variante desselben Pfads. Der Auto-Advance-Hook lebt so lang
+    /// wie der Player und darf darum keine View-Instanz festhalten — er ruft
+    /// diese Funktion mit den Objekten auf, statt `self` einzufangen.
+    ///
+    /// `moveSelection` steuert, ob die Tabelle dem neuen Track folgt. Bei einem
+    /// Klick auf Prev/Next/Load ist das gewollt; beim Auto-Advance nur dann,
+    /// wenn der Nutzer die Wiedergabe ohnehin verfolgt hat — eine Mehrfach-
+    /// auswahl für einen Massen-Tag-Write darf ein Trackwechsel nicht wegräumen.
+    private static func loadIntoPlayer(
+        _ track: Track,
+        player: PlayerViewModel,
+        library: LibraryViewModel,
+        moveSelection: Bool
+    ) {
         player.loadTrack(track)
         library.analyzeIfNeeded(track)
-        library.selectedTrackIDs = [track.id]
+        if moveSelection {
+            library.selectedTrackIDs = [track.id]
+        }
         library.notePlay(forURL: track.url)
     }
 

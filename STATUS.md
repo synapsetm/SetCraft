@@ -256,6 +256,13 @@ Serialisierung, Active-Track-Guard).
 - iOS: Lock-Screen / Control-Center / AirPods über `MPRemoteCommandCenter` +
   `MPNowPlayingInfoCenter`; `AVAudioSession`-Interruption + Route-Change;
   Background-Audio; Player-Swipe für Track-Wechsel.
+- **Auto-Advance auf beiden Plattformen**: läuft ein Track natürlich aus, lädt
+  der nächste in der **aktuell angezeigten Sortierung**. Am Listenende bleibt
+  es stehen, es wird nicht von vorn begonnen. Der Hook (`onPlaybackEnded`) war
+  bis 2026-09-19 nur auf iOS gesetzt — auf dem Mac blieb die Wiedergabe am
+  Track-Ende einfach stehen. Auf dem Mac zieht die Tabellen-Selektion nur mit,
+  wenn nichts oder genau der auslaufende Track ausgewählt war; eine
+  Mehrfachauswahl für einen Massen-Tag-Write überlebt den Trackwechsel.
 - iOS: Track-Load blockiert den MainActor nicht. Die Datei wird vorab auf
   einer eigenen Queue materialisiert (`AVAudioEnginePlayer.prefetch`), der
   nächste Track der Queue schon während der laufenden Wiedergabe. Relevant
