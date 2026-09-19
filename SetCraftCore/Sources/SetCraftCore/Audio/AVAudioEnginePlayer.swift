@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import Network
 import Observation
 
 /// Eigene Queues fürs Materialisieren von Dateien. Bewusst **nicht** der
@@ -22,6 +23,69 @@ private let audioLookaheadQueue = DispatchQueue(
     label: "ch.buehler.beat.SetCraft.audio-lookahead",
     qos: .utility
 )
+
+/// Sagt, ob das Gerät ueberhaupt einen Netzpfad hat.
+///
+/// Der Unterschied, auf den es ankommt: eine **langsame** Quelle (NAS über
+/// Mobilfunk) darf beliebig lange brauchen — genau dafür ist der Prefetch da.
+/// Eine **unerreichbare** Quelle (Flugmodus) soll sofort aufgeben, statt den
+/// Nutzer minutenlang auf einen Spinner schauen zu lassen, bis der
+/// `NSFileCoordinator` von selbst aufgibt. Deshalb wird nicht die Dauer
+/// gemessen, sondern der Netzzustand gefragt.
+///
+/// Ein NAS im lokalen WLAN ohne Internet zählt als erreichbar — `NWPathMonitor`
+/// meldet den WLAN-Pfad als `satisfied`. Nur wenn es gar keinen Pfad gibt, ist
+/// die Antwort „offline".
+private final class NetworkReachability: @unchecked Sendable {
+    static let shared = NetworkReachability()
+
+    private let monitor = NWPathMonitor()
+    private let lock = NSLock()
+    private var status: NWPath.Status?
+
+    private init() {
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard let self else { return }
+            lock.withLock { self.status = path.status }
+        }
+        monitor.start(queue: DispatchQueue(label: "ch.buehler.beat.SetCraft.reachability"))
+    }
+
+    /// `true` nur bei einer belastbaren Aussage. Solange der Monitor noch keinen
+    /// Pfad geliefert hat, lautet die Antwort `false` — im Zweifel wird nicht
+    /// abgebrochen, sondern gewartet wie bisher.
+    var isDefinitelyOffline: Bool {
+        lock.withLock { status != nil && status != .satisfied }
+    }
+}
+
+/// Ergebnis einer Materialisierung. `offline` ist bewusst ein eigener Fall und
+/// kein Text: die UI-Schicht formuliert daraus eine lokalisierte Meldung, der
+/// Core hat keinen String-Katalog.
+public enum MaterializeOutcome: Sendable {
+    case ok
+    case offline
+    case failed(reason: String)
+}
+
+/// Continuation, die sich nur einmal fortsetzen laesst. Gebraucht, weil zwei
+/// Quellen um die Antwort rennen: die eigentliche IO und der Offline-Wecker.
+private final class OneShotContinuation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<MaterializeOutcome, Never>?
+
+    init(_ continuation: CheckedContinuation<MaterializeOutcome, Never>) {
+        self.continuation = continuation
+    }
+
+    func resume(_ outcome: MaterializeOutcome) {
+        lock.lock()
+        let pending = continuation
+        continuation = nil
+        lock.unlock()
+        pending?.resume(returning: outcome)
+    }
+}
 
 /// Abbruch-Signal über die Isolationsgrenze hinweg. Ein laufender
 /// `AVAudioFile(forReading:)` lässt sich nicht unterbrechen — was dieses Flag
@@ -217,7 +281,12 @@ public final class AVAudioEnginePlayer: AudioEngine {
     /// Bei einer lokalen Datei kostet der Aufruf nur den Open — kein
     /// Sonderfall nötig.
     public nonisolated static func prefetch(url: URL) async throws {
-        if let reason = await materialize(url: url, on: audioLoadQueue) {
+        switch await materialize(url: url, on: audioLoadQueue) {
+        case .ok:
+            return
+        case .offline:
+            throw AudioEngineError.sourceOffline
+        case .failed(let reason):
             throw AudioEngineError.fileUnavailable(reason: reason)
         }
     }
@@ -230,10 +299,10 @@ public final class AVAudioEnginePlayer: AudioEngine {
         // Spekulativ: ein Fehlschlag ist hier kein Ereignis. Scheitert die
         // Vorausschau, merkt es der echte Load später selbst.
         _ = await materialize(url: url, on: audioLookaheadQueue)
+
     }
 
-    /// Holt die Datei auf das Gerät. Rückgabe `nil` = die Datei ist lesbar da;
-    /// sonst eine Begründung für die Anzeige.
+    /// Holt die Datei auf das Gerät.
     ///
     /// Beide Fehlerquellen wurden früher verschluckt — der `NSFileCoordinator`
     /// bekam eine `error`-Adresse, die niemand auslas, und der Open stand unter
@@ -242,20 +311,32 @@ public final class AVAudioEnginePlayer: AudioEngine {
     /// liegt der Anfang lokal vor), die Länge kam aus dem Header — und die
     /// Wiedergabe lief sichtbar los, ohne einen Ton. Genau der gemeldete Befund:
     /// „kein Audio, keine Fehlermeldung".
-    private nonisolated static func materialize(url: URL, on queue: DispatchQueue) async -> String? {
+    private nonisolated static func materialize(url: URL, on queue: DispatchQueue) async -> MaterializeOutcome {
         // Wer schon vor dem Einreihen abgebrochen wurde, fasst gar nichts an.
-        if Task.isCancelled { return nil }
+        if Task.isCancelled { return .ok }
 
         let cancellation = PrefetchCancellation()
         return await withTaskCancellationHandler {
-            await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
+            await withCheckedContinuation { (continuation: CheckedContinuation<MaterializeOutcome, Never>) in
+                let once = OneShotContinuation(continuation)
+
+                // Ohne Netzpfad hat der koordinierte Read keine Aussicht auf
+                // Erfolg — er merkt es nur erst nach Minuten. Die kurze Gnadenfrist
+                // ist für den Fall, dass die Datei längst lokal liegt: dann kehrt
+                // die IO innerhalb von Millisekunden zurück und gewinnt das Rennen.
+                if NetworkReachability.shared.isDefinitelyOffline {
+                    DispatchQueue.global().asyncAfter(deadline: .now() + offlineGracePeriod) {
+                        once.resume(.offline)
+                    }
+                }
+
                 queue.async {
                     // Die Queue ist seriell — hier steht man ggf. hinter einem
                     // Vorgänger. Erst jetzt prüfen, ob das Ergebnis überhaupt
                     // noch jemanden interessiert: bei schnellem Durchskippen
                     // fallen so alle Zwischenstationen ohne IO weg.
                     guard !cancellation.isCancelled else {
-                        continuation.resume(returning: nil)
+                        once.resume(.ok)
                         return
                     }
 
@@ -301,20 +382,44 @@ public final class AVAudioEnginePlayer: AudioEngine {
                             let file = try AVAudioFile(forReading: coordinatedURL)
                             failure = verifyReadable(file)
                         } catch {
-                            failure = error.localizedDescription
+                            failure = describe(error as NSError)
                         }
                     }
                     if let coordinatorError {
                         // Der Coordinator kommt zuerst: kann er die Datei nicht
                         // bereitstellen, lief die Closure oben gar nicht.
-                        failure = coordinatorError.localizedDescription
+                        failure = describe(coordinatorError)
                     }
-                    continuation.resume(returning: failure)
+                    once.resume(failure.map { .failed(reason: $0) } ?? .ok)
                 }
             }
         } onCancel: {
             cancellation.cancel()
         }
+    }
+
+    /// Wie lange bei bekannt fehlendem Netzpfad noch auf die IO gewartet wird,
+    /// bevor `offline` gemeldet wird. Lang genug, dass ein rein lokaler Open
+    /// gewinnt; kurz genug, dass niemand auf einen aussichtslosen Spinner starrt.
+    private nonisolated static let offlineGracePeriod: TimeInterval = 3
+
+    /// Macht aus einem `NSError` etwas, das in einer Meldung weiterhilft.
+    /// `localizedDescription` allein liefert bei Datei-Fehlern die Cocoa-Floskel
+    /// „The operation couldn’t be completed." — ohne Domain, Code und den
+    /// eigentlich interessanten POSIX-Errno aus `NSUnderlyingError`. Gleiche
+    /// Begründung wie bei den Tag-Write-Fehlern in `TagLibTrackStore`.
+    private nonisolated static func describe(_ error: NSError) -> String {
+        var parts = [error.localizedDescription]
+        parts.append("(\(error.domain) \(error.code)")
+        if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+            parts[parts.count - 1] += ", \(underlying.domain) \(underlying.code)"
+            if underlying.domain == NSPOSIXErrorDomain,
+               let name = String(validatingCString: strerror(Int32(underlying.code))) {
+                parts[parts.count - 1] += " — \(name)"
+            }
+        }
+        parts[parts.count - 1] += ")"
+        return parts.joined(separator: " ")
     }
 
     /// Prüft, ob die Datei wirklich vollständig lokal liegt — und nicht nur ihr

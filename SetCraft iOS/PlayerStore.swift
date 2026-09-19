@@ -205,7 +205,14 @@ final class PlayerStore {
         } catch {
             guard !Task.isCancelled, loadingURL == track.url else { return }
             loadingURL = nil
-            lastError = String(localized: "Failed to load track: \(error.localizedDescription)")
+            // Der Flugmodus-Fall bekommt einen eigenen Satz. „Failed to load
+            // track: The operation couldn’t be completed." sagt dem Nutzer
+            // nichts — dass das Gerät offline ist, sagt ihm alles.
+            if case AudioEngineError.sourceOffline = error {
+                lastError = String(localized: "The source is not reachable — the device is offline and this track is not stored locally.")
+            } else {
+                lastError = String(localized: "Failed to load track: \(error.localizedDescription)")
+            }
             return
         }
 

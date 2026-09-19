@@ -33,6 +33,10 @@ public enum AudioEngineError: Error, Sendable {
     /// Die Datei liess sich nicht (vollständig) auf das Gerät holen — typisch
     /// für eine Quelle über den FileProvider (iCloud, NAS/SMB) ohne Netz.
     case fileUnavailable(reason: String)
+    /// Das Gerät hat gar keinen Netzpfad (Flugmodus), die Quelle liegt aber
+    /// nicht lokal. Eigener Fall, damit die UI-Schicht eine verständliche,
+    /// lokalisierte Meldung daraus machen kann statt einer Cocoa-Floskel.
+    case sourceOffline
 }
 
 /// Bewusst **nicht** lokalisiert: `SetCraftCore` ist ein SwiftPM-Package ohne
@@ -52,6 +56,8 @@ extension AudioEngineError: LocalizedError {
             "The audio engine could not be started: \(underlying)"
         case .fileUnavailable(let reason):
             reason
+        case .sourceOffline:
+            "The device is offline and the source is not available locally."
         }
     }
 }

@@ -1308,6 +1308,16 @@
         }
       }
     },
+    "The source is not reachable — the device is offline and this track is not stored locally." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Quelle ist nicht erreichbar — das Gerät ist offline und dieser Track liegt nicht lokal."
+          }
+        }
+      }
+    },
     "Title" : {
       "localizations" : {
         "de" : {
