@@ -196,7 +196,7 @@ private struct LibraryScreen: View {
                     ProgressView()
                 }
             } description: {
-                Text("Reading the folder. With many tracks over a mobile connection this can take a moment.")
+                Text("Reading the folder. With many tracks on a network source this can take a moment.")
             }
         } else if libraryStore.tracks.isEmpty && !libraryStore.isScanning {
             let base = String(localized: "The folder “\(folder.name)” contains no recognized audio files.")

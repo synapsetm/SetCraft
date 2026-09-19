@@ -995,12 +995,12 @@
         }
       }
     },
-    "Reading the folder. With many tracks over a mobile connection this can take a moment." : {
+    "Reading the folder. With many tracks on a network source this can take a moment." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der Ordner wird gelesen. Bei vielen Tracks über Mobilfunk kann das einen Moment dauern."
+            "value" : "Der Ordner wird gelesen. Bei vielen Tracks auf einer Netzwerk-Quelle kann das einen Moment dauern."
           }
         }
       }

@@ -4,6 +4,26 @@
     "" : {
       "shouldTranslate" : false
     },
+    "Loading library…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliothek wird geladen…"
+          }
+        }
+      }
+    },
+    "Reading the folder. With many tracks on a network source this can take a moment." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ordner wird gelesen. Bei vielen Tracks auf einer Netzwerk-Quelle kann das einen Moment dauern."
+          }
+        }
+      }
+    },
     "—" : {
       "shouldTranslate" : false
     },

@@ -47,6 +47,24 @@ struct LibraryView: View {
                 Divider()
                 table
                     .frame(maxHeight: .infinity)
+                    // Bis der erste Track eintrifft, zeigte die Tabelle nur
+                    // ihre Spaltenköpfe — bei einer Netzwerk-Quelle (SMB-Mount)
+                    // minutenlang. Die Statuszeile unten dreht sich zwar, in der
+                    // Mitte stand aber nichts. Als Overlay, damit die Spalten
+                    // sichtbar bleiben und das Layout nicht springt.
+                    .overlay {
+                        if library.tracks.isEmpty, library.isScanning {
+                            ContentUnavailableView {
+                                Label {
+                                    Text("Loading library…")
+                                } icon: {
+                                    ProgressView()
+                                }
+                            } description: {
+                                Text("Reading the folder. With many tracks on a network source this can take a moment.")
+                            }
+                        }
+                    }
                 Divider()
                 statusBar
             }
