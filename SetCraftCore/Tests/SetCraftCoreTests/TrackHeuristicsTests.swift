@@ -31,3 +31,31 @@ final class TrackHeuristicsTests: XCTestCase {
         XCTAssertFalse(track(minutes: 0).isLikelyDJMix)
     }
 }
+
+// MARK: - BPM-Sanitisierung
+
+/// Ein BPM-Tag mit dem Text „inf" oder „1e300" hat die iOS-Waveform zum
+/// Stillstand gebracht (Beat-Grid-Schleife kam nicht vorwärts). Die Werte
+/// dürfen das Modell nicht erreichen.
+final class SanitizedBPMTests: XCTestCase {
+
+    func testAcceptsRealisticTempos() {
+        XCTAssertEqual(TagReader.sanitizedBPM(128), 128)
+        XCTAssertEqual(TagReader.sanitizedBPM(174), 174)
+        XCTAssertEqual(TagReader.sanitizedBPM(87.5), 87.5)
+        XCTAssertEqual(TagReader.sanitizedBPM(300), 300)
+    }
+
+    func testRejectsNonFinite() {
+        XCTAssertNil(TagReader.sanitizedBPM(.infinity))
+        XCTAssertNil(TagReader.sanitizedBPM(-.infinity))
+        XCTAssertNil(TagReader.sanitizedBPM(.nan))
+    }
+
+    func testRejectsNonsenseMagnitudes() {
+        XCTAssertNil(TagReader.sanitizedBPM(0))
+        XCTAssertNil(TagReader.sanitizedBPM(-128))
+        XCTAssertNil(TagReader.sanitizedBPM(1e300))
+        XCTAssertNil(TagReader.sanitizedBPM(12800))   // ×100-Schreibweise
+    }
+}

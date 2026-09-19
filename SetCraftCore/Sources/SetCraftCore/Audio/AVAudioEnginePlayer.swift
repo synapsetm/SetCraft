@@ -115,13 +115,23 @@ public final class AVAudioEnginePlayer: AudioEngine {
     /// derselben Strecke: das greift die Quelle ab, die von der Route weiß,
     /// ohne sie doppelt zu zählen.
     private var outputLatency: TimeInterval {
-        let nodeLatency = playerNode.outputPresentationLatency
         #if os(iOS)
+        // Gecacht, weil `livePosition` in einer 60-Hz-TimelineView gelesen wird
+        // und diese Werte sonst 60-mal pro Sekunde auf dem MainActor abgefragt
+        // würden — Node-Properties und AVAudioSession-Properties, letztere mit
+        // Weg zum Audio-Server. Die Latenz ändert sich nur beim Routenwechsel,
+        // eine halbe Sekunde Nachlauf ist am Playhead nicht zu sehen.
+        let now = ProcessInfo.processInfo.systemUptime
+        if let cached = cachedOutputLatency, now - cached.measuredAt < 0.5 {
+            return cached.value
+        }
         let session = AVAudioSession.sharedInstance()
         let sessionLatency = session.outputLatency + session.ioBufferDuration + timePitch.latency
-        return max(nodeLatency, sessionLatency)
+        let value = max(playerNode.outputPresentationLatency, sessionLatency)
+        cachedOutputLatency = (value: value, measuredAt: now)
+        return value
         #else
-        return nodeLatency
+        return playerNode.outputPresentationLatency
         #endif
     }
 
@@ -168,6 +178,12 @@ public final class AVAudioEnginePlayer: AudioEngine {
     private var seekFrame: AVAudioFramePosition = 0
     private var positionTimer: Timer?
 
+    #if os(iOS)
+    /// Zuletzt gemessene Ausgabe-Latenz samt Zeitstempel (`systemUptime`, weil
+    /// monoton). Siehe `outputLatency`.
+    private var cachedOutputLatency: (value: TimeInterval, measuredAt: TimeInterval)?
+    #endif
+
     /// Jeder Aufruf von `scheduleFromSeekFrame()` erhöht den Zähler. Die
     /// Completion-Closure speichert ihren Generation-Wert und vergleicht ihn
     /// in handlePlaybackFinished. So lehnen wir Callbacks ab, die zum
@@ -200,8 +216,10 @@ public final class AVAudioEnginePlayer: AudioEngine {
     ///
     /// Bei einer lokalen Datei kostet der Aufruf nur den Open — kein
     /// Sonderfall nötig.
-    public nonisolated static func prefetch(url: URL) async {
-        await materialize(url: url, on: audioLoadQueue)
+    public nonisolated static func prefetch(url: URL) async throws {
+        if let reason = await materialize(url: url, on: audioLoadQueue) {
+            throw AudioEngineError.fileUnavailable(reason: reason)
+        }
     }
 
     /// Wie `prefetch(url:)`, aber spekulativ: für den Track, der als nächstes
@@ -209,26 +227,41 @@ public final class AVAudioEnginePlayer: AudioEngine {
     /// Priorität, damit die Vorausschau dem Track, den der Nutzer gerade
     /// angetippt hat, nie im Weg steht.
     public nonisolated static func prefetchAhead(url: URL) async {
-        await materialize(url: url, on: audioLookaheadQueue)
+        // Spekulativ: ein Fehlschlag ist hier kein Ereignis. Scheitert die
+        // Vorausschau, merkt es der echte Load später selbst.
+        _ = await materialize(url: url, on: audioLookaheadQueue)
     }
 
-    private nonisolated static func materialize(url: URL, on queue: DispatchQueue) async {
+    /// Holt die Datei auf das Gerät. Rückgabe `nil` = die Datei ist lesbar da;
+    /// sonst eine Begründung für die Anzeige.
+    ///
+    /// Beide Fehlerquellen wurden früher verschluckt — der `NSFileCoordinator`
+    /// bekam eine `error`-Adresse, die niemand auslas, und der Open stand unter
+    /// `try?`. Im Flugmodus lief der Load darum weiter, `AVAudioFile` öffnete
+    /// den bereits gecachten Dateikopf (die Library liest beim Scan Tags, damit
+    /// liegt der Anfang lokal vor), die Länge kam aus dem Header — und die
+    /// Wiedergabe lief sichtbar los, ohne einen Ton. Genau der gemeldete Befund:
+    /// „kein Audio, keine Fehlermeldung".
+    private nonisolated static func materialize(url: URL, on queue: DispatchQueue) async -> String? {
         // Wer schon vor dem Einreihen abgebrochen wurde, fasst gar nichts an.
-        if Task.isCancelled { return }
+        if Task.isCancelled { return nil }
 
         let cancellation = PrefetchCancellation()
-        await withTaskCancellationHandler {
-            await withCheckedContinuation { continuation in
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
                 queue.async {
                     // Die Queue ist seriell — hier steht man ggf. hinter einem
                     // Vorgänger. Erst jetzt prüfen, ob das Ergebnis überhaupt
                     // noch jemanden interessiert: bei schnellem Durchskippen
                     // fallen so alle Zwischenstationen ohne IO weg.
                     guard !cancellation.isCancelled else {
-                        continuation.resume()
+                        continuation.resume(returning: nil)
                         return
                     }
 
+                    // Die Begründung wird im Closure zu einem String gemacht,
+                    // statt den NSError über die Isolationsgrenze zu schicken.
+                    var failure: String?
                     var coordinatorError: NSError?
                     // Der `NSFileCoordinator` ist derselbe Weg, den
                     // `FolderScanner.collect` beim Verzeichnis-Lesen geht: er
@@ -244,14 +277,51 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         // Das AVAudioFile verlässt diese Closure nie, überquert
                         // also keine Isolationsgrenze (es ist nicht Sendable);
                         // der eigentliche Load baut es ohnehin neu auf.
-                        _ = try? AVAudioFile(forReading: coordinatedURL)
+                        do {
+                            let file = try AVAudioFile(forReading: coordinatedURL)
+                            failure = verifyReadable(file)
+                        } catch {
+                            failure = error.localizedDescription
+                        }
                     }
-                    continuation.resume()
+                    if let coordinatorError {
+                        // Der Coordinator kommt zuerst: kann er die Datei nicht
+                        // bereitstellen, lief die Closure oben gar nicht.
+                        failure = coordinatorError.localizedDescription
+                    }
+                    continuation.resume(returning: failure)
                 }
             }
         } onCancel: {
             cancellation.cancel()
         }
+    }
+
+    /// Prüft, ob die Datei wirklich vollständig lokal liegt — und nicht nur ihr
+    /// Kopf. Gelesen wird ein Puffer am **Ende**: ein Provider, der bloss den
+    /// Anfang gecacht hat, muss dafür den Rest holen oder scheitern. Ohne diese
+    /// Probe wandert eine halb übertragene Datei in die Engine und wird als
+    /// Stille abgespielt.
+    private nonisolated static func verifyReadable(_ file: AVAudioFile) -> String? {
+        let format = file.processingFormat
+        let probeFrames: AVAudioFrameCount = 4_096
+        guard file.length > 0 else {
+            return "The file contains no audio data."
+        }
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: probeFrames) else {
+            return nil   // Kein Urteil möglich — dann nicht im Weg stehen.
+        }
+        let tailStart = max(0, file.length - AVAudioFramePosition(probeFrames))
+        do {
+            file.framePosition = tailStart
+            try file.read(into: buffer)
+            guard buffer.frameLength > 0 else {
+                return "The file could not be read completely — the source may be offline."
+            }
+        } catch {
+            return error.localizedDescription
+        }
+        return nil
     }
 
     public func load(url: URL) throws {
@@ -284,6 +354,10 @@ public final class AVAudioEnginePlayer: AudioEngine {
         if !engine.isRunning {
             try startEngine()
         }
+        #if os(iOS)
+        // Neues Format, womöglich andere Node-Latenz — Messung nicht wiederverwenden.
+        cachedOutputLatency = nil
+        #endif
         scheduleFromSeekFrame()
     }
 

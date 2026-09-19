@@ -41,7 +41,27 @@ public enum TagReader {
     private static func parseBPM(_ raw: String?) -> Double? {
         guard let raw, !raw.isEmpty else { return nil }
         let normalized = raw.replacingOccurrences(of: ",", with: ".")
-        guard let value = Double(normalized), value > 0 else { return nil }
+        guard let value = Double(normalized) else { return nil }
+        return sanitizedBPM(value)
+    }
+
+    /// Obergrenze und Endlichkeit für BPM aus fremden Tags.
+    ///
+    /// `Double("inf")` ist ein gültiger Double, und ein BPM-Tag mit diesem Text
+    /// (oder mit `1e300`) hat die Waveform-Zeichnung auf iOS zum Stillstand
+    /// gebracht: das Beat-Grid rechnet `bar = 60 / bpm * 4`, das wird 0 bzw.
+    /// subnormal, und der Schleifenzähler `t += bar` kommt nicht mehr vorwärts —
+    /// bei `inf` wird `t` sogar NaN, womit jede Abbruchbedingung false ist.
+    /// Die Schleife ist inzwischen zusätzlich begrenzt; hier wird der Unsinn
+    /// gar nicht erst ins Modell gelassen.
+    ///
+    /// 500 als Grenze lässt jedes real vorkommende Genre durch (Speedcore liegt
+    /// bei 250–300) und verwirft, was kein Tempo sein kann — etwa die in manchen
+    /// Werkzeugen auftauchende ×100-Schreibweise („12800" für 128,00). Dafür
+    /// bewusst kein Rateraten: ein verworfener Wert wird von der Analyse ersetzt,
+    /// ein falsch interpretierter bleibt falsch.
+    static func sanitizedBPM(_ value: Double) -> Double? {
+        guard value.isFinite, value > 0, value <= 500 else { return nil }
         return value
     }
 }

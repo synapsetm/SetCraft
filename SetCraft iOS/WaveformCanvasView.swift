@@ -211,19 +211,31 @@ struct WaveformCanvasView: View {
         let leftTime = position - Double(centerX) / pxPerSec
 
         // Beat-Grid alle 4 Beats — nur wenn BPM bekannt.
-        if let bpm, bpm > 0 {
+        //
+        // Über den Takt wird per Index iteriert, nicht per `t += bar`. Ein
+        // unsinniges BPM (ein Tag mit dem Text „inf" oder „1e300") ergab sonst
+        // ein `bar` von 0 bzw. subnormal: `t` kam nicht mehr vorwärts, bei `inf`
+        // wurde es NaN — und weil jeder Vergleich mit NaN false ist, brach
+        // `while true` nie ab. Ein harter Hänger im Draw, auf dem Main-Thread.
+        // `TagReader` lässt solche Werte inzwischen nicht mehr durch; die
+        // Zeichnung verlässt sich nicht darauf.
+        if let bpm, bpm > 0, bpm.isFinite {
             let bar = (60.0 / bpm) * 4
-            var t = (leftTime / bar).rounded(.up) * bar
-            while true {
-                let x = centerX + CGFloat((t - position) * pxPerSec)
-                if x > width { break }
-                if x >= 0 {
-                    var p = Path()
-                    p.move(to: CGPoint(x: x, y: 0))
-                    p.addLine(to: CGPoint(x: x, y: height))
-                    ctx.stroke(p, with: .color(.white.opacity(0.05)), lineWidth: 1)
+            // Unter einem Pixel Abstand ist das Grid ohnehin nur noch Rauschen.
+            if bar * pxPerSec >= 1 {
+                let firstIndex = (leftTime / bar).rounded(.up)
+                let maxLines = Int(width / (bar * pxPerSec)) + 2
+                for step in 0..<maxLines {
+                    let t = (firstIndex + Double(step)) * bar
+                    let x = centerX + CGFloat((t - position) * pxPerSec)
+                    if x > width { break }
+                    if x >= 0 {
+                        var p = Path()
+                        p.move(to: CGPoint(x: x, y: 0))
+                        p.addLine(to: CGPoint(x: x, y: height))
+                        ctx.stroke(p, with: .color(.white.opacity(0.05)), lineWidth: 1)
+                    }
                 }
-                t += bar
             }
         }
 
@@ -360,21 +372,28 @@ struct WaveformCanvasView: View {
         let timeOffsetPerPixel = 1.0 / pxPerSec
         let topTime = position + Double(centerY) * timeOffsetPerPixel
 
-        if let bpm, bpm > 0 {
+        // Index-Iteration wie im horizontalen Pendant — siehe die Begründung
+        // dort. `while t <= topTime` terminiert bei NaN zwar von selbst, aber
+        // bei subnormalem `bar` liefe es praktisch endlos.
+        if let bpm, bpm > 0, bpm.isFinite {
             let bar = (60.0 / bpm) * 4
-            // Beat-Linien zwischen bottomTime und topTime, von der ältesten
-            // sichtbaren aus aufwärts iterieren.
-            let bottomTime = position - Double(height - centerY) * timeOffsetPerPixel
-            var t = (bottomTime / bar).rounded(.up) * bar
-            while t <= topTime {
-                let y = centerY - CGFloat((t - position) * pxPerSec)
-                if y >= 0, y <= height {
-                    var p = Path()
-                    p.move(to: CGPoint(x: 0, y: y))
-                    p.addLine(to: CGPoint(x: width, y: y))
-                    ctx.stroke(p, with: .color(.white.opacity(0.05)), lineWidth: 1)
+            if bar * pxPerSec >= 1 {
+                // Beat-Linien zwischen bottomTime und topTime, von der ältesten
+                // sichtbaren aus aufwärts iterieren.
+                let bottomTime = position - Double(height - centerY) * timeOffsetPerPixel
+                let firstIndex = (bottomTime / bar).rounded(.up)
+                let maxLines = Int(height / (bar * pxPerSec)) + 2
+                for step in 0..<maxLines {
+                    let t = (firstIndex + Double(step)) * bar
+                    if t > topTime { break }
+                    let y = centerY - CGFloat((t - position) * pxPerSec)
+                    if y >= 0, y <= height {
+                        var p = Path()
+                        p.move(to: CGPoint(x: 0, y: y))
+                        p.addLine(to: CGPoint(x: width, y: y))
+                        ctx.stroke(p, with: .color(.white.opacity(0.05)), lineWidth: 1)
+                    }
                 }
-                t += bar
             }
         }
 

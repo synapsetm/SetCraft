@@ -195,7 +195,18 @@ final class PlayerStore {
             // der koordinierte Read danach wartet auf dessen Ende.
             try? FileManager.default.startDownloadingUbiquitousItem(at: track.url)
         }
-        await AVAudioEnginePlayer.prefetch(url: track.url)
+        // Schlägt das Materialisieren fehl (Flugmodus, NAS nicht erreichbar,
+        // nur halb übertragene Datei), endet der Load hier MIT Meldung. Vorher
+        // wurden beide Fehlerquellen verschluckt: die Engine bekam die Datei
+        // trotzdem, spielte sichtbar los und blieb stumm.
+        do {
+            try await AVAudioEnginePlayer.prefetch(url: track.url)
+        } catch {
+            guard !Task.isCancelled, loadingURL == track.url else { return }
+            loadingURL = nil
+            lastError = String(localized: "Failed to load track: \(error.localizedDescription)")
+            return
+        }
 
         // Währenddessen kann ein neuerer Tap dazwischengekommen sein — dann
         // gehört die Anzeige bereits ihm, und wir treten kommentarlos ab.
