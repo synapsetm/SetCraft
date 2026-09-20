@@ -55,7 +55,12 @@ struct PlayerScreen: View {
     /// zeigt die Zeile „load: —". Fliegt raus, sobald die Frage geklärt ist.
     @ViewBuilder
     private var loadTimingBadge: some View {
-        Text(store.lastLoadTiming.map { "load: \($0)" } ?? "load: —")
+        // `Text(verbatim:)`, nicht `Text(_:)`: bei einem String-LITERAL wählt
+        // Swift die `LocalizedStringKey`-Überladung, und dann landen „load: %@"
+        // und „load: —" als Keys im Katalog. Genau daran ist der Release von
+        // 1.3-25 im Lokalisierungs-Gate gescheitert — zu Recht, für eine
+        // Diagnose-Anzeige gehört nichts in den Katalog.
+        Text(verbatim: store.lastLoadTiming.map { "load: \($0)" } ?? "load: —")
             .font(.caption.monospacedDigit().weight(.semibold))
             .foregroundStyle(.black)
             .padding(.horizontal, 8)
