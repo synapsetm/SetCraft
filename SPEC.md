@@ -284,6 +284,42 @@ entscheidende Punkt bleibt: sie sind nicht Teil des gespeicherten Zustands.
 
 ---
 
+## 5c. Wiedergabe von Netz-Quellen (iOS: NAS/SMB, iCloud — macOS: Netz-Volumes)
+
+Am Gerät gemessen (2026-09-20, Mobilfunk), weil sich das aus der Dokumentation
+nicht beantworten liess:
+
+- `AVAudioFile(forReading:)` auf einer FileProvider-URL lädt **nichts** herunter.
+  Es liest den Dateikopf und kehrt nach Millisekunden zurück.
+- Der Download beginnt mit dem ersten Read jenseits des bereits Vorhandenen,
+  läuft **sequenziell von vorne**, und jeder Read blockiert, bis der Download
+  seine Stelle erreicht hat. Ein Read bei 50 % wartet 6–8 s, einer am Ende
+  nochmal so lange; danach ist die Datei vollständig lokal.
+- `totalFileAllocatedSize` meldet von Anfang an 100 %. Das Dateisystem gibt
+  über den Download-Fortschritt **nichts** preis.
+
+Daraus folgen drei verbindliche Regeln:
+
+1. **Nie direkt von der Provider-URL abspielen.** Die Engine-Reads laufen sonst
+   in Daten, die noch nicht da sind — das Ergebnis ist Stille bei laufendem
+   Playhead, ohne Fehlermeldung. Gespielt wird aus `PlaybackCache` (höchstens
+   zwei Dateien: laufender + vorausgeholter Track).
+2. **Vollständigkeit beweist, wer jedes Byte gelesen hat.** Die häppchenweise
+   Kopie ist zugleich die Prüfung; eine separate Leseprobe wäre ein zweiter
+   Durchlauf durch dieselbe Datei. Eine Grössen-Gegenprobe fängt den
+   stillschweigend kurzen Read ab.
+3. **Fortschritt kommt aus der eigenen Kopie**, nicht vom Dateisystem —
+   256-KB-Häppchen, jedes zurückkehrende Häppchen sind übertragene Bytes.
+
+Und eine Warnung, die über den Player hinausgeht: **jede Datei-API kann bei
+einer Provider-Quelle blockieren**, auch eine reine Metadaten-Abfrage
+(`resourceValues`) oder ein Verzeichnis-Listing. Drei Einfrier-Befunde dieser
+Art stehen in `STATUS.md`. Alles, was eine Provider-URL anfasst, gehört auf eine
+eigene Queue — nicht auf den MainActor und nicht auf den Cooperative Pool, dessen
+Thread-Budget ein sekundenlang blockierter Aufruf sprengt.
+
+---
+
 ## 6. Projektstruktur
 
 **Aktueller Ist-Zustand** (Xcode-Default, bereits vorhanden):

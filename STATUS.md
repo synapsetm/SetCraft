@@ -4,30 +4,32 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-19 (iOS 1.3-18 in TestFlight, Mac weiter v1.3-15).
+Letzte Aktualisierung: 2026-09-20 (iOS 1.3-27 in TestFlight, Mac v1.3-17).
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.3-15 (Build 15), notarisiert, Sparkle-Auto-Update live.
-  Bringt die Tag-Ergänzung aus Dateinamen (vier Stufen, Review-Sheet,
-  Discogs-Abgleich) auf beiden Plattformen.
-  Bringt Löschen aus der Library, die DJ-Mix-Erkennung, die mitwachsende
-  Waveform und die Scope-/Beenden-Korrekturen (s. u.).
+- **Mac-Release:** v1.3-17 (Build 17), notarisiert, Sparkle-Auto-Update live.
+  Bringt den korrigierten Playhead (s. u.), Auto-Advance am Track-Ende,
+  „copy to folder" im Kontextmenü samt erhaltener Selektion, die Ladeanzeige
+  über der leeren Tabelle, den Swift-6-Sprachmodus und den Wiedergabe-Cache
+  (der auf dem Mac nur bei gemounteten Netz-Volumes greift).
+  v1.3-15 brachte die Tag-Ergänzung aus Dateinamen (vier Stufen, Review-Sheet,
+  Discogs-Abgleich), das Löschen aus der Library, die DJ-Mix-Erkennung und die
+  mitwachsende Waveform.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 18) in TestFlight. Bringt die korrigierte
-  Playhead-Latenz (s. u.), den Swift-6-Sprachmodus der App-Targets, „copy to
-  folder" im macOS-Kontextmenü und das Lokalisierungs-Gate in beiden
-  Release-Skripten. Build 17 brachte den nicht-blockierenden Track-Load samt
-  gedrosseltem Prefetch und den abgefangenen `connect`-Crash; er lief erstmals
-  komplett über `scripts/release-ios.sh` — Archive, Export, Upload in einem
-  Lauf, ohne Organizer.
-  Build-Nummern laufen auseinander: iOS 18, Mac weiter 15. **Der Mac hat den
-  Playhead-Fix noch nicht ausgeliefert** — er sitzt im gemeinsamen Core und
-  wartet nur auf den nächsten `release.sh`-Lauf.
+- **iOS-Release:** 1.3 (Build 27) in TestFlight. Der 20. September war ein
+  Befund-Tag am Gerät; die Builds 18–27 sind die Kette daraus (Playhead,
+  Flugmodus, Absturz beim Trackwechsel, Wiedergabe-Cache, Ladefortschritt —
+  alle unter „Wichtige gelöste Probleme").
+  Build-Nummern der Plattformen laufen auseinander (iOS 27, Mac 17), weil
+  iOS-Befunde eigene Builds bekommen. `scripts/asc-expire-builds.sh` lässt nach
+  jedem Upload die älteren Builds ablaufen — Apple macht das nicht zuverlässig,
+  und zwei installierbare Builds nebeneinander bedeuten Fehlermeldungen zu
+  Ständen, die längst behoben sind.
 - **Sprachmodus:** Swift 6 in der gesamten Codebasis — Core über
   `swift-tools-version: 6.0`, die App-Targets über `SWIFT_VERSION = 6.0`.
   Dazu `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` und
@@ -267,6 +269,20 @@ Serialisierung, Active-Track-Guard).
   einer eigenen Queue materialisiert (`AVAudioEnginePlayer.prefetch`), der
   nächste Track der Queue schon während der laufenden Wiedergabe. Relevant
   bei Quellen über FileProvider (iCloud, NAS/SMB via Files-App) — s. u.
+- **Wiedergabe aus lokaler Kopie** (`PlaybackCache`): höchstens zwei Dateien
+  unter `Caches/playback/` — der laufende und der vorausgeholte Track. Damit
+  ist der FileProvider aus dem Wiedergabe-Pfad heraus, und ein Netzverlust
+  mitten im Track führt nicht mehr zu Stille bei laufendem Playhead. Kopiert
+  wird nur, was nicht ohnehin lokal liegt (iOS: alles ausserhalb des
+  App-Containers; macOS: nur Netz-Volumes).
+- **Ladefortschritt** als echter Balken mit Prozentzahl: die Kopie läuft in
+  256-KB-Häppchen, und jedes zurückkehrende Häppchen sind übertragene Bytes.
+  Das ist die einzige verfügbare Fortschritts-Grösse — s. u.
+- **Offline erkannt statt totgewartet**: ohne Netzpfad (`NWPathMonitor`) bricht
+  der Load nach kurzer Gnadenfrist mit einer verständlichen Meldung ab, statt
+  den Nutzer minutenlang auf einen Spinner schauen zu lassen. Eine *langsame*
+  Quelle darf weiterhin beliebig lange brauchen — gemessen wird der Netzzustand,
+  nicht die Dauer.
 
 ### Distribution
 - macOS: `scripts/release.sh` — Build → Notarize → DMG → GitHub-Release →
@@ -355,6 +371,76 @@ Serialisierung, Active-Track-Guard).
   Endlosschleife ohne Weg zurück in die App. `isHandlingTerminationPrompt`
   unterbricht das, gelöst wird die Sperre beim `didBecomeMainNotification`
   des wiederhergestellten Fensters.
+- **FileProvider liefert sequenziell — und ein Read wartet bis zu seiner
+  Stelle.** Die zentrale Erkenntnis des 2026-09-20, am Gerät über Mobilfunk
+  gemessen (vier Tracks, Zeiten in Sekunden):
+
+  | open | head (0 %) | mid (50 %) | tail (100 %) | copy |
+  |---|---|---|---|---|
+  | 0.6 | 0.0 | 8.3 | 8.3 | 0.4 |
+  | 0.0 | 0.0 | 6.0 | 9.0 | 0.5 |
+  | 0.3 | 0.1 | 6.2 | 6.3 | 0.2 |
+  | 0.2 | 0.0 | 0.0 | 6.1 | 0.5 |
+
+  `AVAudioFile(forReading:)` lädt **nichts** herunter — es liest den Kopf und
+  kehrt sofort zurück. Der Download beginnt mit dem ersten Read jenseits des
+  bereits Vorhandenen und läuft von vorne durch; jeder Read blockiert, bis der
+  Download seine Stelle erreicht hat. Dass Mitte *und* Ende je 6–9 s brauchen,
+  schliesst „alles-oder-nichts" aus; dass die Kopie danach nur 0.2–0.5 s
+  dauert, zeigt, dass dann alles lokal liegt.
+
+  Damit ist der ursprüngliche „Track läuft, aber kein Ton"-Befund vollständig
+  erklärt: die Wiedergabe startete auf dem Kopf, und die Engine-Reads liefen in
+  Daten, die noch nicht da waren. Und es ist der Grund, warum der
+  Ladefortschritt aus einer **eigenen** häppchenweisen Kopie kommt:
+  `totalFileAllocatedSize` steht von Anfang an auf 100 %, das Dateisystem gibt
+  über den Fortschritt nichts preis.
+- **Stille statt Fehlermeldung im Flugmodus:** `materialize` bekam eine
+  `NSError`-Adresse, die niemand auslas, und der Open stand unter `try?` —
+  beide Fehlerquellen wurden verschluckt. Die Engine bekam die Datei trotzdem,
+  spielte sichtbar los und blieb stumm. Jetzt meldet `materialize` eine
+  Begründung, `prefetch` wirft, und der Load bricht **mit** Meldung ab.
+  `AudioEngineError` ist `LocalizedError`, aber bewusst **nicht** lokalisiert:
+  der Core ist ein Package ohne `defaultLocalization` und ohne Katalog, Keys
+  dort erfasst keiner der beiden App-Kataloge. Übersetzt wird in der UI-Schicht.
+- **Absturz beim Trackwechsel (iOS, Swift 6):** `MPMediaItemArtwork` ruft seinen
+  Request-Handler auf einer eigenen Queue auf — beim Zusammenbauen des
+  Now-Playing-Dictionaries, also bei jedem Trackwechsel. Der Handler-Typ ist
+  nicht `@Sendable`; im `@MainActor`-`NowPlayingManager` gebildet erbt er dessen
+  Isolation, und im Swift-6-Sprachmodus prüft die Runtime das beim Aufruf
+  (`_swift_task_checkIsolatedSwift` → `dispatch_assert_queue`). Die Prüfung
+  schlägt fehl: `EXC_BREAKPOINT`. Die Umstellung auf Swift 6 hat das scharf
+  gemacht. Fix: das Artwork in einer `nonisolated` Funktion bauen. **Die
+  Fehlerklasse gilt allgemein** — ein nicht-`@Sendable`-Callback, der in einem
+  isolierten Kontext gebildet und vom Framework auf fremder Queue gerufen wird,
+  ist unter Swift 6 ein Absturz, kein Warnung.
+- **Hänger im Waveform-Draw:** die Beat-Grid-Schleife war unbeschränkt
+  (`while true`, Abbruch nur über `x > width`). Ein BPM-Tag mit dem Text `inf`
+  macht `bar` zu 0 und `t` zu NaN — jeder Vergleich mit NaN ist false, die
+  Schleife bricht nie ab; bei `1e300` ist `bar` subnormal und `t += bar` bewegt
+  `t` nicht mehr. Harter Hänger auf dem Main-Thread. `TagReader.sanitizedBPM`
+  lässt solche Werte nicht mehr ins Modell (endlich, > 0, ≤ 500), und beide
+  Schleifen iterieren über einen Index statt über einen Float-Akkumulator.
+- **Drei blockierende Datei-Aufrufe auf dem MainActor**, alle derselben Art —
+  eine harmlos aussehende Metadaten- oder Listing-Abfrage, die bei einer
+  FileProvider-URL zum Provider geht und ohne Netz nicht zurückkehrt:
+  `PlayerStore.performLoad` fragte Resource-Values **vor** dem ersten `await`
+  ab (UI fror beim Trackwechsel komplett ein, Spinner inklusive);
+  `LibraryRepository.scan` rief `FolderScanner.collect` synchron, bevor der
+  Stream existierte (App-Start mit Netz-Quelle fror ein — beide Plattformen,
+  weil die App-Targets mit `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` laufen
+  und der `Task` die Isolation erbt); und `AVAudioFile(forReading:)` beim
+  Track-Load war der erste dieser Reihe (2026-09-18). Merksatz: **jede
+  Datei-API kann bei einer Provider-Quelle blockieren**, auch die, die nur
+  Metadaten liest.
+- **Copy/Move warfen die Selektion weg:** ein Refresh nach dem Kopieren, mit der
+  Begründung „lässt sich nicht sicher sagen, und ein Refresh ist billig". Beides
+  falsch — das Ziel lässt sich mit `folderURL` vergleichen, und ein Refresh
+  kostet Selektion, Scroll-Position und seit dem Listing-Umbau eine komplette
+  Neu-Auflistung. Copy scannt jetzt nur noch, wenn das Ziel die angezeigte
+  Quelle ist; Move nimmt die Zeilen direkt aus der Liste und rückt die Selektion
+  nach. `scan` rettet die Selektion zusätzlich über URLs — `Track.id` wird bei
+  jedem Scan neu vergeben.
 - **Playhead-Sync (Mac + iOS):** Waveform-Progress auf Wave-Zeitachse statt
   `player.duration`, Spalten-Aggregation per Float-Division — beides gegen
   wachsenden Drift. Die **Latenz-Korrektur war bis 2026-09-19 falsch** und ist
@@ -443,6 +529,23 @@ Serialisierung, Active-Track-Guard).
   `lsregister -u <pfad>` und `lsregister -f -R /Applications/SetCraft.app`.
   Welche Version wirklich läuft: About-Panel bzw.
   `ps -p $(pgrep -x SetCraft) -o comm=`.
+- **Das L10n-Gate lief auf Zufallsdaten.** Der Suchpfad kannte nur normale
+  Builds (`Build/Intermediates.noindex/SetCraft.build`); ein Archive legt seine
+  Intermediates unter `ArchiveIntermediates/<Scheme>/IntermediateBuildFilesPath/`
+  ab. Beide Release-Skripte prüfen zwischen Archive und Export — das Gate sah
+  also nie das Archive, das es absichert, sondern Reste des letzten normalen
+  Builds. Aufgefallen erst, als ein `clean` des anderen Targets gar nichts mehr
+  übrig liess. Seit 2026-09-19 werden beide Orte durchsucht.
+- **`errSecInternalComponent` beim iOS-Export**: `exportArchive` scheitert beim
+  Signieren, ohne dass am Code etwas falsch wäre. Schlüsselbund-Problem;
+  Login-Keychain entsperrt halten, Lauf wiederholen. Hochgeladen wird dabei
+  nichts, die Build-Nummer bleibt also frei.
+- **TestFlight-Builds ablaufen lassen**: `scripts/asc-expire-builds.sh` setzt
+  alles ausser dem neuesten VALID-Build auf `expired`. Apple räumt nicht
+  zuverlässig auf — am 2026-09-20 standen 21 und 19 gleichzeitig aktiv, während
+  20 und 18 abgelaufen waren. Sicherheitsregel: ist der neueste Build noch in
+  Verarbeitung, bricht das Skript ab, statt die älteren wegzuräumen; sonst
+  bliebe für die Dauer der Verarbeitung nichts Installierbares.
 - Build-Status ohne Browser: `scripts/asc-status.sh` (App Store Connect API,
   ES256-JWT über `openssl`, weil PyJWT/`cryptography` nicht installiert sind).
   Zeigt Verarbeitungsstand, Ablauf und ob der Build ein Icon trägt.
@@ -489,6 +592,13 @@ Serialisierung, Active-Track-Guard).
 - **Discogs-Token im Klartext** in den App-Einstellungen (`UserDefaults`).
   Für einen Read-only-Token auf einen offenen Katalog vertretbar, gehört aber
   in den Keychain, sobald es eine Keychain-Schicht gibt.
+- **Früher hörbarer Ton bei Netz-Quellen** — bewusst offen. Machbar wäre es:
+  der Provider liefert sequenziell, man könnte mit eigenen Puffern abspielen,
+  während der Download läuft (`AVAudioFile` kann das nicht, es legt die Länge
+  beim Öffnen fest). Der Preis: beim ERSTEN Abspielen hinge der Track wieder am
+  Netz, und genau die Ausfallsicherheit, die der Wiedergabe-Cache bringt, gälte
+  erst ab dem zweiten Mal. Für einen DJ-Einsatz ist ein Aussetzer mitten im
+  Track schlimmer als acht Sekunden Warten — deshalb vorerst nicht gebaut.
 - **Audio-Fingerprinting** als fünfte Stufe (ShazamKit nativ bzw.
   Chromaprint/AcoustID). Erkennt den Track am Klang statt am Namen und wäre
   damit die einzige Quelle, die bei völlig kryptischen Dateinamen trägt.

@@ -288,6 +288,26 @@ Cloud-Signing gar nicht erst, und der Umweg über den Xcode Organizer entfällt.
 Verifiziert am 2026-09-18 mit Build 1.3-16: `** EXPORT SUCCEEDED **`, IPA
 signiert mit `Apple Distribution: Beat Buehler (D75S77JA58)`.
 
+### 8.1b) Alte Builds ablaufen lassen
+
+```sh
+scripts/asc-expire-builds.sh              # alles ausser dem neuesten VALID
+scripts/asc-expire-builds.sh --dry-run    # nur zeigen
+```
+
+Apple raeumt TestFlight nicht zuverlaessig auf: am 2026-09-20 standen Build 21
+und Build 19 gleichzeitig aktiv, waehrend 20 und 18 abgelaufen waren. Wer dann
+in TestFlight auf „Installieren" tippt, testet womoeglich einen Stand, dessen
+Fehler laengst behoben sind.
+
+**Sicherheitsregel:** behalten wird immer der neueste Build mit
+`processingState == VALID`. Ist der neueste noch in Verarbeitung, bricht das
+Skript ab — sonst bliebe fuer die Dauer der Verarbeitung nichts Installierbares
+auf dem Geraet. Also: erst `asc-status.sh`, dann ablaufen lassen.
+
+Der schreibende Zugriff laeuft ueber `asc_api_patch` in `scripts/asc-auth.sh`
+(vorher konnte der Helfer nur GET).
+
 ### 8.2) Was Apple sonst erwartet
 
 - `ITSAppUsesNonExemptEncryption=false` im `SetCraft-iOS-Info.plist` —
@@ -312,6 +332,16 @@ signiert mit `Apple Distribution: Beat Buehler (D75S77JA58)`.
 - **Sparkle meint „Update fehlerhaft"**: `SUPublicEDKey` in der installierten
   App passt nicht zum Private-Key, mit dem das DMG signiert wurde. Public-
   Key in `Info.plist` ersetzen und neu releasen.
+- **`errSecInternalComponent` beim iOS-`exportArchive`**: Signieren scheitert,
+  ohne dass am Code etwas falsch waere — ein Schluesselbund-Problem. Login-
+  Keychain entsperrt halten und den Lauf wiederholen. Hochgeladen wird dabei
+  nichts, die Build-Nummer bleibt frei.
+- **Lokalisierungs-Gate meldet „keine .stringsdata gefunden"**: das Skript
+  sucht seit 2026-09-19 auch unter `ArchiveIntermediates/`. Kommt die Meldung
+  trotzdem, wurde das Target noch nie gebaut oder ein `clean` des anderen
+  Targets hat die Daten weggeraeumt — dann einmal bauen und erneut pruefen.
+  Der Befund ist bewusst blockierend: „nicht pruefbar" darf nicht als „sauber"
+  durchgehen.
 - **„The application can't be opened"** auf einem Test-Mac, der zuvor das
   unsignierte Dev-Build kannte: Quarantäne-Attribut hängt noch dran,
   `xattr -dr com.apple.quarantine /Applications/SetCraft.app` räumt auf.

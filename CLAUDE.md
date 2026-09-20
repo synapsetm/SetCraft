@@ -156,3 +156,23 @@ notarisiert oder zu App Store Connect hochgeladen wird. Bewusst übergehen:
 - **Master-Key kann große Pitch-Shifts erzeugen** (Camelot-Nachbarn liegen 5–7 Halbtöne auseinander).
   Key-Anpassung nur sinnvoll mit aktivem **Key-Lock**. Siehe `SPEC.md`.
 - **Rekordbox lädt geänderte Tags nicht automatisch neu** — Nutzer muss „reload tags". Erwartetes Verhalten, kein Bug.
+- **Jede Datei-API kann bei einer Netz-Quelle blockieren.** Bei einer
+  FileProvider-URL (iCloud, NAS/SMB aus der Files-App, gemountetes Netz-Volume)
+  geht auch eine harmlos aussehende Metadaten-Abfrage zum Provider und kehrt
+  ohne Netz nicht zurück — `resourceValues`, ein Verzeichnis-Listing, ein
+  `AVAudioFile`-Open. Drei Einfrier-Befunde dieser Art stehen in `STATUS.md`,
+  alle nach demselben Muster: synchroner Aufruf auf dem MainActor. Solche
+  Aufrufe gehören auf eine **eigene DispatchQueue** — nicht auf den MainActor
+  und nicht auf den Cooperative Pool, dessen enges Thread-Budget ein
+  sekundenlang blockierter Aufruf sprengt. Achtung: die App-Targets laufen mit
+  `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`, ein `Task { }` in einer
+  ViewModel-Klasse erbt den MainActor also.
+- **Nie direkt von einer Provider-URL abspielen.** Der Download läuft
+  sequenziell, Reads blockieren bis zu ihrer Stelle — die Engine spielt sonst
+  Stille bei laufendem Playhead, ohne Fehlermeldung. Gespielt wird aus
+  `PlaybackCache`. Details und Messwerte in `SPEC.md` §5c.
+- **Swift 6: ein nicht-`@Sendable`-Callback erbt die Isolation seines
+  Entstehungsorts.** Ruft das Framework ihn auf einer eigenen Queue auf, prüft
+  die Runtime das und der Prozess stirbt mit `EXC_BREAKPOINT` — genau so beim
+  `MPMediaItemArtwork`-Handler passiert, der im `@MainActor`-NowPlayingManager
+  gebildet wurde. Solche Closures in einer `nonisolated` Funktion bauen.

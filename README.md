@@ -75,6 +75,19 @@ beat-matched chops.
   written to both `POPM` (with Windows-Media-Player byte mapping) and a
   star-prefix in the comment field — Rekordbox ignores `POPM` but does read
   the comment.
+- **Network sources that behave** (iOS: a NAS/SMB share mounted in the Files
+  app; macOS: a mounted network volume). Playback never reads through the
+  file provider: the track is copied into a two-file cache first, so losing
+  the network mid-track can no longer turn into silence under a playhead that
+  keeps running. The copy goes in chunks, which is also where the **real**
+  progress bar comes from — the file system reports a provider-backed file as
+  100 % allocated from the start and tells you nothing. With no network path
+  at all the load gives up quickly and says so, instead of spinning for
+  minutes; a merely *slow* source is still allowed to take its time.
+- **Auto-advance** on both platforms: when a track ends, the next one in the
+  currently displayed sort order starts. It stops at the end of the list
+  rather than wrapping, and on macOS a multi-selection you made for a bulk tag
+  write survives the track change.
 - **Localised** (English + German, auto-switch by system language).
   `scripts/check-localization.py` audits both string catalogues against the
   keys the compiler actually extracted — missing translations, mismatched
@@ -91,7 +104,9 @@ beat-matched chops.
   and uploads to App Store Connect using an ASC API Key.
   `scripts/asc-status.sh` answers "did my build make it?" from the terminal —
   processing state, expiry and whether the build carries an app icon, straight
-  from the App Store Connect API.
+  from the App Store Connect API. `scripts/asc-expire-builds.sh` then expires
+  everything but the newest valid build, so testers cannot install a stale one
+  by accident.
 - **About panel** with full license and copyright listings for the bundled
   open-source libraries and a link back to the repo (GPL §6 compliant).
 

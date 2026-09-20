@@ -13,10 +13,17 @@ import OSLog
 /// weiter. Ergebnis: Stille bei laufendem Playhead, ohne jede Meldung. Mit einer
 /// eigenen Kopie ist der Provider aus dem Wiedergabe-Pfad heraus.
 ///
-/// **Warum das billig ist.** Wenn ein Track spielt, liegt er längst lokal — der
-/// Provider hat ihn beim Materialisieren vollständig geholt, sonst hätte die
-/// Tail-Probe in `AVAudioEnginePlayer` ihn abgelehnt. Die Kopie ist also
-/// lokal → lokal und kostet bei einer MP3 Millisekunden.
+/// **Was die Kopie kostet.** Beim ERSTEN Zugriff auf einen Track steckt der
+/// Download in ihr drin: der Provider liefert sequenziell, und jeder Read
+/// blockiert, bis die jeweilige Stelle übertragen ist (am Gerät gemessen:
+/// 6–9 s für eine MP3 über Mobilfunk, siehe `SPEC.md` §5c). Genau deshalb
+/// kopiert `copyInChunks` häppchenweise — daraus entsteht der Ladefortschritt,
+/// den das Dateisystem nicht hergibt. Liegt die Datei bereits lokal, kostet die
+/// Kopie Millisekunden.
+///
+/// Die frühere Lesbarkeitsprobe ist damit entfallen: wer jedes Byte kopiert hat,
+/// hat die Vollständigkeit bewiesen. Sie lief einen zweiten Mal durch dieselbe
+/// Datei und war der eigentliche Auslöser des Downloads.
 ///
 /// **Abgrenzung zur Projektregel.** SetCraft kopiert die *Bibliothek* nicht in
 /// die App-Sandbox, das bleibt so. Dies hier ist ein flüchtiger
