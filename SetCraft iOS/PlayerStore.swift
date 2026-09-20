@@ -253,6 +253,10 @@ final class PlayerStore {
             engine.play()
             loadWaveform(for: track.url)
             nowPlaying?.update()
+            // BPM und Key berechnen, falls sie nicht in den Tags stehen —
+            // die Regel aus CLAUDE.md. Fehlte auf iOS bis 2026-09-20; der
+            // Mac macht das beim Laden seit jeher.
+            library.analyzeIfNeeded(track)
             // Nächsten Track schon holen, während dieser läuft.
             prefetchNeighbor()
             // Markiert die Datei im TagLibTrackStore als aktiv → parallele

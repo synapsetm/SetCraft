@@ -485,10 +485,36 @@ final class LibraryStore {
     /// Werte). Resultate werden in `tracks` und über `LibraryRepository.save`
     /// auch in der Datei + DB-Cache aktualisiert. Wird vom Swipe-Trailing-
     /// Analyze in der Track-Liste aufgerufen.
-    func analyze(trackID: UUID) async {
+    /// Analyse beim Öffnen eines Tracks, wenn die Werte nicht schon in den Tags
+    /// stehen. Das ist die Regel aus `CLAUDE.md` („Automatische BPM- und
+    /// Key-Analyse beim Öffnen") — der Mac erfüllt sie seit jeher über
+    /// `analyzeIfNeeded`, auf iOS fehlte das Gegenstück schlicht. Angestossen
+    /// aus `PlayerStore.performLoad`, also für jeden Track, der wirklich
+    /// geöffnet wird.
+    ///
+    /// Anders als der vom Nutzer ausgelöste Weg wird hier **nur berechnet, was
+    /// fehlt**, und ein DJ-Mix bleibt aussen vor: über einen ganzen Mix sagen
+    /// BPM und Key wenig aus, und die Analyse kostet Minuten.
+    func analyzeIfNeeded(_ track: Track) {
+        guard !track.isLikelyDJMix else { return }
+        guard track.bpm == nil || track.key == nil else { return }
+        guard !analyzing.contains(track.id) else { return }
+        let id = track.id
+        Task { await analyze(trackID: id, force: false) }
+    }
+
+    /// `force: true` (Default) analysiert immer alles — so kommen Swipe und
+    /// Menü herein, und Re-Analyze ist genau dann nützlich, wenn man den
+    /// vorhandenen Werten misstraut. `force: false` rechnet nur die fehlenden
+    /// Werte und ist der Weg für die automatische Analyse beim Öffnen.
+    func analyze(trackID: UUID, force: Bool = true) async {
         guard !analyzing.contains(trackID),
               let track = tracks.first(where: { $0.id == trackID })
         else { return }
+
+        let needsBPM = force || track.bpm == nil
+        let needsKey = force || track.key == nil
+        guard needsBPM || needsKey else { return }
 
         analyzing.insert(trackID)
         defer { analyzing.remove(trackID) }
@@ -500,13 +526,16 @@ final class LibraryStore {
         defer { token?.release() }
 
         do {
-            // User-getriggert (Swipe oder Menü) → IMMER vollständig analysieren,
-            // auch wenn BPM/Key schon gesetzt sind. Re-Analyze ist genau dann
-            // nützlich, wenn man den existierenden Werten misstraut.
+            // Gelesen wird aus der Wiedergabe-Kopie, wenn es eine gibt: der
+            // gerade geöffnete Track liegt dort ohnehin lokal, und damit hängt
+            // die Analyse nicht am FileProvider. Geschrieben wird weiterhin in
+            // die QUELLE — die Kopie ist ein flüchtiger Puffer, keine Datei,
+            // die Tags behalten dürfte.
+            let readURL = PlaybackCache.shared.existingCopy(of: track.url) ?? track.url
             let result = try await analyzer.analyze(
-                url: track.url,
-                needsBPM: true,
-                needsKey: true,
+                url: readURL,
+                needsBPM: needsBPM,
+                needsKey: needsKey,
                 bpmRange: bpmPreset
             )
             guard result.bpm != nil || result.key != nil else { return }
