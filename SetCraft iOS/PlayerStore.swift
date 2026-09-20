@@ -214,8 +214,8 @@ final class PlayerStore {
             lastLoadTiming = timing.map {
                 let fill = $0.fillRatio.map { String(format: " %.0f%%", $0 * 100) } ?? ""
                 return String(
-                    format: "open %.1f · head %.1f · tail %.1f · copy %.1f · grew %d×%@",
-                    $0.open, $0.head, $0.probe, $0.copy, $0.growthSamples, fill
+                    format: "open %.1f · head %.1f · MID %.1f · tail %.1f · copy %.1f%@",
+                    $0.open, $0.head, $0.mid, $0.probe, $0.copy, fill
                 )
             }
         } catch {

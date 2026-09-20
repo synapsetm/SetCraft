@@ -73,6 +73,11 @@ public struct MaterializeTiming: Sendable {
     /// Braucht schon der Kopf lange, liefert der Provider alles-oder-nichts und
     /// progressives Abspielen ist unmöglich — egal wie man es baut.
     public let head: TimeInterval
+    /// Zeit für einen Read in der MITTE der Datei. Der Kopf allein beweist
+    /// nichts: die ersten Kilobyte liegen ohnehin lokal, weil der Library-Scan
+    /// dort die Tags liest. Erst die Mitte trennt die beiden Fälle —
+    /// Mitte schnell = sequenziell, Mitte langsam = alles-oder-nichts.
+    public let mid: TimeInterval
     public let probe: TimeInterval
     public let copy: TimeInterval
     /// Wie oft die belegte Grösse der Datei während des Downloads gewachsen
@@ -441,6 +446,7 @@ public final class AVAudioEnginePlayer: AudioEngine {
                     let startedAt = ProcessInfo.processInfo.systemUptime
                     var openedAt = startedAt
                     var headAt = startedAt
+                    var midAt = startedAt
                     var verifiedAt = startedAt
                     let watcher = AllocationWatcher(url: url)
                     watcher.start()
@@ -463,8 +469,13 @@ public final class AVAudioEnginePlayer: AudioEngine {
                             openedAt = ProcessInfo.processInfo.systemUptime
                             // Kopf VOR dem Ende lesen — die Reihenfolge ist der
                             // ganze Punkt der Messung.
-                            _ = measureHeadRead(file)
+                            _ = measureRead(file, atFraction: 0)
                             headAt = ProcessInfo.processInfo.systemUptime
+                            // Reihenfolge ist der Punkt: Kopf, dann Mitte, dann
+                            // Ende. Nur so trennt sich „sequenziell" von
+                            // „alles-oder-nichts".
+                            _ = measureRead(file, atFraction: 0.5)
+                            midAt = ProcessInfo.processInfo.systemUptime
                             failure = verifyReadable(file)
                             verifiedAt = ProcessInfo.processInfo.systemUptime
                         } catch {
@@ -485,7 +496,8 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         timing = MaterializeTiming(
                             open: openedAt - startedAt,
                             head: headAt - openedAt,
-                            probe: verifiedAt - headAt,
+                            mid: midAt - headAt,
+                            probe: verifiedAt - midAt,
                             copy: finishedAt - verifiedAt,
                             growthSamples: growth.increases,
                             fillRatio: growth.ratio
@@ -537,12 +549,13 @@ public final class AVAudioEnginePlayer: AudioEngine {
     /// Stille abgespielt.
     /// Liest die ERSTEN Frames und liefert die dafür gebrauchte Zeit.
     /// VORLÄUFIG — siehe `MaterializeTiming.head`.
-    private nonisolated static func measureHeadRead(_ file: AVAudioFile) -> TimeInterval {
+    private nonisolated static func measureRead(_ file: AVAudioFile, atFraction fraction: Double) -> TimeInterval {
         let started = ProcessInfo.processInfo.systemUptime
         guard file.length > 0,
               let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 4_096)
         else { return 0 }
-        file.framePosition = 0
+        let position = AVAudioFramePosition(Double(file.length) * fraction)
+        file.framePosition = max(0, min(position, file.length - 1))
         try? file.read(into: buffer)
         return ProcessInfo.processInfo.systemUptime - started
     }
