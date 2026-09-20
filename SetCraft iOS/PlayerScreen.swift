@@ -288,8 +288,16 @@ struct PlayerScreen: View {
 /// und Fortschrittsbalken —, während Titel, BPM und Key (die an der
 /// Observation hängen) längst den neuen Track zeigten und der Ton weiterlief.
 ///
-/// Der Fahrplan bekommt beim Zurückkehren in den Vordergrund zusätzlich einen
-/// frischen Startzeitpunkt, damit er von sich aus wieder anläuft.
+/// Ein neuer Startzeitpunkt allein reichte nicht: er ändert zwar den Fahrplan,
+/// die `TimelineView` behält aber ihre Identität — und mit ihr den
+/// stehengebliebenen Takt. Deshalb hängt `epoch` zusätzlich an `.id()`: ein
+/// Wechsel baut die Fläche neu auf, samt frischem Fahrplan. Ausgelöst wird er
+/// an den beiden Stellen, an denen der Stillstand aufgefallen ist — Rückkehr
+/// in den Vordergrund und **Track-Wechsel**, denn genau beim Auto-Advance aus
+/// dem Hintergrund blieb die Welle am Ende des vorigen Tracks stehen.
+///
+/// Der Neuaufbau kostet nichts: der Zoom liegt in `@AppStorage`, der Rest des
+/// View-Zustands ist ohnehin flüchtig (Drag, Zoom-HUD).
 private struct WaveformTicker<Content: View>: View {
     let store: PlayerStore
     @ViewBuilder let content: (TimeInterval) -> Content
@@ -302,8 +310,12 @@ private struct WaveformTicker<Content: View>: View {
         TimelineView(.periodic(from: epoch, by: 1.0 / 60.0)) { _ in
             content(store.livePosition)
         }
+        .id(epoch)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { epoch = .now }
+        }
+        .onChange(of: store.currentTrack?.url) { _, _ in
+            epoch = .now
         }
     }
 }

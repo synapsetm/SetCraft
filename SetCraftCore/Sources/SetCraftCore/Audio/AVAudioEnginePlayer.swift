@@ -304,10 +304,22 @@ public final class AVAudioEnginePlayer: AudioEngine {
     /// Priorität, damit die Vorausschau dem Track, den der Nutzer gerade
     /// angetippt hat, nie im Weg steht.
     public nonisolated static func prefetchAhead(url: URL) async {
-        // Spekulativ: ein Fehlschlag ist hier kein Ereignis. Scheitert die
-        // Vorausschau, merkt es der echte Load später selbst.
-        _ = await materialize(url: url, on: audioLookaheadQueue, onProgress: nil)
-
+        // Spekulativ: ein Fehlschlag bricht hier nichts ab. Er steht aber im
+        // Log, denn er ist die einzige Stelle, an der sich ablesen lässt, ob
+        // der FileProvider im Hintergrund überhaupt noch liefert — und davon
+        // hängt ab, wie weit ein Set ohne Bildschirm durchläuft.
+        let outcome = await materialize(url: url, on: audioLookaheadQueue, onProgress: nil)
+        switch outcome {
+        case .ok:
+            break
+        case .offline:
+            log.error("Vorausschau: \(url.lastPathComponent, privacy: .public) — Gerät offline.")
+        case .failed(let reason):
+            log.error("""
+                Vorausschau gescheitert für \(url.lastPathComponent, privacy: .public): \
+                \(reason, privacy: .public)
+                """)
+        }
     }
 
     /// Holt die Datei auf das Gerät.
@@ -326,6 +338,27 @@ public final class AVAudioEnginePlayer: AudioEngine {
     ) async -> MaterializeOutcome {
         // Wer schon vor dem Einreihen abgebrochen wurde, fasst gar nichts an.
         if Task.isCancelled { return .ok }
+
+        // Liegt die Wiedergabe-Kopie bereits vor, ist der Provider hier
+        // fertig — und zwar endgültig: eine Kopie entsteht nur aus einem
+        // vollständigen, byteweise gegengeprüften Durchlauf, halbe Dateien
+        // bleiben unter `staging-…` liegen. Ein `stat` genügt als Beleg.
+        //
+        // Das war der Befund „Folgetrack scheitert beim Auto-Advance, per
+        // Next-Taste geht derselbe Track sofort": der Load ging IMMER zuerst
+        // hier durch und öffnete die Quelle über den FileProvider. Ist das
+        // Gerät gesperrt oder die App im Hintergrund, liefert der Provider
+        // nicht — und der Load endete mit `com.apple.coreaudio.avfaudio`,
+        // während die Minuten zuvor angelegte Kopie unberührt danebenlag.
+        // Genau die Abhängigkeit, die der `PlaybackCache` beseitigen soll.
+        //
+        // `existingCopy` frischt nebenbei die LRU-Position auf: der Track,
+        // der gleich gespielt wird, ist damit der letzte, den die Verdrängung
+        // anfasst.
+        if PlaybackCache.shared.existingCopy(of: url) != nil {
+            onProgress?(1)
+            return .ok
+        }
 
         let cancellation = PrefetchCancellation()
         return await withTaskCancellationHandler {

@@ -442,6 +442,32 @@ Serialisierung, Active-Track-Guard).
   30-Hz-`position` aus der Engine als Observation-Abhängigkeit. Bleibt einer
   stehen, zeichnet der andere weiter. Der Fahrplan bekommt beim Rückkehr in
   den Vordergrund zusätzlich einen frischen Startzeitpunkt.
+  **Reichte nicht** (in Build 31 ausgeliefert, am selben Nachmittag wieder
+  aufgetreten): ein neuer Startzeitpunkt ändert den Fahrplan, nicht die
+  Identität der `TimelineView` — der stehengebliebene Takt blieb. Seit Build 32
+  hängt `epoch` zusätzlich an `.id()`, und ein **Track-Wechsel** setzt ihn
+  ebenfalls neu: die Fläche wird dann samt Fahrplan neu aufgebaut. Der Zoom
+  überlebt das (`@AppStorage`), der übrige View-Zustand ist flüchtig.
+- **Der Auto-Advance ging am Wiedergabe-Cache vorbei — und damit über den
+  FileProvider.** Befund am Gerät: läuft ein Track aus, während das iPhone
+  gesperrt ist oder die App im Hintergrund läuft (Auto), endet der Folgetrack
+  mit „Failed to load track: … com.apple.coreaudio.avfaudio". Per Next-Taste
+  lädt derselbe Track sofort. Ursache ist keine kaputte Kopie: `attemptLoad`
+  ruft **immer zuerst** `prefetch`, und `materialize` öffnet darin die Quelle
+  über den FileProvider — bevor überhaupt jemand fragt, ob die fertige Kopie
+  längst danebenliegt. Gesperrt bzw. im Hintergrund liefert der Provider nicht,
+  und der Load scheiterte an einer Datei, die er gar nicht gebraucht hätte.
+  Genau die Abhängigkeit, die der `PlaybackCache` beseitigen soll.
+  `materialize` steigt jetzt bei vorhandener Kopie sofort aus (ein `stat`;
+  eine Kopie entsteht nur aus einem vollständigen, byteweise gegengeprüften
+  Durchlauf, halbe Dateien bleiben `staging-…`). Dazu: die Kopie wird
+  ausdrücklich mit `completeUntilFirstUserAuthentication` angelegt — bei
+  gesperrtem Gerät lesbar zu bleiben ist ihre Existenzberechtigung, nicht ein
+  Nebeneffekt des Standardwerts. **Offen bleibt die Reichweite:** liefert der
+  Provider im Hintergrund gar nicht, gelingt die Vorausschau dort auch nicht,
+  und nach dem einen vorgeholten Track ist Schluss. Ob das so ist, steht beim
+  nächsten Mal im Log — `prefetchAhead` schweigt nicht mehr, sondern schreibt
+  jeden Fehlschlag mit Grund.
 - **FileProvider liefert sequenziell — und ein Read wartet bis zu seiner
   Stelle.** Die zentrale Erkenntnis des 2026-09-20, am Gerät über Mobilfunk
   gemessen (vier Tracks, Zeiten in Sekunden):

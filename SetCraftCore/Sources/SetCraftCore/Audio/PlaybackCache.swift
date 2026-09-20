@@ -233,7 +233,21 @@ public final class PlaybackCache: @unchecked Sendable {
         onProgress: (@Sendable (Double) -> Void)?
     ) throws {
         let total = (try? source.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
-        guard FileManager.default.createFile(atPath: staging.path, contents: nil) else {
+        // Die Kopie muss bei gesperrtem Gerät lesbar bleiben — sonst wäre sie
+        // genau dann wertlos, wenn sie am meisten gebraucht wird (Track-Wechsel
+        // in der Hosentasche). `completeUntilFirstUserAuthentication` ist zwar
+        // ohnehin der Standard für neu angelegte Dateien, steht hier aber
+        // ausdrücklich: es ist eine Zusicherung dieses Caches, kein Zufall.
+        #if os(iOS)
+        let attributes: [FileAttributeKey: Any] = [
+            .protectionKey: FileProtectionType.completeUntilFirstUserAuthentication
+        ]
+        #else
+        let attributes: [FileAttributeKey: Any]? = nil
+        #endif
+        guard FileManager.default.createFile(
+            atPath: staging.path, contents: nil, attributes: attributes
+        ) else {
             throw CopyFailure.destination("Could not create the cache file.")
         }
         let input: FileHandle

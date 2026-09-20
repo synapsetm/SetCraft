@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 import SetCraftCore
+import UIKit
 
 /// iOS-Pendant zum Mac-`PlayerViewModel`. Hält den `AVAudioEnginePlayer`,
 /// den aktuell geladenen Track und kennt die `LibraryStore`-Trackliste,
@@ -257,6 +258,10 @@ final class PlayerStore {
             // nichts — dass das Gerät offline ist, sagt ihm alles.
             if case AudioEngineError.sourceOffline = error {
                 lastError = String(localized: "The source is not reachable — the device is offline and this track is not stored locally.")
+            } else if !UIApplication.shared.isProtectedDataAvailable {
+                // Hier und nur hier abgefragt: im Moment des Fehlschlags. Wer
+                // die Meldung später liest, hat das iPhone längst entsperrt.
+                lastError = String(localized: "The source could not be read while the iPhone was locked, and this track was not prefetched.")
             } else {
                 lastError = String(localized: "Failed to load track: \(error.localizedDescription)")
             }
