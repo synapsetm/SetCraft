@@ -60,19 +60,11 @@ private final class NetworkReachability: @unchecked Sendable {
     }
 }
 
-/// Wie lange die Phasen gedauert haben. `copy` enthält jetzt den Download:
-/// die häppchenweise Kopie liest die Quelle und wartet dabei genau so lange,
-/// bis der Provider die jeweilige Stelle geliefert hat.
-public struct MaterializeTiming: Sendable {
-    public let open: TimeInterval
-    public let copy: TimeInterval
-}
-
 /// Ergebnis einer Materialisierung. `offline` ist bewusst ein eigener Fall und
 /// kein Text: die UI-Schicht formuliert daraus eine lokalisierte Meldung, der
 /// Core hat keinen String-Katalog.
 public enum MaterializeOutcome: Sendable {
-    case ok(timing: MaterializeTiming?)
+    case ok
     case offline
     case failed(reason: String)
 }
@@ -107,8 +99,6 @@ private final class PrefetchCancellation: @unchecked Sendable {
     var isCancelled: Bool { lock.withLock { cancelled } }
     func cancel() { lock.withLock { cancelled = true } }
 }
-
-private let playbackLog = Logger(subsystem: "ch.buehler.beat.SetCraft", category: "Playback")
 
 @MainActor
 @Observable
@@ -291,14 +281,13 @@ public final class AVAudioEnginePlayer: AudioEngine {
     ///
     /// Bei einer lokalen Datei kostet der Aufruf nur den Open — kein
     /// Sonderfall nötig.
-    @discardableResult
     public nonisolated static func prefetch(
         url: URL,
         onProgress: (@Sendable (Double) -> Void)? = nil
-    ) async throws -> MaterializeTiming? {
+    ) async throws {
         switch await materialize(url: url, on: audioLoadQueue, onProgress: onProgress) {
-        case .ok(let timing):
-            return timing
+        case .ok:
+            return
         case .offline:
             throw AudioEngineError.sourceOffline
         case .failed(let reason):
@@ -332,7 +321,7 @@ public final class AVAudioEnginePlayer: AudioEngine {
         onProgress: (@Sendable (Double) -> Void)?
     ) async -> MaterializeOutcome {
         // Wer schon vor dem Einreihen abgebrochen wurde, fasst gar nichts an.
-        if Task.isCancelled { return .ok(timing: nil) }
+        if Task.isCancelled { return .ok }
 
         let cancellation = PrefetchCancellation()
         return await withTaskCancellationHandler {
@@ -355,7 +344,7 @@ public final class AVAudioEnginePlayer: AudioEngine {
                     // noch jemanden interessiert: bei schnellem Durchskippen
                     // fallen so alle Zwischenstationen ohne IO weg.
                     guard !cancellation.isCancelled else {
-                        once.resume(.ok(timing: nil))
+                        once.resume(.ok)
                         return
                     }
 
@@ -382,15 +371,7 @@ public final class AVAudioEnginePlayer: AudioEngine {
                     // Die Begründung wird im Closure zu einem String gemacht,
                     // statt den NSError über die Isolationsgrenze zu schicken.
                     var failure: String?
-                    var timing: MaterializeTiming?
                     var coordinatorError: NSError?
-                    // Wo die Sekunden hingehen, wenn ein Trackwechsel ueber
-                    // Mobilfunk lange dauert. Erwartung: der Loewenanteil steckt
-                    // im Open, weil der FileProvider dabei die ganze Datei holt —
-                    // Probe und Kopie laufen danach auf lokalem Speicher.
-                    // Gemessen statt vermutet.
-                    let startedAt = ProcessInfo.processInfo.systemUptime
-                    var openedAt = startedAt
                     // Der `NSFileCoordinator` ist derselbe Weg, den
                     // `FolderScanner.collect` beim Verzeichnis-Lesen geht: er
                     // gibt dem Provider die Gelegenheit, die Datei
@@ -407,7 +388,6 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         // der eigentliche Load baut es ohnehin neu auf.
                         do {
                             let file = try AVAudioFile(forReading: coordinatedURL)
-                            openedAt = ProcessInfo.processInfo.systemUptime
                             // Der Open ist billig (gemessen 0.0–0.6s): der
                             // Provider liefert nur den Kopf. Geprüft wird
                             // gleich durch die Kopie selbst — wer jedes Byte
@@ -434,20 +414,13 @@ public final class AVAudioEnginePlayer: AudioEngine {
                             }
                         }
 
-                        let finishedAt = ProcessInfo.processInfo.systemUptime
-                        timing = MaterializeTiming(
-                            open: openedAt - startedAt,
-                            copy: finishedAt - openedAt
-                        )
-                        let phases = "open \(round((openedAt - startedAt) * 100) / 100)s, copy \(round((finishedAt - openedAt) * 100) / 100)s"
-                        playbackLog.info("Materialisiert \(url.lastPathComponent, privacy: .public): \(phases, privacy: .public)")
                     }
                     if let coordinatorError {
                         // Der Coordinator kommt zuerst: kann er die Datei nicht
                         // bereitstellen, lief die Closure oben gar nicht.
                         failure = describe(coordinatorError)
                     }
-                    once.resume(failure.map { .failed(reason: $0) } ?? .ok(timing: timing))
+                    once.resume(failure.map { .failed(reason: $0) } ?? .ok)
                 }
             }
         } onCancel: {
@@ -479,13 +452,13 @@ public final class AVAudioEnginePlayer: AudioEngine {
         return parts.joined(separator: " ")
     }
 
-    /// Prüft, ob die Datei wirklich vollständig lokal liegt — und nicht nur ihr
-    /// Kopf. Gelesen wird ein Puffer am **Ende**: ein Provider, der bloss den
-    /// Anfang gecacht hat, muss dafür den Rest holen oder scheitern. Ohne diese
-    /// Probe wandert eine halb übertragene Datei in die Engine und wird als
-    /// Stille abgespielt.
-    /// Liest die ERSTEN Frames und liefert die dafür gebrauchte Zeit.
-    /// VORLÄUFIG — siehe `MaterializeTiming.head`.
+    /// Lesbarkeitsprüfung für Quellen, die **nicht** in den Wiedergabe-Cache
+    /// kopiert werden — also lokale Dateien, wo sie nichts kostet. Für
+    /// Netz-Quellen übernimmt das die häppchenweise Kopie: wer jedes Byte
+    /// gelesen hat, hat die Vollständigkeit bewiesen (`PlaybackCache`).
+    ///
+    /// Gelesen wird ein Puffer am **Ende** der Datei — ein stillschweigend
+    /// kurzer oder leerer Read fällt sonst erst als Stille auf.
     private nonisolated static func verifyReadable(_ file: AVAudioFile) -> String? {
         let format = file.processingFormat
         let probeFrames: AVAudioFrameCount = 4_096

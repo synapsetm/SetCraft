@@ -24,6 +24,13 @@ struct WaveformCanvasView: View {
     let isLoading: Bool
     let onScrub: (TimeInterval) -> Void
     var axis: Axis = .horizontal
+    /// Der Track wird gerade auf das Gerät geholt. Eigener Zustand neben
+    /// `isLoading` (das die Waveform-Analyse meint): beim Antippen eines kalten
+    /// Tracks über Mobilfunk ist das die eigentliche Wartezeit, und der Blick
+    /// liegt in diesem Moment auf der leeren Wellenfläche.
+    var isLoadingTrack: Bool = false
+    /// Anteil der übertragenen Bytes, 0…1 — `nil`, solange unbekannt.
+    var loadProgress: Double? = nil
 
     /// Zoom-Level: Pixel pro Sekunde der Wellenform. Persistent über
     /// App-Sessions via `@AppStorage`. Pinch-Geste (Magnify) skaliert
@@ -110,13 +117,41 @@ struct WaveformCanvasView: View {
                     zoomButtonsOverlay
                 }
 
-                if isLoading {
+                if isLoadingTrack {
+                    trackLoadOverlay(width: proxy.size.width)
+                } else if isLoading {
                     ProgressView()
                         .progressViewStyle(.circular)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
         }
+    }
+
+    /// Ladeanzeige mittig auf der Wellenfläche. Bewusst hier und nicht unten am
+    /// Bildschirmrand: die Fläche ist während des Ladens ohnehin leer, und der
+    /// Blick liegt beim Antippen dort.
+    @ViewBuilder
+    private func trackLoadOverlay(width: CGFloat) -> some View {
+        VStack(spacing: 8) {
+            if let fraction = loadProgress {
+                ProgressView(value: fraction)
+                    .tint(.orange)
+                    .frame(width: min(220, max(120, width * 0.5)))
+                Text(verbatim: "\(Int(fraction * 100)) %")
+                    .font(.caption.monospacedDigit().weight(.medium))
+                    .foregroundStyle(Color(red: 0.81, green: 0.81, blue: 0.84))
+            } else {
+                // Noch kein Anteil bekannt — der Download hat gerade erst
+                // begonnen oder die Quelle ist lokal.
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(.orange)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(red: 0.055, green: 0.055, blue: 0.07).opacity(0.85))
+        .allowsHitTesting(false)
     }
 
     @ViewBuilder

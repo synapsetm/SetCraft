@@ -48,51 +48,7 @@ struct PlayerScreen: View {
         }
     }
 
-    /// VORLÄUFIGE Diagnose-Anzeige der Ladezeiten. Bewusst auffällig und
-    /// bewusst IMMER sichtbar: solange nichts erscheint, lässt sich „zu
-    /// unauffällig platziert" nicht von „Wert ist leer" unterscheiden — und
-    /// genau daran ist die erste Fassung gescheitert. Steht kein Messwert an,
-    /// zeigt die Zeile „load: —". Fliegt raus, sobald die Frage geklärt ist.
-    /// Fortschritt des laufenden Ladevorgangs. Ein echter Balken, keine
-    /// Attrappe: die Zahl kommt aus der häppchenweise kopierten Datei, also aus
-    /// tatsächlich übertragenen Bytes. Ohne bekannten Anteil (lokale Quelle,
-    /// erster Moment) bleibt es beim unbestimmten Verlauf.
-    @ViewBuilder
-    private var loadProgressBar: some View {
-        if store.loadingURL != nil {
-            VStack(spacing: 4) {
-                if let fraction = store.loadProgress {
-                    ProgressView(value: fraction)
-                        .tint(.orange)
-                    Text(verbatim: "\(Int(fraction * 100)) %")
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                } else {
-                    ProgressView()
-                        .progressViewStyle(.linear)
-                        .tint(.orange)
-                }
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 8)
-        }
-    }
 
-    @ViewBuilder
-    private var loadTimingBadge: some View {
-        // `Text(verbatim:)`, nicht `Text(_:)`: bei einem String-LITERAL wählt
-        // Swift die `LocalizedStringKey`-Überladung, und dann landen „load: %@"
-        // und „load: —" als Keys im Katalog. Genau daran ist der Release von
-        // 1.3-25 im Lokalisierungs-Gate gescheitert — zu Recht, für eine
-        // Diagnose-Anzeige gehört nichts in den Katalog.
-        Text(verbatim: store.lastLoadTiming.map { "load: \($0)" } ?? "load: —")
-            .font(.caption.monospacedDigit().weight(.semibold))
-            .foregroundStyle(.black)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(Color.orange, in: Capsule())
-            .padding(.bottom, 8)
-    }
 
     @ViewBuilder
     private var portraitBody: some View {
@@ -114,8 +70,6 @@ struct PlayerScreen: View {
                         .padding(.horizontal, 18)
                         .padding(.bottom, 8)
                 }
-                loadProgressBar
-                loadTimingBadge
             }
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -145,8 +99,6 @@ struct PlayerScreen: View {
                         .padding(.horizontal, 12)
                         .padding(.bottom, 8)
                 }
-                loadProgressBar
-                loadTimingBadge
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
@@ -200,7 +152,9 @@ struct PlayerScreen: View {
                 bpm: store.effectiveBPM,
                 isLoading: store.isLoadingWaveform && store.currentWaveform == nil,
                 onScrub: { store.seek(to: $0) },
-                axis: .vertical
+                axis: .vertical,
+                isLoadingTrack: store.loadingURL != nil,
+                loadProgress: store.loadProgress
             )
         }
     }
@@ -264,7 +218,9 @@ struct PlayerScreen: View {
                 duration: store.duration,
                 bpm: store.effectiveBPM,
                 isLoading: store.isLoadingWaveform && store.currentWaveform == nil,
-                onScrub: { store.seek(to: $0) }
+                onScrub: { store.seek(to: $0) },
+                isLoadingTrack: store.loadingURL != nil,
+                loadProgress: store.loadProgress
             )
         }
     }

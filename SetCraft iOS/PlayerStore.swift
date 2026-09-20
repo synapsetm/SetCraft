@@ -28,10 +28,6 @@ final class PlayerStore {
     /// Sekunden; die Library-Zeile zeigt solange einen Spinner.
     var loadingURL: URL?
 
-    /// Messwerte des letzten Ladevorgangs, als fertige Zeile für die Anzeige.
-    /// VORLÄUFIG — eingebaut, um zu beantworten, wo die Zeit beim Trackwechsel
-    /// über Mobilfunk hingeht. Fliegt wieder raus, sobald das geklärt ist.
-    var lastLoadTiming: String?
 
     /// Anteil der übertragenen Bytes des gerade geladenen Tracks, 0…1.
     /// `nil`, wenn gerade nichts lädt oder die Quelle lokal ist (dann gibt es
@@ -196,7 +192,6 @@ final class PlayerStore {
     private func performLoad(_ track: Track, snapshotQueue: Bool) async {
         loadingURL = track.url
         lastError = nil
-        lastLoadTiming = nil
         loadProgress = nil
 
         // Datei ggf. erst auf das Gerät holen. Betrifft iCloud-Platzhalter
@@ -214,7 +209,7 @@ final class PlayerStore {
         // wurden beide Fehlerquellen verschluckt: die Engine bekam die Datei
         // trotzdem, spielte sichtbar los und blieb stumm.
         do {
-            let timing = try await AVAudioEnginePlayer.prefetch(url: track.url) { [weak self] fraction in
+            try await AVAudioEnginePlayer.prefetch(url: track.url) { [weak self] fraction in
                 Task { @MainActor in
                     // Nur für den Track, der gerade geladen wird — ein spät
                     // eintreffender Fortschritt eines abgehängten Loads darf
@@ -222,16 +217,6 @@ final class PlayerStore {
                     guard let self, self.loadingURL == track.url else { return }
                     self.loadProgress = fraction
                 }
-            }
-            // Bewusst `String(format:)` und keine Katalog-Keys: reine
-            // Diagnose-Zahlen, im Deutschen identisch, und sie sollen nicht
-            // als Übersetzungs-Altlast zurückbleiben.
-            lastLoadTiming = timing.map {
-                let fill = ""
-                return String(
-                    format: "open %.1f · copy %.1f%@",
-                    $0.open, $0.copy, fill
-                )
             }
         } catch {
             guard !Task.isCancelled, loadingURL == track.url else { return }
