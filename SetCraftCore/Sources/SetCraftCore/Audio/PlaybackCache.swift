@@ -108,19 +108,39 @@ public final class PlaybackCache: @unchecked Sendable {
     /// aufrufen; in SetCraft ist das die Materialisierungs-Queue in
     /// `AVAudioEnginePlayer`.
     ///
-    /// Schlägt das Kopieren fehl (kein Platz, Rechte), wird das geloggt und
-    /// `nil` geliefert: der Aufrufer spielt dann wie früher direkt von der
-    /// Quelle. Ein voller Cache darf die Wiedergabe nicht verhindern.
+    /// Die drei Ausgänge sind bewusst getrennt, weil sie **verschiedene
+    /// Konsequenzen** haben:
+    ///
+    /// - `.cached` — aus der Kopie spielen.
+    /// - `.sourceIncomplete` — die Quelle liess sich nicht vollständig lesen.
+    ///   Das ist der Fall, für den die Prüfung da ist: von einer halben Datei
+    ///   zu spielen ergibt Stille bei laufendem Playhead. Der Load muss **mit
+    ///   Meldung** abbrechen.
+    /// - `.cacheUnavailable` — der Cache liess sich nicht beschreiben (Platte
+    ///   voll, Rechte). Die Quelle ist in Ordnung, also wird von ihr gespielt.
+    ///   Ein voller Cache darf die Wiedergabe nicht verhindern.
+    ///
+    /// Bis 2026-09-20 lieferte die Funktion nur `URL?`, und der Aufrufer machte
+    /// aus jedem `nil` einen Ladefehler — damit scheiterte die Wiedergabe auch
+    /// dann, wenn bloss der Cache klemmte.
+    public enum StoreResult: Sendable {
+        case cached(URL)
+        case sourceIncomplete(reason: String)
+        case cacheUnavailable(reason: String)
+    }
+
     @discardableResult
-    public func store(_ source: URL, onProgress: (@Sendable (Double) -> Void)? = nil) -> URL? {
-        guard let target = targetURL(for: source) else { return nil }
+    public func store(_ source: URL, onProgress: (@Sendable (Double) -> Void)? = nil) -> StoreResult {
+        guard let target = targetURL(for: source) else {
+            return .cacheUnavailable(reason: "No cache directory available.")
+        }
         let fm = FileManager.default
 
         if fm.fileExists(atPath: target.path) {
             touch(target.lastPathComponent)
             evictBeyondCapacity()
             onProgress?(1)
-            return target
+            return .cached(target)
         }
 
         clearStaleEntriesOnce()
@@ -136,16 +156,40 @@ public final class PlaybackCache: @unchecked Sendable {
             try fm.moveItem(at: staging, to: target)
         } catch {
             try? fm.removeItem(at: staging)
+
+            // Wettlauf, kein Fehler: `prefetch` und `prefetchAhead` laufen auf
+            // getrennten Queues und holen beim Durchskippen oft DIESELBE Datei —
+            // der angetippte Track ist meist der, den die Vorausschau schon
+            // lädt. Beide sehen „Ziel existiert nicht", beide kopieren, und der
+            // zweite `moveItem` scheitert am inzwischen vorhandenen Ziel. Die
+            // fremde Kopie ist genauso gut wie unsere.
+            if fm.fileExists(atPath: target.path) {
+                touch(target.lastPathComponent)
+                evictBeyondCapacity()
+                onProgress?(1)
+                return .cached(target)
+            }
+
             Self.log.error("""
                 Kopie fehlgeschlagen für \(source.lastPathComponent, privacy: .public): \
                 \(error.localizedDescription, privacy: .public)
                 """)
-            return nil
+            if case CopyFailure.source(let reason) = error {
+                return .sourceIncomplete(reason: reason)
+            }
+            return .cacheUnavailable(reason: error.localizedDescription)
         }
 
         touch(target.lastPathComponent)
         evictBeyondCapacity()
-        return target
+        return .cached(target)
+    }
+
+    /// Trennt „die Quelle gab nicht alles her" von „der Cache nahm es nicht an".
+    /// Nur das Erste darf die Wiedergabe verhindern.
+    private enum CopyFailure: Error {
+        case source(String)
+        case destination(String)
     }
 
     /// Kopiert häppchenweise statt mit `FileManager.copyItem` — und das ist der
@@ -166,10 +210,20 @@ public final class PlaybackCache: @unchecked Sendable {
     ) throws {
         let total = (try? source.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
         guard FileManager.default.createFile(atPath: staging.path, contents: nil) else {
-            throw CocoaError(.fileWriteUnknown)
+            throw CopyFailure.destination("Could not create the cache file.")
         }
-        let input = try FileHandle(forReadingFrom: source)
-        let output = try FileHandle(forWritingTo: staging)
+        let input: FileHandle
+        let output: FileHandle
+        do {
+            input = try FileHandle(forReadingFrom: source)
+        } catch {
+            throw CopyFailure.source(error.localizedDescription)
+        }
+        do {
+            output = try FileHandle(forWritingTo: staging)
+        } catch {
+            throw CopyFailure.destination(error.localizedDescription)
+        }
         defer {
             try? input.close()
             try? output.close()
@@ -177,9 +231,18 @@ public final class PlaybackCache: @unchecked Sendable {
 
         var copied: Int64 = 0
         while true {
-            let chunk = try input.read(upToCount: Self.chunkBytes) ?? Data()
+            let chunk: Data
+            do {
+                chunk = try input.read(upToCount: Self.chunkBytes) ?? Data()
+            } catch {
+                throw CopyFailure.source(error.localizedDescription)
+            }
             if chunk.isEmpty { break }
-            try output.write(contentsOf: chunk)
+            do {
+                try output.write(contentsOf: chunk)
+            } catch {
+                throw CopyFailure.destination(error.localizedDescription)
+            }
             copied += Int64(chunk.count)
             if total > 0 {
                 onProgress?(min(1, Double(copied) / Double(total)))
@@ -189,7 +252,7 @@ public final class PlaybackCache: @unchecked Sendable {
         // Grössen-Gegenprobe: ein stillschweigend kurzer Read würde sonst als
         // vollständige Kopie durchgehen und später als Stille abgespielt.
         if total > 0, copied != total {
-            throw CocoaError(.fileReadCorruptFile)
+            throw CopyFailure.source("Only \(copied) of \(total) bytes were readable.")
         }
         onProgress?(1)
     }

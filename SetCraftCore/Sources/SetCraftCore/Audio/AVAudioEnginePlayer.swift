@@ -405,12 +405,22 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         // garantiert Zugriff gewährt — und auf dieser Queue, weil
                         // Kopieren blockiert.
                         if failure == nil, PlaybackCache.shared.shouldCache(url) {
-                            // Hier steckt jetzt der Download: die Kopie liest die
+                            // Hier steckt der Download: die Kopie liest die
                             // Quelle häppchenweise und wartet dabei, bis der
                             // Provider die jeweilige Stelle geliefert hat. Der
                             // Fortschritt daraus ist der einzige, den es gibt.
-                            if PlaybackCache.shared.store(coordinatedURL, onProgress: onProgress) == nil {
-                                failure = "The track could not be copied for playback."
+                            //
+                            // Nur ein Problem der QUELLE bricht den Load ab. Ist
+                            // bloss der Cache nicht beschreibbar, wird von der
+                            // Quelle gespielt — ein voller Cache darf die
+                            // Wiedergabe nicht verhindern.
+                            switch PlaybackCache.shared.store(coordinatedURL, onProgress: onProgress) {
+                            case .cached:
+                                break
+                            case .sourceIncomplete(let reason):
+                                failure = reason
+                            case .cacheUnavailable:
+                                break
                             }
                         }
 
