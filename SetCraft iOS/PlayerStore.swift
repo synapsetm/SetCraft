@@ -212,7 +212,11 @@ final class PlayerStore {
             // Diagnose-Zahlen, im Deutschen identisch, und sie sollen nicht
             // als Übersetzungs-Altlast zurückbleiben.
             lastLoadTiming = timing.map {
-                String(format: "open %.1fs · probe %.1fs · copy %.1fs", $0.open, $0.probe, $0.copy)
+                let fill = $0.fillRatio.map { String(format: " %.0f%%", $0 * 100) } ?? ""
+                return String(
+                    format: "open %.1f · head %.1f · tail %.1f · copy %.1f · grew %d×%@",
+                    $0.open, $0.head, $0.probe, $0.copy, $0.growthSamples, fill
+                )
             }
         } catch {
             guard !Task.isCancelled, loadingURL == track.url else { return }
