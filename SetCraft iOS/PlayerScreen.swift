@@ -141,13 +141,10 @@ struct PlayerScreen: View {
 
     @ViewBuilder
     private var verticalWaveform: some View {
-        // 60-Hz-Periodic statt des 30-Hz-@Observable-Ticks: erzwingt den
-        // re-eval, damit `livePosition` frisch gelesen wird. Identisch zum
-        // Mac-Pfad in `SetCraft/ContentView.swift`.
-        TimelineView(.periodic(from: .now, by: 1.0 / 60.0)) { _ in
+        WaveformTicker(store: store) { position in
             WaveformCanvasView(
                 data: store.currentWaveform,
-                position: store.livePosition,
+                position: position,
                 duration: store.duration,
                 bpm: store.effectiveBPM,
                 isLoading: store.isLoadingWaveform && store.currentWaveform == nil,
@@ -211,10 +208,10 @@ struct PlayerScreen: View {
 
     @ViewBuilder
     private var waveform: some View {
-        TimelineView(.periodic(from: .now, by: 1.0 / 60.0)) { _ in
+        WaveformTicker(store: store) { position in
             WaveformCanvasView(
                 data: store.currentWaveform,
-                position: store.livePosition,
+                position: position,
                 duration: store.duration,
                 bpm: store.effectiveBPM,
                 isLoading: store.isLoadingWaveform && store.currentWaveform == nil,
@@ -273,6 +270,41 @@ struct PlayerScreen: View {
     private var displayArtist: String {
         guard let track = store.currentTrack else { return "—" }
         return track.artist.isEmpty ? "—" : track.artist
+    }
+}
+
+/// Hält die Wellenfläche am Laufen — mit **zwei** Taktgebern, und der zweite
+/// ist der Grund, warum es diese View gibt.
+///
+/// 1. Der 60-Hz-`TimelineView`-Fahrplan zeichnet flüssig; nur er liest
+///    `livePosition` frisch aus `lastRenderTime`.
+/// 2. Die 30-Hz-`position` aus der Engine wird hier bewusst *gelesen*, ohne
+///    sie zu benutzen. Damit hängt die Fläche zusätzlich an der Observation
+///    und zeichnet auch dann weiter, wenn der Fahrplan stehen bleibt.
+///
+/// Genau das passierte nach einem Ausflug in den Hintergrund: der Fahrplan
+/// nahm nicht wieder auf, die Welle blieb auf dem letzten Bild davor stehen —
+/// beim Auto-Advance also am Ende des *vorigen* Tracks, inklusive Zeitanzeige
+/// und Fortschrittsbalken —, während Titel, BPM und Key (die an der
+/// Observation hängen) längst den neuen Track zeigten und der Ton weiterlief.
+///
+/// Der Fahrplan bekommt beim Zurückkehren in den Vordergrund zusätzlich einen
+/// frischen Startzeitpunkt, damit er von sich aus wieder anläuft.
+private struct WaveformTicker<Content: View>: View {
+    let store: PlayerStore
+    @ViewBuilder let content: (TimeInterval) -> Content
+
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var epoch = Date.now
+
+    var body: some View {
+        let _ = store.position
+        TimelineView(.periodic(from: epoch, by: 1.0 / 60.0)) { _ in
+            content(store.livePosition)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { epoch = .now }
+        }
     }
 }
 
