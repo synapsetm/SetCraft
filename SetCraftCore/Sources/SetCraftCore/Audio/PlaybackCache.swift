@@ -105,13 +105,14 @@ public final class PlaybackCache: @unchecked Sendable {
     /// `nil` geliefert: der Aufrufer spielt dann wie früher direkt von der
     /// Quelle. Ein voller Cache darf die Wiedergabe nicht verhindern.
     @discardableResult
-    public func store(_ source: URL) -> URL? {
+    public func store(_ source: URL, onProgress: (@Sendable (Double) -> Void)? = nil) -> URL? {
         guard let target = targetURL(for: source) else { return nil }
         let fm = FileManager.default
 
         if fm.fileExists(atPath: target.path) {
             touch(target.lastPathComponent)
             evictBeyondCapacity()
+            onProgress?(1)
             return target
         }
 
@@ -124,7 +125,7 @@ public final class PlaybackCache: @unchecked Sendable {
         let staging = target.deletingLastPathComponent()
             .appendingPathComponent("staging-\(UUID().uuidString)")
         do {
-            try fm.copyItem(at: source, to: staging)
+            try copyInChunks(from: source, to: staging, onProgress: onProgress)
             try fm.moveItem(at: staging, to: target)
         } catch {
             try? fm.removeItem(at: staging)
@@ -139,6 +140,57 @@ public final class PlaybackCache: @unchecked Sendable {
         evictBeyondCapacity()
         return target
     }
+
+    /// Kopiert häppchenweise statt mit `FileManager.copyItem` — und das ist der
+    /// ganze Zweck: bei einer Quelle über den FileProvider lädt jeder Read genau
+    /// so lange, bis der Download seine Stelle erreicht hat (am Gerät gemessen:
+    /// ein Read in der Dateimitte wartet 6–8s, einer am Ende nochmal so lange).
+    /// Kehrt ein Häppchen zurück, sind seine Bytes übertragen — damit ist der
+    /// Fortschritt bekannt, den weder `copyItem` noch das Dateisystem preisgeben
+    /// (`totalFileAllocatedSize` steht von Anfang an auf 100 %).
+    ///
+    /// Ersetzt zugleich die frühere Lesbarkeitsprobe: wer jedes Byte kopiert
+    /// hat, hat die Vollständigkeit bewiesen. Vorher lief die Datei zweimal
+    /// durch — einmal für die Probe, einmal für die Kopie.
+    private func copyInChunks(
+        from source: URL,
+        to staging: URL,
+        onProgress: (@Sendable (Double) -> Void)?
+    ) throws {
+        let total = (try? source.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
+        guard FileManager.default.createFile(atPath: staging.path, contents: nil) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        let input = try FileHandle(forReadingFrom: source)
+        let output = try FileHandle(forWritingTo: staging)
+        defer {
+            try? input.close()
+            try? output.close()
+        }
+
+        var copied: Int64 = 0
+        while true {
+            let chunk = try input.read(upToCount: Self.chunkBytes) ?? Data()
+            if chunk.isEmpty { break }
+            try output.write(contentsOf: chunk)
+            copied += Int64(chunk.count)
+            if total > 0 {
+                onProgress?(min(1, Double(copied) / Double(total)))
+            }
+        }
+
+        // Grössen-Gegenprobe: ein stillschweigend kurzer Read würde sonst als
+        // vollständige Kopie durchgehen und später als Stille abgespielt.
+        if total > 0, copied != total {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        onProgress?(1)
+    }
+
+    /// 256 KB pro Häppchen. Gross genug, dass der Overhead nicht auffällt,
+    /// klein genug für eine flüssige Fortschrittsanzeige — bei 10 MB sind das
+    /// rund 40 Aktualisierungen.
+    private static let chunkBytes = 256 * 1024
 
     // MARK: - Intern
 

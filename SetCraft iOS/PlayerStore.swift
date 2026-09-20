@@ -33,6 +33,12 @@ final class PlayerStore {
     /// über Mobilfunk hingeht. Fliegt wieder raus, sobald das geklärt ist.
     var lastLoadTiming: String?
 
+    /// Anteil der übertragenen Bytes des gerade geladenen Tracks, 0…1.
+    /// `nil`, wenn gerade nichts lädt oder die Quelle lokal ist (dann gibt es
+    /// nichts zu übertragen). Die Zahl stammt aus der häppchenweisen Kopie —
+    /// das Dateisystem gibt für eine FileProvider-Datei keinen Fortschritt her.
+    var loadProgress: Double?
+
     let engine: AVAudioEnginePlayer
 
     /// Wird vom AppBootstrap nachträglich gesetzt — kreuzweise Initialisierung
@@ -191,6 +197,7 @@ final class PlayerStore {
         loadingURL = track.url
         lastError = nil
         lastLoadTiming = nil
+        loadProgress = nil
 
         // Datei ggf. erst auf das Gerät holen. Betrifft iCloud-Platzhalter
         // genauso wie Tracks von einem SMB/NAS-Share aus der Files-App:
@@ -207,20 +214,29 @@ final class PlayerStore {
         // wurden beide Fehlerquellen verschluckt: die Engine bekam die Datei
         // trotzdem, spielte sichtbar los und blieb stumm.
         do {
-            let timing = try await AVAudioEnginePlayer.prefetch(url: track.url)
+            let timing = try await AVAudioEnginePlayer.prefetch(url: track.url) { [weak self] fraction in
+                Task { @MainActor in
+                    // Nur für den Track, der gerade geladen wird — ein spät
+                    // eintreffender Fortschritt eines abgehängten Loads darf
+                    // die Anzeige nicht mehr anfassen.
+                    guard let self, self.loadingURL == track.url else { return }
+                    self.loadProgress = fraction
+                }
+            }
             // Bewusst `String(format:)` und keine Katalog-Keys: reine
             // Diagnose-Zahlen, im Deutschen identisch, und sie sollen nicht
             // als Übersetzungs-Altlast zurückbleiben.
             lastLoadTiming = timing.map {
-                let fill = $0.fillRatio.map { String(format: " %.0f%%", $0 * 100) } ?? ""
+                let fill = ""
                 return String(
-                    format: "open %.1f · head %.1f · MID %.1f · tail %.1f · copy %.1f%@",
-                    $0.open, $0.head, $0.mid, $0.probe, $0.copy, fill
+                    format: "open %.1f · copy %.1f%@",
+                    $0.open, $0.copy, fill
                 )
             }
         } catch {
             guard !Task.isCancelled, loadingURL == track.url else { return }
             loadingURL = nil
+            loadProgress = nil
             // Der Flugmodus-Fall bekommt einen eigenen Satz. „Failed to load
             // track: The operation couldn’t be completed." sagt dem Nutzer
             // nichts — dass das Gerät offline ist, sagt ihm alles.
@@ -236,6 +252,7 @@ final class PlayerStore {
         // gehört die Anzeige bereits ihm, und wir treten kommentarlos ab.
         guard !Task.isCancelled, loadingURL == track.url else { return }
         loadingURL = nil
+        loadProgress = nil
 
         do {
             try session.activate()

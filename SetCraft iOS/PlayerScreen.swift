@@ -53,6 +53,31 @@ struct PlayerScreen: View {
     /// unauffällig platziert" nicht von „Wert ist leer" unterscheiden — und
     /// genau daran ist die erste Fassung gescheitert. Steht kein Messwert an,
     /// zeigt die Zeile „load: —". Fliegt raus, sobald die Frage geklärt ist.
+    /// Fortschritt des laufenden Ladevorgangs. Ein echter Balken, keine
+    /// Attrappe: die Zahl kommt aus der häppchenweise kopierten Datei, also aus
+    /// tatsächlich übertragenen Bytes. Ohne bekannten Anteil (lokale Quelle,
+    /// erster Moment) bleibt es beim unbestimmten Verlauf.
+    @ViewBuilder
+    private var loadProgressBar: some View {
+        if store.loadingURL != nil {
+            VStack(spacing: 4) {
+                if let fraction = store.loadProgress {
+                    ProgressView(value: fraction)
+                        .tint(.orange)
+                    Text(verbatim: "\(Int(fraction * 100)) %")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                } else {
+                    ProgressView()
+                        .progressViewStyle(.linear)
+                        .tint(.orange)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 8)
+        }
+    }
+
     @ViewBuilder
     private var loadTimingBadge: some View {
         // `Text(verbatim:)`, nicht `Text(_:)`: bei einem String-LITERAL wählt
@@ -89,6 +114,7 @@ struct PlayerScreen: View {
                         .padding(.horizontal, 18)
                         .padding(.bottom, 8)
                 }
+                loadProgressBar
                 loadTimingBadge
             }
             .padding(.horizontal, 16)
@@ -119,6 +145,7 @@ struct PlayerScreen: View {
                         .padding(.horizontal, 12)
                         .padding(.bottom, 8)
                 }
+                loadProgressBar
                 loadTimingBadge
             }
             .padding(.horizontal, 12)

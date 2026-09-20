@@ -60,73 +60,12 @@ private final class NetworkReachability: @unchecked Sendable {
     }
 }
 
-/// Wie lange die drei Phasen gedauert haben. Vorübergehend eingebaut, um eine
-/// konkrete Frage zu beantworten: warum ein Trackwechsel über Mobilfunk lange
-/// dauert. `open` ist der `AVAudioFile`-Open, bei dem der FileProvider die Datei
-/// herunterlädt; `probe` die Lesbarkeitsprüfung am Dateiende; `copy` die Kopie in
-/// den Wiedergabe-Cache. Erwartung: `open` dominiert deutlich.
+/// Wie lange die Phasen gedauert haben. `copy` enthält jetzt den Download:
+/// die häppchenweise Kopie liest die Quelle und wartet dabei genau so lange,
+/// bis der Provider die jeweilige Stelle geliefert hat.
 public struct MaterializeTiming: Sendable {
     public let open: TimeInterval
-    /// Zeit für einen Read der ERSTEN Frames. Beantwortet die Frage, ob der
-    /// FileProvider sequenziell liefert: ist der Kopf schnell da, während das
-    /// Ende lange braucht, lässt sich losspielen, bevor die Datei komplett ist.
-    /// Braucht schon der Kopf lange, liefert der Provider alles-oder-nichts und
-    /// progressives Abspielen ist unmöglich — egal wie man es baut.
-    public let head: TimeInterval
-    /// Zeit für einen Read in der MITTE der Datei. Der Kopf allein beweist
-    /// nichts: die ersten Kilobyte liegen ohnehin lokal, weil der Library-Scan
-    /// dort die Tags liest. Erst die Mitte trennt die beiden Fälle —
-    /// Mitte schnell = sequenziell, Mitte langsam = alles-oder-nichts.
-    public let mid: TimeInterval
-    public let probe: TimeInterval
     public let copy: TimeInterval
-    /// Wie oft die belegte Grösse der Datei während des Downloads gewachsen
-    /// ist. > 0 heisst: es gibt eine beobachtbare Fortschritts-Grösse, aus der
-    /// sich ein echter Fortschrittsbalken bauen lässt.
-    public let growthSamples: Int
-    /// Belegt/gesamt am Ende, als Kontrolle der Messgrösse.
-    public let fillRatio: Double?
-}
-
-/// Schreibt während des Downloads mit, ob die belegte Grösse der Datei wächst.
-/// VORLÄUFIG — nur zur Beantwortung der Frage, ob ein Fortschrittsbalken
-/// überhaupt möglich ist.
-private final class AllocationWatcher: @unchecked Sendable {
-    private let url: URL
-    private let lock = NSLock()
-    private var lastAllocated: Int64 = -1
-    private var increases = 0
-    private var ratio: Double?
-    private var running = true
-
-    init(url: URL) { self.url = url }
-
-    func start() {
-        DispatchQueue.global(qos: .utility).async { [self] in
-            while lock.withLock({ running }) {
-                let values = try? url.resourceValues(forKeys: [
-                    .totalFileAllocatedSizeKey, .fileSizeKey
-                ])
-                let allocated = Int64(values?.totalFileAllocatedSize ?? 0)
-                let total = Int64(values?.fileSize ?? 0)
-                lock.withLock {
-                    if allocated > lastAllocated {
-                        if lastAllocated >= 0 { increases += 1 }
-                        lastAllocated = allocated
-                    }
-                    if total > 0 { ratio = Double(allocated) / Double(total) }
-                }
-                Thread.sleep(forTimeInterval: 0.5)
-            }
-        }
-    }
-
-    func stop() -> (increases: Int, ratio: Double?) {
-        lock.withLock {
-            running = false
-            return (increases, ratio)
-        }
-    }
 }
 
 /// Ergebnis einer Materialisierung. `offline` ist bewusst ein eigener Fall und
@@ -353,8 +292,11 @@ public final class AVAudioEnginePlayer: AudioEngine {
     /// Bei einer lokalen Datei kostet der Aufruf nur den Open — kein
     /// Sonderfall nötig.
     @discardableResult
-    public nonisolated static func prefetch(url: URL) async throws -> MaterializeTiming? {
-        switch await materialize(url: url, on: audioLoadQueue) {
+    public nonisolated static func prefetch(
+        url: URL,
+        onProgress: (@Sendable (Double) -> Void)? = nil
+    ) async throws -> MaterializeTiming? {
+        switch await materialize(url: url, on: audioLoadQueue, onProgress: onProgress) {
         case .ok(let timing):
             return timing
         case .offline:
@@ -371,7 +313,7 @@ public final class AVAudioEnginePlayer: AudioEngine {
     public nonisolated static func prefetchAhead(url: URL) async {
         // Spekulativ: ein Fehlschlag ist hier kein Ereignis. Scheitert die
         // Vorausschau, merkt es der echte Load später selbst.
-        _ = await materialize(url: url, on: audioLookaheadQueue)
+        _ = await materialize(url: url, on: audioLookaheadQueue, onProgress: nil)
 
     }
 
@@ -384,7 +326,11 @@ public final class AVAudioEnginePlayer: AudioEngine {
     /// liegt der Anfang lokal vor), die Länge kam aus dem Header — und die
     /// Wiedergabe lief sichtbar los, ohne einen Ton. Genau der gemeldete Befund:
     /// „kein Audio, keine Fehlermeldung".
-    private nonisolated static func materialize(url: URL, on queue: DispatchQueue) async -> MaterializeOutcome {
+    private nonisolated static func materialize(
+        url: URL,
+        on queue: DispatchQueue,
+        onProgress: (@Sendable (Double) -> Void)?
+    ) async -> MaterializeOutcome {
         // Wer schon vor dem Einreihen abgebrochen wurde, fasst gar nichts an.
         if Task.isCancelled { return .ok(timing: nil) }
 
@@ -445,11 +391,6 @@ public final class AVAudioEnginePlayer: AudioEngine {
                     // Gemessen statt vermutet.
                     let startedAt = ProcessInfo.processInfo.systemUptime
                     var openedAt = startedAt
-                    var headAt = startedAt
-                    var midAt = startedAt
-                    var verifiedAt = startedAt
-                    let watcher = AllocationWatcher(url: url)
-                    watcher.start()
                     // Der `NSFileCoordinator` ist derselbe Weg, den
                     // `FolderScanner.collect` beim Verzeichnis-Lesen geht: er
                     // gibt dem Provider die Gelegenheit, die Datei
@@ -467,17 +408,13 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         do {
                             let file = try AVAudioFile(forReading: coordinatedURL)
                             openedAt = ProcessInfo.processInfo.systemUptime
-                            // Kopf VOR dem Ende lesen — die Reihenfolge ist der
-                            // ganze Punkt der Messung.
-                            _ = measureRead(file, atFraction: 0)
-                            headAt = ProcessInfo.processInfo.systemUptime
-                            // Reihenfolge ist der Punkt: Kopf, dann Mitte, dann
-                            // Ende. Nur so trennt sich „sequenziell" von
-                            // „alles-oder-nichts".
-                            _ = measureRead(file, atFraction: 0.5)
-                            midAt = ProcessInfo.processInfo.systemUptime
-                            failure = verifyReadable(file)
-                            verifiedAt = ProcessInfo.processInfo.systemUptime
+                            // Der Open ist billig (gemessen 0.0–0.6s): der
+                            // Provider liefert nur den Kopf. Geprüft wird
+                            // gleich durch die Kopie selbst — wer jedes Byte
+                            // gelesen hat, braucht keine separate Probe.
+                            if !PlaybackCache.shared.shouldCache(url) {
+                                failure = verifyReadable(file)
+                            }
                         } catch {
                             failure = describe(error as NSError)
                         }
@@ -488,21 +425,21 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         // garantiert Zugriff gewährt — und auf dieser Queue, weil
                         // Kopieren blockiert.
                         if failure == nil, PlaybackCache.shared.shouldCache(url) {
-                            PlaybackCache.shared.store(coordinatedURL)
+                            // Hier steckt jetzt der Download: die Kopie liest die
+                            // Quelle häppchenweise und wartet dabei, bis der
+                            // Provider die jeweilige Stelle geliefert hat. Der
+                            // Fortschritt daraus ist der einzige, den es gibt.
+                            if PlaybackCache.shared.store(coordinatedURL, onProgress: onProgress) == nil {
+                                failure = "The track could not be copied for playback."
+                            }
                         }
 
                         let finishedAt = ProcessInfo.processInfo.systemUptime
-                        let growth = watcher.stop()
                         timing = MaterializeTiming(
                             open: openedAt - startedAt,
-                            head: headAt - openedAt,
-                            mid: midAt - headAt,
-                            probe: verifiedAt - midAt,
-                            copy: finishedAt - verifiedAt,
-                            growthSamples: growth.increases,
-                            fillRatio: growth.ratio
+                            copy: finishedAt - openedAt
                         )
-                        let phases = "open \(round((openedAt - startedAt) * 100) / 100)s, probe \(round((verifiedAt - openedAt) * 100) / 100)s, copy \(round((finishedAt - verifiedAt) * 100) / 100)s"
+                        let phases = "open \(round((openedAt - startedAt) * 100) / 100)s, copy \(round((finishedAt - openedAt) * 100) / 100)s"
                         playbackLog.info("Materialisiert \(url.lastPathComponent, privacy: .public): \(phases, privacy: .public)")
                     }
                     if let coordinatorError {
@@ -549,17 +486,6 @@ public final class AVAudioEnginePlayer: AudioEngine {
     /// Stille abgespielt.
     /// Liest die ERSTEN Frames und liefert die dafür gebrauchte Zeit.
     /// VORLÄUFIG — siehe `MaterializeTiming.head`.
-    private nonisolated static func measureRead(_ file: AVAudioFile, atFraction fraction: Double) -> TimeInterval {
-        let started = ProcessInfo.processInfo.systemUptime
-        guard file.length > 0,
-              let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 4_096)
-        else { return 0 }
-        let position = AVAudioFramePosition(Double(file.length) * fraction)
-        file.framePosition = max(0, min(position, file.length - 1))
-        try? file.read(into: buffer)
-        return ProcessInfo.processInfo.systemUptime - started
-    }
-
     private nonisolated static func verifyReadable(_ file: AVAudioFile) -> String? {
         let format = file.processingFormat
         let probeFrames: AVAudioFrameCount = 4_096
