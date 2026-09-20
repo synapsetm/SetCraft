@@ -406,6 +406,42 @@ Serialisierung, Active-Track-Guard).
   aus der Kopie spielen; `.sourceIncomplete` → **nur das** bricht den Load ab
   (von einer halben Datei zu spielen ergibt Stille bei laufendem Playhead);
   `.cacheUnavailable` (Platte voll, Rechte) → von der Quelle spielen.
+- **Folgetrack spielte nicht, rote Meldung stattdessen** („Failed to load
+  track: … com.apple.coreaudio.avfaudio"). Getroffen hat es bevorzugt den
+  Auto-Advance, und das ist kein Zufall: der Folgetrack kommt aus dem
+  Prefetch, seine Wiedergabe-Kopie ist also die einzige, die zwischen Anlegen
+  und Abspielen Zeit hat, kaputtzugehen. Ein einziger unbrauchbarer Puffer
+  beendete damit die Wiedergabe, obwohl die Quelle in Ordnung war. Drei
+  Ursachen zusammengekommen, alle behoben:
+  - `store` legte die Kopie unter der **koordinierten** URL ab, gesucht wurde
+    sie später unter der **Original**-URL. Weicht die koordinierte ab, findet
+    `existingCopy` nie etwas und die Wiedergabe hängt wieder am FileProvider.
+    `store` nimmt jetzt einen eigenen `cacheKey`.
+  - Der einmalige Aufräumer für Reste der letzten Sitzung löschte auch die
+    `staging-…`-Datei einer **gerade laufenden** Kopie der anderen Queue;
+    deren `moveItem` lief danach ins Leere. Staging-Dateien bleiben jetzt
+    unangetastet.
+  - Liess sich die Kopie nicht öffnen, war Schluss. Jetzt wirft der Player
+    `cachedCopyUnusable`, verwirft die Kopie, und der Aufrufer holt die Datei
+    **einmal** neu (iOS über die Materialisierungs-Queue, nicht auf dem
+    MainActor). Zweiter Fehlschlag wird gemeldet — ist die Quelle das Problem,
+    hilft Wiederholen nicht. Eine 0-Byte-Kopie gilt zudem als nicht vorhanden.
+
+  Nebenbefund aus demselben Screenshot: die rote Meldung blieb unter einem
+  Track stehen, der längst wieder spielte (der Nutzer hatte nach dem
+  gescheiterten Auto-Advance einfach Play gedrückt). Play/Pause räumt sie jetzt
+  weg.
+- **Waveform stand still, der Ton lief weiter (iOS).** Nach einem Ausflug in
+  den Hintergrund nahm der `TimelineView(.periodic)`-Fahrplan manchmal nicht
+  wieder auf. Die Wellenfläche blieb dann auf dem letzten Bild davor stehen —
+  beim Auto-Advance also am **Ende des vorigen Tracks**, samt Zeitanzeige
+  („7:53 / -0:00") und vollem Fortschrittsbalken —, während Titel, BPM, Key
+  und der Play/Pause-Knopf (die an der Observation hängen, nicht am Fahrplan)
+  längst den neuen Track zeigten. `WaveformTicker` hängt die Fläche jetzt an
+  **beide** Taktgeber: 60-Hz-Fahrplan für die flüssige Zeichnung, plus die
+  30-Hz-`position` aus der Engine als Observation-Abhängigkeit. Bleibt einer
+  stehen, zeichnet der andere weiter. Der Fahrplan bekommt beim Rückkehr in
+  den Vordergrund zusätzlich einen frischen Startzeitpunkt.
 - **FileProvider liefert sequenziell — und ein Read wartet bis zu seiner
   Stelle.** Die zentrale Erkenntnis des 2026-09-20, am Gerät über Mobilfunk
   gemessen (vier Tracks, Zeiten in Sekunden):
