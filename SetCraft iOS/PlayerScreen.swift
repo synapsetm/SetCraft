@@ -104,6 +104,15 @@ struct PlayerScreen: View {
                         .padding(.horizontal, 12)
                         .padding(.bottom, 8)
                 }
+                if let timing = store.lastLoadTiming {
+                    // VORLÄUFIGE Diagnose-Zeile, siehe `lastLoadTiming`. Stand
+                    // zuerst nur im Hochformat — im Landscape war sie damit
+                    // unsichtbar, und genau dort wurde gesucht.
+                    Text(timing)
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .padding(.bottom, 8)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 12)

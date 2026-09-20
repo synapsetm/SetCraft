@@ -473,6 +473,14 @@ final class LibraryViewModel {
     func scan(folder: URL) {
         scanTask?.cancel()
         cancelPendingWaveformPrefetches()
+        // `Track.id` wird beim Scan neu vergeben — die Selektion über IDs
+        // hinweg zu retten geht also nicht. Die URL ist die stabile Identität,
+        // darum die vorher merken und nachher wieder auflösen. Betrifft jeden
+        // Refresh: Pull-to-Refresh, Refresh-Knopf, Folder-Mutationen.
+        let previouslySelected = Set(
+            tracks.filter { selectedTrackIDs.contains($0.id) }
+                .map { $0.url.standardizedFileURL }
+        )
         folderURL = folder
         fileURL = nil
         tracks = []
@@ -496,6 +504,12 @@ final class LibraryViewModel {
             // einmal in die aktuelle Sortierung bringen. Danach bleibt die
             // Reihenfolge stabil, bis der User explizit re-sortiert.
             applySortOrder()
+            if !previouslySelected.isEmpty {
+                selectedTrackIDs = Set(
+                    tracks.filter { previouslySelected.contains($0.url.standardizedFileURL) }
+                        .map(\.id)
+                )
+            }
         }
     }
 
@@ -681,7 +695,7 @@ final class LibraryViewModel {
         Task { [weak self, tracks, folder, token] in
             defer { token?.release() }
             var failures: [String] = []
-            var movedCount = 0
+            var movedURLs: [URL] = []
             for track in tracks {
                 let src = track.url.standardizedFileURL
                 let dst = folder.appendingPathComponent(src.lastPathComponent)
@@ -707,20 +721,29 @@ final class LibraryViewModel {
                         // surfacen wir das, aber lassen die Kopie stehen.
                         try fm.removeItem(at: src)
                     }
-                    movedCount += 1
+                    movedURLs.append(src)
                 } catch {
                     failures.append("‘\(src.lastPathComponent)’: \(error.localizedDescription)")
                 }
             }
             await MainActor.run { [weak self] in
                 if !failures.isEmpty {
-                    let header = movedCount > 0
-                        ? String(localized: "Moved \(movedCount); failed for \(failures.count):")
+                    let header = !movedURLs.isEmpty
+                        ? String(localized: "Moved \(movedURLs.count); failed for \(failures.count):")
                         : String(localized: "Move failed for \(failures.count):")
                     self?.lastWriteError = ([header] + failures).joined(separator: "\n")
                 }
-                if movedCount > 0 {
-                    self?.scheduleRefresh()
+                guard let self, !movedURLs.isEmpty else { return }
+                // Die verschobenen Zeilen direkt aus der Liste nehmen, statt den
+                // Ordner neu zu scannen. Ein Scan wirft Selektion UND Scroll-
+                // Position weg — nach jedem Move muss man dann die Stelle
+                // wiederfinden, an der man war. Derselbe Weg, den der
+                // Papierkorb-Pfad schon geht.
+                self.removeRowsAfterFolderMutation(urls: movedURLs)
+                // Landen die Dateien in der gerade angezeigten Quelle, kommen
+                // sie dort als neue Zeilen dazu — das sieht nur ein Scan.
+                if folder.standardizedFileURL == self.folderURL?.standardizedFileURL {
+                    self.scheduleRefresh()
                 }
             }
         }
@@ -771,10 +794,14 @@ final class LibraryViewModel {
                         : String(localized: "Copy failed for \(failures.count):")
                     self?.lastWriteError = ([header] + failures).joined(separator: "\n")
                 }
-                // Nur nötig, wenn das Ziel die gerade angezeigte Quelle ist —
-                // das lässt sich hier nicht sicher sagen, und ein Refresh ist
-                // billig.
-                if copiedCount > 0 {
+                // Nur nötig, wenn das Ziel die gerade angezeigte Quelle ist.
+                // Das lässt sich sehr wohl feststellen — und ein Refresh ist
+                // NICHT billig: er kostet Selektion und Scroll-Position, und
+                // seit dem Umbau des Listings zusätzlich eine komplette
+                // Neu-Auflistung des Ordners (über eine Netz-Quelle teuer).
+                // Beim Kopieren woandershin ändert sich an der Quelle nichts.
+                if copiedCount > 0,
+                   folder.standardizedFileURL == self?.folderURL?.standardizedFileURL {
                     self?.scheduleRefresh()
                 }
             }
@@ -842,6 +869,27 @@ final class LibraryViewModel {
             : String(localized: "Removed \(removedIDs.count); \(report.failures.count) failed:")
         let lines = report.failures.map { "‘\($0.track.url.lastPathComponent)’: \($0.message)" }
         lastWriteError = ([header] + lines).joined(separator: "\n")
+    }
+
+    /// Nimmt Zeilen aus der Liste, deren Dateien den Ordner verlassen haben,
+    /// und setzt die Selektion auf die Zeile, die deren Platz einnimmt — wie ein
+    /// Dateimanager. Ohne das steht der Nutzer nach jedem Move ohne Anker da.
+    @MainActor
+    private func removeRowsAfterFolderMutation(urls: [URL]) {
+        let gone = Set(urls.map { $0.standardizedFileURL })
+        guard let firstIndex = tracks.firstIndex(where: { gone.contains($0.url.standardizedFileURL) })
+        else { return }
+
+        let removedIDs = Set(tracks.filter { gone.contains($0.url.standardizedFileURL) }.map(\.id))
+        tracks.removeAll { removedIDs.contains($0.id) }
+        selectedTrackIDs.subtract(removedIDs)
+
+        // Nur nachrücken, wenn die Selektion durch das Entfernen leer wurde.
+        // Hat der Nutzer noch etwas anderes markiert, gehört ihm die Auswahl.
+        if selectedTrackIDs.isEmpty, !tracks.isEmpty {
+            let target = min(firstIndex, tracks.count - 1)
+            selectedTrackIDs = [tracks[target].id]
+        }
     }
 
     /// Plant einen debouncten `refresh()` ein (Default 250 ms). Sinnvoll,
