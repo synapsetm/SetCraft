@@ -48,6 +48,22 @@ struct PlayerScreen: View {
         }
     }
 
+    /// VORLÄUFIGE Diagnose-Anzeige der Ladezeiten. Bewusst auffällig und
+    /// bewusst IMMER sichtbar: solange nichts erscheint, lässt sich „zu
+    /// unauffällig platziert" nicht von „Wert ist leer" unterscheiden — und
+    /// genau daran ist die erste Fassung gescheitert. Steht kein Messwert an,
+    /// zeigt die Zeile „load: —". Fliegt raus, sobald die Frage geklärt ist.
+    @ViewBuilder
+    private var loadTimingBadge: some View {
+        Text(store.lastLoadTiming.map { "load: \($0)" } ?? "load: —")
+            .font(.caption.monospacedDigit().weight(.semibold))
+            .foregroundStyle(.black)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Color.orange, in: Capsule())
+            .padding(.bottom, 8)
+    }
+
     @ViewBuilder
     private var portraitBody: some View {
         VStack(spacing: 0) {
@@ -68,13 +84,7 @@ struct PlayerScreen: View {
                         .padding(.horizontal, 18)
                         .padding(.bottom, 8)
                 }
-                if let timing = store.lastLoadTiming {
-                    // VORLÄUFIGE Diagnose-Zeile, siehe `lastLoadTiming`.
-                    Text(timing)
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .padding(.bottom, 8)
-                }
+                loadTimingBadge
             }
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -104,15 +114,7 @@ struct PlayerScreen: View {
                         .padding(.horizontal, 12)
                         .padding(.bottom, 8)
                 }
-                if let timing = store.lastLoadTiming {
-                    // VORLÄUFIGE Diagnose-Zeile, siehe `lastLoadTiming`. Stand
-                    // zuerst nur im Hochformat — im Landscape war sie damit
-                    // unsichtbar, und genau dort wurde gesucht.
-                    Text(timing)
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .padding(.bottom, 8)
-                }
+                loadTimingBadge
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
