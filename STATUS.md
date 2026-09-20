@@ -4,7 +4,7 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-20 (iOS 1.3-30 in TestFlight, Mac v1.3-17).
+Letzte Aktualisierung: 2026-09-20 (iOS 1.3-31 in TestFlight, Build 32 gebaut, Mac v1.3-17).
 
 ---
 
@@ -21,7 +21,7 @@ Letzte Aktualisierung: 2026-09-20 (iOS 1.3-30 in TestFlight, Mac v1.3-17).
   mitwachsende Waveform.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 30) in TestFlight. Der 20. September war ein
+- **iOS-Release:** 1.3 (Build 31) in TestFlight, Build 32 wartet auf den Upload. Der 20. September war ein
   Befund-Tag am Gerät; die Builds 18–27 sind die Kette daraus (Playhead,
   Flugmodus, Absturz beim Trackwechsel, Wiedergabe-Cache, Ladefortschritt —
   alle unter „Wichtige gelöste Probleme").
@@ -269,8 +269,8 @@ Serialisierung, Active-Track-Guard).
   einer eigenen Queue materialisiert (`AVAudioEnginePlayer.prefetch`), der
   nächste Track der Queue schon während der laufenden Wiedergabe. Relevant
   bei Quellen über FileProvider (iCloud, NAS/SMB via Files-App) — s. u.
-- **Wiedergabe aus lokaler Kopie** (`PlaybackCache`): höchstens zwei Dateien
-  unter `Caches/playback/` — der laufende und der vorausgeholte Track. Damit
+- **Wiedergabe aus lokaler Kopie** (`PlaybackCache`): höchstens vier Dateien
+  unter `Caches/playback/` — der laufende und die drei vorausgeholten Tracks. Damit
   ist der FileProvider aus dem Wiedergabe-Pfad heraus, und ein Netzverlust
   mitten im Track führt nicht mehr zu Stille bei laufendem Playhead. Kopiert
   wird nur, was nicht ohnehin lokal liegt (iOS: alles ausserhalb des
@@ -467,7 +467,15 @@ Serialisierung, Active-Track-Guard).
   Provider im Hintergrund gar nicht, gelingt die Vorausschau dort auch nicht,
   und nach dem einen vorgeholten Track ist Schluss. Ob das so ist, steht beim
   nächsten Mal im Log — `prefetchAhead` schweigt nicht mehr, sondern schreibt
-  jeden Fehlschlag mit Grund.
+  jeden Fehlschlag mit Grund. **Reichweite erhöht** (Entscheid des Nutzers,
+  2026-09-20): Vorausschau von einem auf **drei** Tracks, Cache-Kapazität
+  entsprechend von zwei auf **vier** Dateien — laufender Track plus die drei
+  nächsten. Die Kopien entstehen der Reihe nach auf der seriellen
+  Lookahead-Queue, der nächste Track also zuerst; zwischen zwei Dateien greift
+  der Abbruch, beim Durchskippen überträgt eine abgehängte Vorausschau darum
+  keine ganze Datei mehr umsonst. Die LRU-Reihenfolge deckt sich damit genau:
+  nach einem Lauf steht der laufende Track auf Platz vier und überlebt die
+  Verdrängung, der zuletzt gespielte fliegt raus.
 - **FileProvider liefert sequenziell — und ein Read wartet bis zu seiner
   Stelle.** Die zentrale Erkenntnis des 2026-09-20, am Gerät über Mobilfunk
   gemessen (vier Tracks, Zeiten in Sekunden):

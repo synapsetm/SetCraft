@@ -303,7 +303,7 @@ Daraus folgen drei verbindliche Regeln:
 1. **Nie direkt von der Provider-URL abspielen.** Die Engine-Reads laufen sonst
    in Daten, die noch nicht da sind — das Ergebnis ist Stille bei laufendem
    Playhead, ohne Fehlermeldung. Gespielt wird aus `PlaybackCache` (höchstens
-   zwei Dateien: laufender + vorausgeholter Track).
+   vier Dateien: laufender + die drei vorausgeholten Tracks).
 2. **Vollständigkeit beweist, wer jedes Byte gelesen hat.** Die häppchenweise
    Kopie ist zugleich die Prüfung; eine separate Leseprobe wäre ein zweiter
    Durchlauf durch dieselbe Datei. Eine Grössen-Gegenprobe fängt den

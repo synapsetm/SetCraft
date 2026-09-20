@@ -327,12 +327,30 @@ final class PlayerStore {
     /// so bei zwei Downloads statt einem pro übersprungenem Track.
     private func prefetchNeighbor() {
         prefetchTask?.cancel()
-        guard let next = neighborInQueue(offset: 1) else { return }
-        let url = next.url
+        let urls = (1...Self.lookaheadDepth).compactMap { neighborInQueue(offset: $0)?.url }
+        guard !urls.isEmpty else { return }
         prefetchTask = Task.detached(priority: .background) {
-            await AVAudioEnginePlayer.prefetchAhead(url: url)
+            // Der Reihe nach, nicht nebenläufig: die Vorausschau läuft ohnehin
+            // auf einer seriellen Queue, und so kommt der Track, der als
+            // nächstes dran ist, auch als erster an. Zwischen zwei Dateien
+            // greift ausserdem der Abbruch — beim Durchskippen überträgt eine
+            // abgehängte Vorausschau dann keine ganze Datei mehr umsonst.
+            for url in urls {
+                if Task.isCancelled { return }
+                await AVAudioEnginePlayer.prefetchAhead(url: url)
+            }
         }
     }
+
+    /// Wie viele Tracks im Voraus auf das Gerät geholt werden. Deckt sich mit
+    /// der Kapazität des `PlaybackCache` (laufender Track + diese drei).
+    ///
+    /// Drei statt einem seit dem Auto-Fahrt-Befund vom 2026-09-20: bei
+    /// gesperrtem Gerät liefert der FileProvider nicht, die Wiedergabe reicht
+    /// also genau so weit wie die bereitliegenden Kopien. Der Preis sind drei
+    /// Downloads pro Track-Wechsel statt einem — über Mobilfunk gemessen
+    /// 6–9 s je Track, im Hintergrund und ohne Eile.
+    private static let lookaheadDepth = 3
 
 
     /// Primärer Play-Pfad. Wird auch aus Lock-Screen / AirPods-Commands +

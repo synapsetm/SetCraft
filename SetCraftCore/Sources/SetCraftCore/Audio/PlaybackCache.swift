@@ -2,8 +2,9 @@ import CryptoKit
 import Foundation
 import OSLog
 
-/// Hält eine lokale Kopie der Datei, aus der gerade gespielt wird — und der,
-/// die als nächste dran ist. Mehr nicht: höchstens zwei Dateien gleichzeitig.
+/// Hält eine lokale Kopie der Datei, aus der gerade gespielt wird — und der
+/// drei, die als nächste dran sind. Mehr nicht: höchstens vier Dateien
+/// gleichzeitig.
 ///
 /// **Warum überhaupt kopieren.** Bis 2026-09-19 las die Engine direkt von der
 /// Quell-URL. Bei einer Quelle über den FileProvider (iCloud, NAS/SMB aus der
@@ -27,20 +28,28 @@ import OSLog
 ///
 /// **Abgrenzung zur Projektregel.** SetCraft kopiert die *Bibliothek* nicht in
 /// die App-Sandbox, das bleibt so. Dies hier ist ein flüchtiger
-/// Wiedergabe-Puffer von maximal zwei Dateien in `Caches/`, vom Nutzer am
-/// 2026-09-19 ausdrücklich so entschieden — keine Zweitkopie der Sammlung.
+/// Wiedergabe-Puffer von maximal vier Dateien in `Caches/`, vom Nutzer am
+/// 2026-09-19 so entschieden und am 2026-09-20 von zwei auf vier erhöht (der
+/// gesperrte FileProvider liefert nicht nach) — keine Zweitkopie der Sammlung.
 public final class PlaybackCache: @unchecked Sendable {
 
     public static let shared = PlaybackCache()
 
     private static let log = Logger(subsystem: "ch.buehler.beat.SetCraft", category: "PlaybackCache")
 
-    /// Höchstzahl gehaltener Kopien: der laufende Track und der vorausgeholte.
-    private static let capacity = 2
+    /// Höchstzahl gehaltener Kopien: der laufende Track und die drei
+    /// vorausgeholten.
+    ///
+    /// Von 2 auf 4 erhöht am 2026-09-20, nach dem Auto-Fahrt-Befund: liefert
+    /// der FileProvider bei gesperrtem Gerät nicht, reicht die Wiedergabe
+    /// genau so weit, wie Kopien bereitliegen. Mit einer war nach einem Track
+    /// Schluss. Exakt so viele wie die Vorausschau holt — Platz für einen
+    /// fünften gibt es nicht, der zuletzt gespielte Track fliegt also raus.
+    private static let capacity = 4
 
     private let lock = NSLock()
     /// Zuletzt benutzte Cache-Dateinamen, jüngste zuerst. Das ist die
-    /// Verdrängungsordnung — bei Kapazität 2 reicht eine Liste, kein Heap.
+    /// Verdrängungsordnung — bei dieser Kapazität reicht eine Liste, kein Heap.
     private var recent: [String] = []
     private var didClearStaleEntries = false
 
@@ -340,7 +349,7 @@ public final class PlaybackCache: @unchecked Sendable {
 
     /// Reste einer früheren Sitzung einmalig wegräumen. `Caches/` überlebt
     /// Neustarts, die `recent`-Liste nicht — ohne das wüchse das Verzeichnis
-    /// über die Sitzungen hinweg, obwohl höchstens zwei Dateien gebraucht werden.
+    /// über die Sitzungen hinweg, obwohl höchstens vier Dateien gebraucht werden.
     private func clearStaleEntriesOnce() {
         let shouldClear: Bool = lock.withLock {
             guard !didClearStaleEntries else { return false }

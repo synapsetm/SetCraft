@@ -74,31 +74,31 @@ final class PlaybackCacheTests: XCTestCase {
         XCTAssertNil(PlaybackCache.shared.existingCopy(of: source))
     }
 
-    func test_cache_haeltNurDieZweiJuengsten() throws {
-        let first  = try makeFile("first.mp3",  bytes: [1])
-        let second = try makeFile("second.mp3", bytes: [2])
-        let third  = try makeFile("third.mp3",  bytes: [3])
+    /// Kapazität 4 seit 2026-09-20: laufender Track plus die drei
+    /// vorausgeholten. Fünf Dateien passen nicht, die älteste muss weichen.
+    func test_cache_haeltNurDieVierJuengsten() throws {
+        let files = try (1...5).map { try makeFile("n\($0).mp3", bytes: [UInt8($0)]) }
+        for file in files { store(file) }
 
-        store(first)
-        store(second)
-        store(third)
-
-        XCTAssertNotNil(PlaybackCache.shared.existingCopy(of: third),  "jüngste bleibt")
-        XCTAssertNotNil(PlaybackCache.shared.existingCopy(of: second), "zweitjüngste bleibt")
-        XCTAssertNil(PlaybackCache.shared.existingCopy(of: first),
+        for survivor in files.dropFirst() {
+            XCTAssertNotNil(PlaybackCache.shared.existingCopy(of: survivor),
+                            "\(survivor.lastPathComponent) gehört zu den vier jüngsten")
+        }
+        XCTAssertNil(PlaybackCache.shared.existingCopy(of: files[0]),
                      "die älteste muss verdrängt sein — der Cache ist kein Archiv")
     }
 
     func test_erneuterZugriff_schuetztVorVerdraengung() throws {
         let a = try makeFile("a2.mp3", bytes: [1])
         let b = try makeFile("b2.mp3", bytes: [2])
-        let c = try makeFile("c2.mp3", bytes: [3])
+        let rest = try (1...3).map { try makeFile("r\($0).mp3", bytes: [UInt8(10 + $0)]) }
 
         store(a)
         store(b)
+        for file in rest.dropLast() { store(file) }
         // a wieder anfassen — damit ist b der älteste Eintrag.
         _ = PlaybackCache.shared.existingCopy(of: a)
-        store(c)
+        store(rest[rest.count - 1])
 
         XCTAssertNotNil(PlaybackCache.shared.existingCopy(of: a),
                         "gerade benutzt, darf nicht verdrängt werden")
