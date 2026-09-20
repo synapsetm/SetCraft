@@ -87,6 +87,15 @@ final class PlayerStore {
             self?.nowPlaying?.update()
         }
 
+        // Änderungen aus der Bibliothek übernehmen — sonst zeigt der Player
+        // weiter den Stand vom Ladezeitpunkt. Betrifft vor allem die Analyse:
+        // sie läuft NACH dem Laden und füllt BPM und Key nach.
+        library.onTrackChanged = { [weak self] track in
+            guard let self, self.currentTrack?.url == track.url else { return }
+            self.currentTrack = track
+            self.nowPlaying?.update()
+        }
+
         // Master-Tempo der letzten Session wiederherstellen. Kein Track
         // geladen — `applyMasterToCurrentTrack` im didSet läuft ins Leere,
         // die Bibliothek bekommt aber sofort den richtigen Anzeige-Zustand.

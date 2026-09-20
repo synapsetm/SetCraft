@@ -184,6 +184,25 @@ final class LibraryStore {
         return true
     }
 
+    /// Wird gerufen, wenn sich ein Track im Bestand geändert hat — Analyse,
+    /// Metadaten-Fix, Rating von aussen.
+    ///
+    /// `PlayerStore.currentTrack` ist eine **Kopie** vom Ladezeitpunkt. Ohne
+    /// diesen Kanal sieht die Liste den neuen Wert und der Player nicht: nach
+    /// einer Analyse standen BPM und Key in der Bibliothek, im Player aber
+    /// weiter „—", bis man den Track gewechselt und zurückgewechselt hatte.
+    /// Der Mac löst dasselbe seit jeher über `onTrackAnalyzed`.
+    var onTrackChanged: ((Track) -> Void)?
+
+    /// Einziger Weg, einen Track im Bestand zu ersetzen — damit der Hook nicht
+    /// beim nächsten neuen Schreibpfad wieder vergessen wird.
+    private func replaceInList(_ track: Track) {
+        if let idx = tracks.firstIndex(where: { $0.id == track.id }) {
+            tracks[idx] = track
+        }
+        onTrackChanged?(track)
+    }
+
     func isAnalyzing(trackID: UUID) -> Bool {
         analyzing.contains(trackID)
     }
@@ -359,9 +378,7 @@ final class LibraryStore {
     /// geparkt — `setActiveTrack` drained ihn beim nächsten Player-Wechsel,
     /// `flushPendingSaves` beim App-Backgrounding (siehe scenePhase-Hook).
     func updateTrack(_ track: Track) async {
-        if let idx = tracks.firstIndex(where: { $0.id == track.id }) {
-            tracks[idx] = track
-        }
+        replaceInList(track)
         let token = scopes.token(for: track.url)
         defer { token?.release() }
         do {
@@ -544,11 +561,10 @@ final class LibraryStore {
             if let bpm = result.bpm { updated.bpm = bpm }
             if let key = result.key { updated.key = key }
 
-            // Re-find: tracks-Array könnte sich zwischendurch verändert haben
-            // (laufender Scan, andere Selektion).
-            if let idx = tracks.firstIndex(where: { $0.id == trackID }) {
-                tracks[idx] = updated
-            }
+            // Re-find passiert in `replaceInList` — das tracks-Array könnte
+            // sich zwischendurch verändert haben (laufender Scan, andere
+            // Selektion).
+            replaceInList(updated)
             try await persistAnalyzed(updated)
         } catch {
             lastError = String(localized: "Analysis failed: \(error.localizedDescription)")
