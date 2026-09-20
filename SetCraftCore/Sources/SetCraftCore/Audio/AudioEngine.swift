@@ -33,6 +33,10 @@ public enum AudioEngineError: Error, Sendable {
     /// Die Datei liess sich nicht (vollständig) auf das Gerät holen — typisch
     /// für eine Quelle über den FileProvider (iCloud, NAS/SMB) ohne Netz.
     case fileUnavailable(reason: String)
+    /// Die lokale Wiedergabe-Kopie liess sich nicht öffnen. Sie ist beim
+    /// Werfen dieses Fehlers bereits verworfen — der Aufrufer soll die Datei
+    /// erneut holen und den Load ein zweites Mal versuchen, statt aufzugeben.
+    case cachedCopyUnusable(reason: String)
     /// Das Gerät hat gar keinen Netzpfad (Flugmodus), die Quelle liegt aber
     /// nicht lokal. Eigener Fall, damit die UI-Schicht eine verständliche,
     /// lokalisierte Meldung daraus machen kann statt einer Cocoa-Floskel.
@@ -55,6 +59,8 @@ extension AudioEngineError: LocalizedError {
         case .engineStartFailed(let underlying):
             "The audio engine could not be started: \(underlying)"
         case .fileUnavailable(let reason):
+            reason
+        case .cachedCopyUnusable(let reason):
             reason
         case .sourceOffline:
             "The device is offline and the source is not available locally."

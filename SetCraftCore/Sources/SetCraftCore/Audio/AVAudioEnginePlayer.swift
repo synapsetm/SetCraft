@@ -104,6 +104,10 @@ private final class PrefetchCancellation: @unchecked Sendable {
 @Observable
 public final class AVAudioEnginePlayer: AudioEngine {
 
+    private nonisolated static let log = Logger(
+        subsystem: "ch.buehler.beat.SetCraft", category: "AudioEngine"
+    )
+
     // MARK: - Public observable state
 
     public private(set) var isPlaying: Bool = false
@@ -414,7 +418,14 @@ public final class AVAudioEnginePlayer: AudioEngine {
                             // bloss der Cache nicht beschreibbar, wird von der
                             // Quelle gespielt — ein voller Cache darf die
                             // Wiedergabe nicht verhindern.
-                            switch PlaybackCache.shared.store(coordinatedURL, onProgress: onProgress) {
+                            // Gelesen wird aus der koordinierten URL, abgelegt
+                            // unter der ORIGINAL-URL: nur die kennt der spätere
+                            // `existingCopy`-Aufruf im Load.
+                            switch PlaybackCache.shared.store(
+                                coordinatedURL,
+                                cacheKey: url,
+                                onProgress: onProgress
+                            ) {
                             case .cached:
                                 break
                             case .sourceIncomplete(let reason):
@@ -500,8 +511,7 @@ public final class AVAudioEnginePlayer: AudioEngine {
         // ist die Identität des Tracks für Library, Tag-Writes und Waveform.
         // `existingCopy` kostet nur einen `stat`, ist auf dem MainActor also
         // unbedenklich; angelegt wird die Kopie im Prefetch.
-        let playbackURL = PlaybackCache.shared.existingCopy(of: url) ?? url
-        let file = try AVAudioFile(forReading: playbackURL)
+        let file = try openForPlayback(url)
         audioFile = file
         loadedURL = url
         duration = TimeInterval(file.length) / file.processingFormat.sampleRate
@@ -533,6 +543,39 @@ public final class AVAudioEnginePlayer: AudioEngine {
         cachedOutputLatency = nil
         #endif
         scheduleFromSeekFrame()
+    }
+
+    /// Öffnet die Datei, aus der gespielt wird — bevorzugt die lokale Kopie.
+    ///
+    /// Lässt sich die Kopie **nicht** öffnen, ist sie unbrauchbar (abgeschnitten,
+    /// inzwischen verdrängt, nie fertig geschrieben). Sie fliegt weg, und der
+    /// Aufrufer bekommt `cachedCopyUnusable` — sein Auftrag ist, die Datei noch
+    /// einmal auf der Materialisierungs-Queue zu holen und es erneut zu
+    /// versuchen. Bewusst **nicht** hier von der Quelle nachladen: das wäre
+    /// blockierendes FileProvider-IO auf dem MainActor, genau das, was der
+    /// Prefetch aus dem Weg räumen soll.
+    ///
+    /// Das war der Befund „Folgetrack spielt nicht, rote Meldung mit
+    /// `com.apple.coreaudio.avfaudio`": ein einziger unbrauchbarer Puffer
+    /// beendete die Wiedergabe, obwohl die Quelle in Ordnung war.
+    private func openForPlayback(_ url: URL) throws -> AVAudioFile {
+        guard let copy = PlaybackCache.shared.existingCopy(of: url) else {
+            do {
+                return try AVAudioFile(forReading: url)
+            } catch {
+                throw AudioEngineError.fileUnavailable(reason: Self.describe(error as NSError))
+            }
+        }
+        do {
+            return try AVAudioFile(forReading: copy)
+        } catch {
+            Self.log.error("""
+                Wiedergabe-Kopie unbrauchbar für \(url.lastPathComponent, privacy: .public): \
+                \(Self.describe(error as NSError), privacy: .public)
+                """)
+            PlaybackCache.shared.invalidate(url)
+            throw AudioEngineError.cachedCopyUnusable(reason: Self.describe(error as NSError))
+        }
     }
 
     public func unload() {

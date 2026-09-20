@@ -198,7 +198,28 @@ final class PlayerStore {
         }
     }
 
+    /// Zwei Anläufe, und der zweite ist der eigentliche Punkt.
+    ///
+    /// Der erste Anlauf spielt aus der lokalen Kopie. Lässt die sich nicht
+    /// öffnen, wirft `engine.load` `cachedCopyUnusable` — die Kopie ist dann
+    /// bereits verworfen, und der zweite Anlauf holt die Datei neu. Vorher
+    /// endete genau dieser Fall mit der roten Meldung „Failed to load track …
+    /// com.apple.coreaudio.avfaudio", und zwar bevorzugt beim Auto-Advance:
+    /// der Folgetrack kommt aus dem Prefetch, seine Kopie ist also die
+    /// einzige, die zwischen Anlegen und Abspielen Zeit hatte, kaputtzugehen.
+    ///
+    /// Mehr als zwei Anläufe gibt es nicht. Ist die Quelle selbst das Problem,
+    /// hilft Wiederholen nicht, und der Nutzer soll das lesen statt zuzusehen.
     private func performLoad(_ track: Track, snapshotQueue: Bool) async {
+        for attempt in 1...2 {
+            let done = await attemptLoad(track, snapshotQueue: snapshotQueue, attempt: attempt)
+            if done { return }
+        }
+    }
+
+    /// Ein Anlauf. `true` = fertig (geladen oder endgültig gescheitert),
+    /// `false` = die Kopie war unbrauchbar, bitte noch einmal.
+    private func attemptLoad(_ track: Track, snapshotQueue: Bool, attempt: Int) async -> Bool {
         loadingURL = track.url
         lastError = nil
         loadProgress = nil
@@ -228,7 +249,7 @@ final class PlayerStore {
                 }
             }
         } catch {
-            guard !Task.isCancelled, loadingURL == track.url else { return }
+            guard !Task.isCancelled, loadingURL == track.url else { return true }
             loadingURL = nil
             loadProgress = nil
             // Der Flugmodus-Fall bekommt einen eigenen Satz. „Failed to load
@@ -239,12 +260,12 @@ final class PlayerStore {
             } else {
                 lastError = String(localized: "Failed to load track: \(error.localizedDescription)")
             }
-            return
+            return true
         }
 
         // Währenddessen kann ein neuerer Tap dazwischengekommen sein — dann
         // gehört die Anzeige bereits ihm, und wir treten kommentarlos ab.
-        guard !Task.isCancelled, loadingURL == track.url else { return }
+        guard !Task.isCancelled, loadingURL == track.url else { return true }
         loadingURL = nil
         loadProgress = nil
 
@@ -276,8 +297,14 @@ final class PlayerStore {
             // false) zählt bewusst auch — der Track wurde tatsächlich
             // abgespielt; das entspricht der Mac-Logik.
             library.notePlay(forURL: track.url)
+            return true
+        } catch AudioEngineError.cachedCopyUnusable where attempt == 1 {
+            // Die kaputte Kopie ist weg. Noch einmal von vorn — der Prefetch
+            // legt sie neu an, und der zweite Anlauf spielt daraus.
+            return false
         } catch {
             lastError = String(localized: "Failed to load track: \(error.localizedDescription)")
+            return true
         }
     }
 
@@ -359,6 +386,10 @@ final class PlayerStore {
 
     func togglePlayPause() {
         guard currentTrack != nil else { return }
+        // Eine stehengebliebene Meldung des letzten Ladeversuchs hat sich
+        // erledigt, sobald der Nutzer selbst wieder Hand anlegt — sonst
+        // klebt sie unter einem Track, der längst wieder spielt.
+        lastError = nil
         if engine.isPlaying { pause() } else { play() }
     }
 

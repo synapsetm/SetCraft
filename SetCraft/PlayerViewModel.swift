@@ -28,6 +28,15 @@ final class PlayerViewModel {
     }
 
     func load(url: URL) {
+        load(url: url, allowRetry: true)
+    }
+
+    /// `allowRetry` deckt den einen Fall ab, in dem ein zweiter Versuch etwas
+    /// bringt: die lokale Wiedergabe-Kopie (auf dem Mac nur bei gemounteten
+    /// Netz-Volumes) liess sich nicht öffnen. Sie ist dann bereits verworfen,
+    /// der zweite Anlauf geht an die Quelle. Alles andere scheitert auch beim
+    /// zweiten Mal und wird gemeldet.
+    private func load(url: URL, allowRetry: Bool) {
         do {
             try player.load(url: url)
             lastError = nil
@@ -36,6 +45,8 @@ final class PlayerViewModel {
             // Direkt nach dem Laden mitlaufen — DJ-typisch erwartet man hier
             // keinen separaten Play-Klick.
             player.play()
+        } catch AudioEngineError.cachedCopyUnusable where allowRetry {
+            load(url: url, allowRetry: false)
         } catch {
             lastError = error.localizedDescription
         }

@@ -93,12 +93,27 @@ public final class PlaybackCache: @unchecked Sendable {
     /// Die bereits vorhandene Kopie, falls es eine gibt. Kostet einen `stat`,
     /// nichts weiter — darum auch vom MainActor aus unbedenklich, was
     /// `AVAudioEnginePlayer.load` ausnutzt.
+    ///
+    /// Eine Datei mit null Bytes gilt als nicht vorhanden: `AVAudioFile`
+    /// beantwortet die sonst mit einem nackten CoreAudio-Fehler, und der
+    /// Aufrufer soll in dem Fall die Quelle nehmen statt aufzugeben.
     public func existingCopy(of source: URL) -> URL? {
         guard let target = targetURL(for: source),
-              FileManager.default.fileExists(atPath: target.path)
+              let size = try? target.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+              size > 0
         else { return nil }
         touch(target.lastPathComponent)
         return target
+    }
+
+    /// Wirft die Kopie weg. Für den Fall, dass sie sich nicht öffnen lässt —
+    /// dann ist sie unbrauchbar, und der nächste `store` legt sie neu an,
+    /// statt die kaputte über die `fileExists`-Abkürzung ewig weiterzureichen.
+    public func invalidate(_ source: URL) {
+        guard let target = targetURL(for: source) else { return }
+        try? FileManager.default.removeItem(at: target)
+        let name = target.lastPathComponent
+        lock.withLock { recent.removeAll { $0 == name } }
     }
 
     // MARK: - Schreiben
@@ -129,9 +144,18 @@ public final class PlaybackCache: @unchecked Sendable {
         case cacheUnavailable(reason: String)
     }
 
+    /// `cacheKey` ist die URL, unter der die Kopie später wiedergefunden wird —
+    /// normalerweise `source` selbst. Der `NSFileCoordinator` reicht seinem
+    /// Closure aber eine **koordinierte** URL, die vom Original abweichen darf;
+    /// unter der abgelegt, fände `existingCopy(of: originalURL)` die Kopie nie
+    /// wieder und die Wiedergabe hinge doch wieder am FileProvider.
     @discardableResult
-    public func store(_ source: URL, onProgress: (@Sendable (Double) -> Void)? = nil) -> StoreResult {
-        guard let target = targetURL(for: source) else {
+    public func store(
+        _ source: URL,
+        cacheKey: URL? = nil,
+        onProgress: (@Sendable (Double) -> Void)? = nil
+    ) -> StoreResult {
+        guard let target = targetURL(for: cacheKey ?? source) else {
             return .cacheUnavailable(reason: "No cache directory available.")
         }
         let fm = FileManager.default
@@ -150,7 +174,7 @@ public final class PlaybackCache: @unchecked Sendable {
         // keine halbe Datei, die anschliessend als gültige Kopie durchgeht und
         // als Stille abgespielt wird.
         let staging = target.deletingLastPathComponent()
-            .appendingPathComponent("staging-\(UUID().uuidString)")
+            .appendingPathComponent("\(Self.stagingPrefix)\(UUID().uuidString)")
         do {
             try copyInChunks(from: source, to: staging, onProgress: onProgress)
             try fm.moveItem(at: staging, to: target)
@@ -257,6 +281,10 @@ public final class PlaybackCache: @unchecked Sendable {
         onProgress?(1)
     }
 
+    /// Namenspräfix der halbfertigen Kopie. Eigene Konstante, weil der
+    /// Aufräumer sie kennen muss — er läuft nebenläufig zu laufenden Kopien.
+    private static let stagingPrefix = "staging-"
+
     /// 256 KB pro Häppchen. Gross genug, dass der Overhead nicht auffällt,
     /// klein genug für eine flüssige Fortschrittsanzeige — bei 10 MB sind das
     /// rund 40 Aktualisierungen.
@@ -311,6 +339,11 @@ public final class PlaybackCache: @unchecked Sendable {
             at: directory, includingPropertiesForKeys: nil
         )) ?? []
         for entry in entries where !keep.contains(entry.lastPathComponent) {
+            // `staging-…` gehört einer Kopie, die in diesem Moment läuft: die
+            // beiden Queues kopieren nebenläufig, und der Aufräumer sieht die
+            // halbfertige Datei der jeweils anderen. Sie hier wegzuräumen liess
+            // deren `moveItem` ins Leere laufen.
+            if entry.lastPathComponent.hasPrefix(Self.stagingPrefix) { continue }
             try? FileManager.default.removeItem(at: entry)
         }
     }
