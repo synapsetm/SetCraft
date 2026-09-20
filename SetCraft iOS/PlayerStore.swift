@@ -28,6 +28,11 @@ final class PlayerStore {
     /// Sekunden; die Library-Zeile zeigt solange einen Spinner.
     var loadingURL: URL?
 
+    /// Messwerte des letzten Ladevorgangs, als fertige Zeile für die Anzeige.
+    /// VORLÄUFIG — eingebaut, um zu beantworten, wo die Zeit beim Trackwechsel
+    /// über Mobilfunk hingeht. Fliegt wieder raus, sobald das geklärt ist.
+    var lastLoadTiming: String?
+
     let engine: AVAudioEnginePlayer
 
     /// Wird vom AppBootstrap nachträglich gesetzt — kreuzweise Initialisierung
@@ -185,6 +190,7 @@ final class PlayerStore {
     private func performLoad(_ track: Track, snapshotQueue: Bool) async {
         loadingURL = track.url
         lastError = nil
+        lastLoadTiming = nil
 
         // Datei ggf. erst auf das Gerät holen. Betrifft iCloud-Platzhalter
         // genauso wie Tracks von einem SMB/NAS-Share aus der Files-App:
@@ -201,7 +207,13 @@ final class PlayerStore {
         // wurden beide Fehlerquellen verschluckt: die Engine bekam die Datei
         // trotzdem, spielte sichtbar los und blieb stumm.
         do {
-            try await AVAudioEnginePlayer.prefetch(url: track.url)
+            let timing = try await AVAudioEnginePlayer.prefetch(url: track.url)
+            // Bewusst `String(format:)` und keine Katalog-Keys: reine
+            // Diagnose-Zahlen, im Deutschen identisch, und sie sollen nicht
+            // als Übersetzungs-Altlast zurückbleiben.
+            lastLoadTiming = timing.map {
+                String(format: "open %.1fs · probe %.1fs · copy %.1fs", $0.open, $0.probe, $0.copy)
+            }
         } catch {
             guard !Task.isCancelled, loadingURL == track.url else { return }
             loadingURL = nil

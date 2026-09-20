@@ -68,6 +68,13 @@ struct PlayerScreen: View {
                         .padding(.horizontal, 18)
                         .padding(.bottom, 8)
                 }
+                if let timing = store.lastLoadTiming {
+                    // VORLÄUFIGE Diagnose-Zeile, siehe `lastLoadTiming`.
+                    Text(timing)
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .padding(.bottom, 8)
+                }
             }
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)

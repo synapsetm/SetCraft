@@ -60,11 +60,22 @@ private final class NetworkReachability: @unchecked Sendable {
     }
 }
 
+/// Wie lange die drei Phasen gedauert haben. Vorübergehend eingebaut, um eine
+/// konkrete Frage zu beantworten: warum ein Trackwechsel über Mobilfunk lange
+/// dauert. `open` ist der `AVAudioFile`-Open, bei dem der FileProvider die Datei
+/// herunterlädt; `probe` die Lesbarkeitsprüfung am Dateiende; `copy` die Kopie in
+/// den Wiedergabe-Cache. Erwartung: `open` dominiert deutlich.
+public struct MaterializeTiming: Sendable {
+    public let open: TimeInterval
+    public let probe: TimeInterval
+    public let copy: TimeInterval
+}
+
 /// Ergebnis einer Materialisierung. `offline` ist bewusst ein eigener Fall und
 /// kein Text: die UI-Schicht formuliert daraus eine lokalisierte Meldung, der
 /// Core hat keinen String-Katalog.
 public enum MaterializeOutcome: Sendable {
-    case ok
+    case ok(timing: MaterializeTiming?)
     case offline
     case failed(reason: String)
 }
@@ -283,10 +294,11 @@ public final class AVAudioEnginePlayer: AudioEngine {
     ///
     /// Bei einer lokalen Datei kostet der Aufruf nur den Open — kein
     /// Sonderfall nötig.
-    public nonisolated static func prefetch(url: URL) async throws {
+    @discardableResult
+    public nonisolated static func prefetch(url: URL) async throws -> MaterializeTiming? {
         switch await materialize(url: url, on: audioLoadQueue) {
-        case .ok:
-            return
+        case .ok(let timing):
+            return timing
         case .offline:
             throw AudioEngineError.sourceOffline
         case .failed(let reason):
@@ -316,7 +328,7 @@ public final class AVAudioEnginePlayer: AudioEngine {
     /// „kein Audio, keine Fehlermeldung".
     private nonisolated static func materialize(url: URL, on queue: DispatchQueue) async -> MaterializeOutcome {
         // Wer schon vor dem Einreihen abgebrochen wurde, fasst gar nichts an.
-        if Task.isCancelled { return .ok }
+        if Task.isCancelled { return .ok(timing: nil) }
 
         let cancellation = PrefetchCancellation()
         return await withTaskCancellationHandler {
@@ -339,7 +351,7 @@ public final class AVAudioEnginePlayer: AudioEngine {
                     // noch jemanden interessiert: bei schnellem Durchskippen
                     // fallen so alle Zwischenstationen ohne IO weg.
                     guard !cancellation.isCancelled else {
-                        once.resume(.ok)
+                        once.resume(.ok(timing: nil))
                         return
                     }
 
@@ -366,6 +378,7 @@ public final class AVAudioEnginePlayer: AudioEngine {
                     // Die Begründung wird im Closure zu einem String gemacht,
                     // statt den NSError über die Isolationsgrenze zu schicken.
                     var failure: String?
+                    var timing: MaterializeTiming?
                     var coordinatorError: NSError?
                     // Wo die Sekunden hingehen, wenn ein Trackwechsel ueber
                     // Mobilfunk lange dauert. Erwartung: der Loewenanteil steckt
@@ -408,6 +421,11 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         }
 
                         let finishedAt = ProcessInfo.processInfo.systemUptime
+                        timing = MaterializeTiming(
+                            open: openedAt - startedAt,
+                            probe: verifiedAt - openedAt,
+                            copy: finishedAt - verifiedAt
+                        )
                         let phases = "open \(round((openedAt - startedAt) * 100) / 100)s, probe \(round((verifiedAt - openedAt) * 100) / 100)s, copy \(round((finishedAt - verifiedAt) * 100) / 100)s"
                         playbackLog.info("Materialisiert \(url.lastPathComponent, privacy: .public): \(phases, privacy: .public)")
                     }
@@ -416,7 +434,7 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         // bereitstellen, lief die Closure oben gar nicht.
                         failure = describe(coordinatorError)
                     }
-                    once.resume(failure.map { .failed(reason: $0) } ?? .ok)
+                    once.resume(failure.map { .failed(reason: $0) } ?? .ok(timing: timing))
                 }
             }
         } onCancel: {
