@@ -4,7 +4,7 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-20 (iOS 1.3-31 in TestFlight, Build 32 gebaut, Mac v1.3-17).
+Letzte Aktualisierung: 2026-09-20 (iOS 1.3-32 in TestFlight, Mac v1.3-17).
 
 ---
 
@@ -21,7 +21,7 @@ Letzte Aktualisierung: 2026-09-20 (iOS 1.3-31 in TestFlight, Build 32 gebaut, Ma
   mitwachsende Waveform.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 31) in TestFlight, Build 32 wartet auf den Upload. Der 20. September war ein
+- **iOS-Release:** 1.3 (Build 32) in TestFlight. Der 20. September war ein
   Befund-Tag am Gerät; die Builds 18–27 sind die Kette daraus (Playhead,
   Flugmodus, Absturz beim Trackwechsel, Wiedergabe-Cache, Ladefortschritt —
   alle unter „Wichtige gelöste Probleme").
