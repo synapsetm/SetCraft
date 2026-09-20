@@ -76,6 +76,24 @@ final class NowPlayingManager {
         artworkTask?.cancel()
     }
 
+    /// Baut das Artwork-Objekt bewusst **ausserhalb** der MainActor-Isolation.
+    ///
+    /// `MPMediaItemArtwork` ruft seinen Request-Handler auf einer eigenen Queue
+    /// auf — beim Zusammenbauen des Now-Playing-Dictionaries, also bei jedem
+    /// Trackwechsel. Der Handler-Typ ist nicht `@Sendable`, und wird er in
+    /// einem MainActor-isolierten Kontext gebildet, erbt er diese Isolation.
+    /// Im Swift-6-Sprachmodus prüft die Runtime das beim Aufruf
+    /// (`_swift_task_checkIsolatedSwift` → `dispatch_assert_queue`); die Prüfung
+    /// schlägt fehl, weil MediaPlayer eben nicht auf dem Main-Thread fragt.
+    /// Ergebnis: `EXC_BREAKPOINT`, App weg. Genau das ist in 1.3-21 passiert
+    /// (zwei Crash-Reports vom 2026-09-20, beide beim Trackwechsel).
+    ///
+    /// In einer `nonisolated` Funktion gebildet, trägt der Handler keine
+    /// Isolation und darf von jeder Queue gerufen werden.
+    private nonisolated static func makeArtwork(from image: UIImage) -> MPMediaItemArtwork {
+        MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+    }
+
     private func loadAndApplyArtwork(url: URL) async {
         let data = await ArtworkReader.loadArtwork(url: url)
         if Task.isCancelled { return }
@@ -83,7 +101,7 @@ final class NowPlayingManager {
         // Track könnte zwischenzeitlich gewechselt haben — verwerfen.
         guard player.currentTrack?.url == url else { return }
 
-        let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        let artwork = Self.makeArtwork(from: image)
         var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
         info[MPMediaItemPropertyArtwork] = artwork
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info

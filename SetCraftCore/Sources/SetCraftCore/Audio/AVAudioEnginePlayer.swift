@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import Network
+import OSLog
 import Observation
 
 /// Eigene Queues fürs Materialisieren von Dateien. Bewusst **nicht** der
@@ -98,6 +99,8 @@ private final class PrefetchCancellation: @unchecked Sendable {
     var isCancelled: Bool { lock.withLock { cancelled } }
     func cancel() { lock.withLock { cancelled = true } }
 }
+
+private let playbackLog = Logger(subsystem: "ch.buehler.beat.SetCraft", category: "Playback")
 
 @MainActor
 @Observable
@@ -364,6 +367,14 @@ public final class AVAudioEnginePlayer: AudioEngine {
                     // statt den NSError über die Isolationsgrenze zu schicken.
                     var failure: String?
                     var coordinatorError: NSError?
+                    // Wo die Sekunden hingehen, wenn ein Trackwechsel ueber
+                    // Mobilfunk lange dauert. Erwartung: der Loewenanteil steckt
+                    // im Open, weil der FileProvider dabei die ganze Datei holt —
+                    // Probe und Kopie laufen danach auf lokalem Speicher.
+                    // Gemessen statt vermutet.
+                    let startedAt = ProcessInfo.processInfo.systemUptime
+                    var openedAt = startedAt
+                    var verifiedAt = startedAt
                     // Der `NSFileCoordinator` ist derselbe Weg, den
                     // `FolderScanner.collect` beim Verzeichnis-Lesen geht: er
                     // gibt dem Provider die Gelegenheit, die Datei
@@ -380,7 +391,9 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         // der eigentliche Load baut es ohnehin neu auf.
                         do {
                             let file = try AVAudioFile(forReading: coordinatedURL)
+                            openedAt = ProcessInfo.processInfo.systemUptime
                             failure = verifyReadable(file)
+                            verifiedAt = ProcessInfo.processInfo.systemUptime
                         } catch {
                             failure = describe(error as NSError)
                         }
@@ -393,6 +406,10 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         if failure == nil, PlaybackCache.shared.shouldCache(url) {
                             PlaybackCache.shared.store(coordinatedURL)
                         }
+
+                        let finishedAt = ProcessInfo.processInfo.systemUptime
+                        let phases = "open \(round((openedAt - startedAt) * 100) / 100)s, probe \(round((verifiedAt - openedAt) * 100) / 100)s, copy \(round((finishedAt - verifiedAt) * 100) / 100)s"
+                        playbackLog.info("Materialisiert \(url.lastPathComponent, privacy: .public): \(phases, privacy: .public)")
                     }
                     if let coordinatorError {
                         // Der Coordinator kommt zuerst: kann er die Datei nicht
