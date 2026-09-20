@@ -139,6 +139,10 @@ cat <<EOF
 Nächste Schritte:
   1. App Store Connect → TestFlight → Builds
   2. Processing dauert ~5–15 Minuten (Mail von Apple, wenn fertig)
+     Status ohne Browser: scripts/asc-status.sh
+     Sobald VALID: scripts/asc-expire-builds.sh lässt die älteren Builds
+     ablaufen, damit in TestFlight nur der aktuelle Stand installierbar ist
+     (Apple macht das nicht zuverlässig von selbst)
   3. Internal Testing: dich selbst als Tester hinzufügen (falls noch nicht)
   4. Auf dem iPhone die TestFlight-App starten → SetCraft installieren
 

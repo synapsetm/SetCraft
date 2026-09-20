@@ -61,3 +61,15 @@ PY
 asc_api() {
     curl -fsS -H "Authorization: Bearer $ASC_TOKEN" "$ASC_API$1"
 }
+
+# PATCH-Wrapper fuer die wenigen schreibenden Aufrufe (Build ablaufen lassen).
+# Body kommt auf stdin. `-f` laesst curl bei 4xx/5xx scheitern; die Fehlermeldung
+# von Apple steckt allerdings im Body, den `-f` verwirft — darum `--show-error`
+# und im Aufrufer eine eigene Meldung.
+asc_api_patch() {
+    curl -fsS -X PATCH \
+        -H "Authorization: Bearer $ASC_TOKEN" \
+        -H "Content-Type: application/json" \
+        --data @- \
+        "$ASC_API$1"
+}
