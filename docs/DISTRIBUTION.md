@@ -333,9 +333,12 @@ Der schreibende Zugriff laeuft ueber `asc_api_patch` in `scripts/asc-auth.sh`
   App passt nicht zum Private-Key, mit dem das DMG signiert wurde. Public-
   Key in `Info.plist` ersetzen und neu releasen.
 - **`errSecInternalComponent` beim iOS-`exportArchive`**: Signieren scheitert,
-  ohne dass am Code etwas falsch waere — ein Schluesselbund-Problem. Login-
-  Keychain entsperrt halten und den Lauf wiederholen. Hochgeladen wird dabei
-  nichts, die Build-Nummer bleibt frei.
+  ohne dass am Code etwas falsch waere. Ursache ist der Schluesselbund-Dialog,
+  der nach dem Zugriff auf den privaten Schluessel des Distribution-Zertifikats
+  fragt — wird er abgebrochen, scheitert der Export mit genau diesem Code.
+  Im Dialog „**Immer erlauben**" waehlen; „Erlauben" beantwortet nur diesen
+  einen Lauf und die Rueckfrage kommt beim naechsten Release wieder.
+  Hochgeladen wird dabei nichts, die Build-Nummer bleibt frei.
 - **Lokalisierungs-Gate meldet „keine .stringsdata gefunden"**: das Skript
   sucht seit 2026-09-19 auch unter `ArchiveIntermediates/`. Kommt die Meldung
   trotzdem, wurde das Target noch nie gebaut oder ein `clean` des anderen

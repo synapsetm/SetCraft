@@ -4,7 +4,7 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-20 (iOS 1.3-27 in TestFlight, Mac v1.3-17).
+Letzte Aktualisierung: 2026-09-20 (iOS 1.3-30 in TestFlight, Mac v1.3-17).
 
 ---
 
@@ -21,11 +21,11 @@ Letzte Aktualisierung: 2026-09-20 (iOS 1.3-27 in TestFlight, Mac v1.3-17).
   mitwachsende Waveform.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 27) in TestFlight. Der 20. September war ein
+- **iOS-Release:** 1.3 (Build 30) in TestFlight. Der 20. September war ein
   Befund-Tag am Gerät; die Builds 18–27 sind die Kette daraus (Playhead,
   Flugmodus, Absturz beim Trackwechsel, Wiedergabe-Cache, Ladefortschritt —
   alle unter „Wichtige gelöste Probleme").
-  Build-Nummern der Plattformen laufen auseinander (iOS 27, Mac 17), weil
+  Build-Nummern der Plattformen laufen auseinander (iOS 30, Mac 17), weil
   iOS-Befunde eigene Builds bekommen. `scripts/asc-expire-builds.sh` lässt nach
   jedem Upload die älteren Builds ablaufen — Apple macht das nicht zuverlässig,
   und zwei installierbare Builds nebeneinander bedeuten Fehlermeldungen zu
@@ -371,6 +371,41 @@ Serialisierung, Active-Track-Guard).
   Endlosschleife ohne Weg zurück in die App. `isHandlingTerminationPrompt`
   unterbricht das, gelöst wird die Sperre beim `didBecomeMainNotification`
   des wiederhergestellten Fensters.
+- **Automatische Analyse fehlte auf iOS komplett.** BPM- und Key-Chip blieben
+  nach dem Abspielen bei „—". Keine Regression: `git log -S "analyze" --
+  "SetCraft iOS/PlayerStore.swift"` findet keinen einzigen Treffer, der Aufruf
+  wurde dort nie geschrieben. Analysiert wurde auf iOS ausschliesslich über die
+  manuelle Aktion in der Bibliothek — während der Mac seit jeher
+  `analyzeIfNeeded` im Lade-Pfad ruft. Damit verletzte die App eine Kernregel
+  aus `CLAUDE.md` („Automatische BPM- und Key-Analyse beim Öffnen").
+  `LibraryStore.analyzeIfNeeded` ist jetzt das Gegenstück, mit denselben Regeln
+  wie auf dem Mac: DJ-Mixe aussen vor, und gerechnet wird nur, was fehlt
+  (`analyze(trackID:force:)`). Gelesen wird aus der Wiedergabe-Kopie, damit die
+  Analyse nicht am FileProvider hängt; geschrieben weiterhin in die Quelle.
+- **Das Analyse-Ergebnis erreichte den Player nicht.** Nach der Analyse standen
+  die Werte in der Liste, im Player weiter „—" — sichtbar erst nach einem
+  Trackwechsel hin und zurück. `PlayerStore.currentTrack` ist eine **Kopie** vom
+  Ladezeitpunkt; die Liste liest aus `library.tracks`, der Player aus seiner
+  Kopie. Den Kanal gab es nur in der Gegenrichtung (`applyEdit`: Player →
+  Library). Jetzt `LibraryStore.onTrackChanged`, und — der wichtigere Teil —
+  `replaceInList` als **einziger** Weg, einen Track im Bestand zu ersetzen:
+  vorher schrieben zwei Stellen direkt `tracks[idx] = …`, beim nächsten
+  Schreibpfad wäre der Hook wieder vergessen worden. Betrifft nicht nur die
+  Analyse, sondern auch Metadaten-Fix und Rating aus der Bibliothek.
+- **Wettlauf zweier Prefetch-Queues.** Beim schnellen Durchskippen erschien
+  häufig „The track could not be copied for playback". `prefetch`
+  (audioLoadQueue) und `prefetchAhead` (audioLookaheadQueue) holen dabei oft
+  DIESELBE Datei — der angetippte Track ist meist der, den die Vorausschau
+  schon lädt. Beide sehen „Ziel existiert nicht", beide kopieren, der zweite
+  `moveItem` scheitert am inzwischen vorhandenen Ziel. Kein Fehler: existiert
+  das Ziel im `catch`, gilt der Lauf als erfolgreich.
+- **Ein Cache-Problem durfte nie die Wiedergabe verhindern** — die Zusicherung
+  stand im Kommentar über `store`, wurde beim Aufräumen aber gebrochen, weil
+  jedes `nil` zum harten Ladefehler wurde. `store` liefert jetzt `StoreResult`
+  mit drei Ausgängen, weil sie verschiedene Konsequenzen haben: `.cached` →
+  aus der Kopie spielen; `.sourceIncomplete` → **nur das** bricht den Load ab
+  (von einer halben Datei zu spielen ergibt Stille bei laufendem Playhead);
+  `.cacheUnavailable` (Platte voll, Rechte) → von der Quelle spielen.
 - **FileProvider liefert sequenziell — und ein Read wartet bis zu seiner
   Stelle.** Die zentrale Erkenntnis des 2026-09-20, am Gerät über Mobilfunk
   gemessen (vier Tracks, Zeiten in Sekunden):
@@ -537,9 +572,13 @@ Serialisierung, Active-Track-Guard).
   Builds. Aufgefallen erst, als ein `clean` des anderen Targets gar nichts mehr
   übrig liess. Seit 2026-09-19 werden beide Orte durchsucht.
 - **`errSecInternalComponent` beim iOS-Export**: `exportArchive` scheitert beim
-  Signieren, ohne dass am Code etwas falsch wäre. Schlüsselbund-Problem;
-  Login-Keychain entsperrt halten, Lauf wiederholen. Hochgeladen wird dabei
-  nichts, die Build-Nummer bleibt also frei.
+  Signieren, ohne dass am Code etwas falsch wäre. **Ursache ist der
+  Schlüsselbund-Dialog**, der nach dem Zugriff auf den privaten Schlüssel des
+  Distribution-Zertifikats fragt — wird er abgebrochen oder weggeklickt,
+  scheitert der Export mit genau diesem Code. Am 2026-09-20 dreimal
+  hintereinander so passiert. Richtige Antwort ist „**Immer erlauben**", nicht
+  „Lauf wiederholen": ohne das kommt die Rückfrage bei jedem Release wieder.
+  Hochgeladen wird dabei nichts, die Build-Nummer bleibt frei.
 - **TestFlight-Builds ablaufen lassen**: `scripts/asc-expire-builds.sh` setzt
   alles ausser dem neuesten VALID-Build auf `expired`. Apple räumt nicht
   zuverlässig auf — am 2026-09-20 standen 21 und 19 gleichzeitig aktiv, während
