@@ -19,11 +19,22 @@ public actor TagLibTrackStore: TrackStore {
             case .bridgeFailed(let url, let underlying):
                 return "TagLib could not write \(url.lastPathComponent): \(underlying?.localizedDescription ?? "unknown")"
             case .fileSystem(let url, let stage, let underlying):
-                let ns = underlying as NSError
-                let errno = Self.posixErrno(in: ns)
-                let errnoSuffix = errno.map { " errno=\($0) (\(String(cString: strerror(Int32($0)))))" } ?? ""
-                return "Filesystem error for \(url.lastPathComponent) at \(stage): \(ns.localizedDescription) [\(ns.domain) #\(ns.code)\(errnoSuffix)]"
+                return "Filesystem error for \(url.lastPathComponent) at \(stage): \(Self.diagnostic(underlying))"
             }
+        }
+
+        /// Dieselbe Aufschlüsselung für Log-Zeilen. `localizedDescription`
+        /// allein liefert bei Datei-Fehlern die Cocoa-Floskel „The file …
+        /// couldn't be opened." — ohne Domain, Code und den entscheidenden
+        /// Errno. Genau daran scheiterte die Diagnose der SMB-Write-Fehler
+        /// vom 2026-09-21: drei Fehlschläge im Gerätelog, aus denen sich
+        /// nicht ablesen liess, ob der Server ablehnt (EACCES), die Sandbox
+        /// (EPERM) oder die Datei gar nicht erst da war (ENOENT).
+        static func diagnostic(_ error: Error) -> String {
+            let ns = error as NSError
+            let errno = posixErrno(in: ns)
+            let errnoSuffix = errno.map { " errno=\($0) (\(String(cString: strerror(Int32($0)))))" } ?? ""
+            return "\(ns.localizedDescription) [\(ns.domain) #\(ns.code)\(errnoSuffix)]"
         }
 
         /// Sucht im NSError und seinen `NSUnderlyingError`-Ketten nach einem
@@ -95,7 +106,7 @@ public actor TagLibTrackStore: TrackStore {
             // datei nachweislich lesen können (sonst hätten wir keinen
             // Track), versuchen wir als letzte Eskalation einen direkten
             // TagLib-Write auf dem Original. Nicht-atomar, aber pragmatisch.
-            Self.log.warning("copyItem failed for \(original.path, privacy: .public): \(error.localizedDescription, privacy: .public) — falling back to in-place write")
+            Self.log.warning("copyItem failed for \(original.path, privacy: .public): \(StoreError.diagnostic(error), privacy: .public) — falling back to in-place write")
             try Self.writeInPlace(
                 original: original,
                 title: track.title,
@@ -164,7 +175,7 @@ public actor TagLibTrackStore: TrackStore {
             )
             log.notice("In-place write succeeded for \(original.path, privacy: .public)")
         } catch let bridgeError {
-            log.error("In-place write failed for \(original.path, privacy: .public): \(bridgeError.localizedDescription, privacy: .public)")
+            log.error("In-place write failed for \(original.path, privacy: .public): \(StoreError.diagnostic(bridgeError), privacy: .public) — vorangegangener copyItem: \(StoreError.diagnostic(copyError), privacy: .public)")
             // Lieber den copy-Fehler zeigen (513/EACCES erklärt die
             // Ursache); der bridge-Fehler wäre nur "TagLib could not open".
             throw StoreError.fileSystem(original, stage: "copyItem", underlying: copyError)
