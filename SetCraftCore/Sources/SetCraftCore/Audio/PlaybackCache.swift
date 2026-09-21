@@ -3,7 +3,7 @@ import Foundation
 import OSLog
 
 /// Hält eine lokale Kopie der Datei, aus der gerade gespielt wird — und der
-/// drei, die als nächste dran sind. Mehr nicht: höchstens vier Dateien
+/// acht, die als nächste dran sind. Mehr nicht: höchstens neun Dateien
 /// gleichzeitig.
 ///
 /// **Warum überhaupt kopieren.** Bis 2026-09-19 las die Engine direkt von der
@@ -28,24 +28,37 @@ import OSLog
 ///
 /// **Abgrenzung zur Projektregel.** SetCraft kopiert die *Bibliothek* nicht in
 /// die App-Sandbox, das bleibt so. Dies hier ist ein flüchtiger
-/// Wiedergabe-Puffer von maximal vier Dateien in `Caches/`, vom Nutzer am
-/// 2026-09-19 so entschieden und am 2026-09-20 von zwei auf vier erhöht (der
-/// gesperrte FileProvider liefert nicht nach) — keine Zweitkopie der Sammlung.
+/// Wiedergabe-Puffer von maximal neun Dateien in `Caches/`, vom Nutzer am
+/// 2026-09-19 so entschieden, am 2026-09-20 von zwei auf vier und am
+/// 2026-09-21 von vier auf neun erhöht (der gesperrte FileProvider liefert
+/// nicht nach) — keine Zweitkopie der Sammlung.
 public final class PlaybackCache: @unchecked Sendable {
 
     public static let shared = PlaybackCache()
 
     private static let log = Logger(subsystem: "ch.buehler.beat.SetCraft", category: "PlaybackCache")
 
-    /// Höchstzahl gehaltener Kopien: der laufende Track und die drei
+    /// Höchstzahl gehaltener Kopien: der laufende Track und die acht
     /// vorausgeholten.
     ///
     /// Von 2 auf 4 erhöht am 2026-09-20, nach dem Auto-Fahrt-Befund: liefert
     /// der FileProvider bei gesperrtem Gerät nicht, reicht die Wiedergabe
     /// genau so weit, wie Kopien bereitliegen. Mit einer war nach einem Track
-    /// Schluss. Exakt so viele wie die Vorausschau holt — Platz für einen
-    /// fünften gibt es nicht, der zuletzt gespielte Track fliegt also raus.
-    private static let capacity = 4
+    /// Schluss.
+    ///
+    /// Von 4 auf 9 erhöht am 2026-09-21. Vier Kopien tragen **zwanzig
+    /// Minuten** — zweimal im selben Set gemessen (16:48→17:08 und
+    /// 17:13→17:35, beide Male endete es mit `playbackRate 0.0`). Ein Set in
+    /// der Hosentasche dauert länger. Neun decken rund fünfundvierzig
+    /// Minuten und hätten beide Abbrüche verhindert. Das ist
+    /// Symptombekämpfung — die Ursache ist die tote SMB-Session, siehe
+    /// `SourceKeepAlive` — aber sie wirkt unabhängig davon, ob der
+    /// Wach-Lesezugriff den Server wirklich erreicht.
+    ///
+    /// Preis: rund 90 MB in `Caches/` statt 40. Exakt so viele wie die
+    /// Vorausschau holt — Platz für einen zehnten gibt es nicht, der zuletzt
+    /// gespielte Track fliegt also raus.
+    private static let capacity = 9
 
     private let lock = NSLock()
     /// Zuletzt benutzte Cache-Dateinamen, jüngste zuerst. Das ist die

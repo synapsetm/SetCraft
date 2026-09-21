@@ -395,14 +395,22 @@ final class PlayerStore {
     }
 
     /// Wie viele Tracks im Voraus auf das Gerät geholt werden. Deckt sich mit
-    /// der Kapazität des `PlaybackCache` (laufender Track + diese drei).
+    /// der Kapazität des `PlaybackCache` (laufender Track + diese acht).
     ///
     /// Drei statt einem seit dem Auto-Fahrt-Befund vom 2026-09-20: bei
     /// gesperrtem Gerät liefert der FileProvider nicht, die Wiedergabe reicht
-    /// also genau so weit wie die bereitliegenden Kopien. Der Preis sind drei
-    /// Downloads pro Track-Wechsel statt einem — über Mobilfunk gemessen
-    /// 6–9 s je Track, im Hintergrund und ohne Eile.
-    private static let lookaheadDepth = 3
+    /// also genau so weit wie die bereitliegenden Kopien.
+    ///
+    /// Acht statt drei seit dem 2026-09-21: vier Kopien trugen im Test genau
+    /// zwanzig Minuten, dann stand die Wiedergabe. Acht decken rund
+    /// fünfundvierzig. Der Preis ist Vorab-Traffic, der im Zweifel umsonst
+    /// war — er fällt im Hintergrund an, auf der `.utility`-Queue, und ein
+    /// Skip hängt die Vorausschau zwischen zwei Dateien ab.
+    ///
+    /// Das Nachladen bleibt trotzdem nötig: bei jedem Track-Wechsel läuft die
+    /// Vorausschau neu und füllt auf, sobald die Quelle wieder antwortet.
+    /// Bereits vorhandene Kopien kosten dabei nur einen `stat`.
+    private static let lookaheadDepth = 8
 
 
     /// Primärer Play-Pfad. Wird auch aus Lock-Screen / AirPods-Commands +
