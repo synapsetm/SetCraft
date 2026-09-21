@@ -4,8 +4,7 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-21 (iOS 1.3-34 gebaut, 1.3-33 in TestFlight;
-Mac v1.3-17).
+Letzte Aktualisierung: 2026-09-21 (iOS 1.3-34 in TestFlight, Mac v1.3-17).
 
 ---
 
@@ -22,9 +21,8 @@ Mac v1.3-17).
   mitwachsende Waveform.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 33) in TestFlight, Build 34 gebaut und noch
-  nicht hochgeladen. Der 20. September war ein Befund-Tag am Gerät;
-  die Builds 18–27 sind die Kette daraus (Playhead,
+- **iOS-Release:** 1.3 (Build 34) in TestFlight. Der 20. September war ein
+  Befund-Tag am Gerät; die Builds 18–27 sind die Kette daraus (Playhead,
   Flugmodus, Absturz beim Trackwechsel, Wiedergabe-Cache, Ladefortschritt —
   alle unter „Wichtige gelöste Probleme"). Build 34 bringt den Befund vom
   21. September: der SMB-Share ist bei gesperrtem iPhone nicht neu aufbaubar,
