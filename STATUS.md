@@ -4,7 +4,8 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-20 (iOS 1.3-32 in TestFlight, Mac v1.3-17).
+Letzte Aktualisierung: 2026-09-21 (iOS 1.3-34 gebaut, 1.3-33 in TestFlight;
+Mac v1.3-17).
 
 ---
 
@@ -21,11 +22,15 @@ Letzte Aktualisierung: 2026-09-20 (iOS 1.3-32 in TestFlight, Mac v1.3-17).
   mitwachsende Waveform.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 32) in TestFlight. Der 20. September war ein
-  Befund-Tag am Gerät; die Builds 18–27 sind die Kette daraus (Playhead,
+- **iOS-Release:** 1.3 (Build 33) in TestFlight, Build 34 gebaut und noch
+  nicht hochgeladen. Der 20. September war ein Befund-Tag am Gerät;
+  die Builds 18–27 sind die Kette daraus (Playhead,
   Flugmodus, Absturz beim Trackwechsel, Wiedergabe-Cache, Ladefortschritt —
-  alle unter „Wichtige gelöste Probleme").
-  Build-Nummern der Plattformen laufen auseinander (iOS 30, Mac 17), weil
+  alle unter „Wichtige gelöste Probleme"). Build 34 bringt den Befund vom
+  21. September: der SMB-Share ist bei gesperrtem iPhone nicht neu aufbaubar,
+  weil `smbclientd` nicht an den Keychain kommt (`SourceKeepAlive`,
+  `ProtectedDataMonitor`, aufgeschobene Tag-Writes).
+  Build-Nummern der Plattformen laufen auseinander (iOS 34, Mac 17), weil
   iOS-Befunde eigene Builds bekommen. `scripts/asc-expire-builds.sh` lässt nach
   jedem Upload die älteren Builds ablaufen — Apple macht das nicht zuverlässig,
   und zwei installierbare Builds nebeneinander bedeuten Fehlermeldungen zu
@@ -37,7 +42,7 @@ Letzte Aktualisierung: 2026-09-20 (iOS 1.3-32 in TestFlight, Mac v1.3-17).
   `SetCraftCore` (`.macOS(.v14)` / `.iOS(.v17)`), die deutlich unter dem
   Deployment-Target der Apps (26.5) liegt und dort moderne APIs nur mit
   `#available` zugänglich macht.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 222 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 233 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
   Vorschlagskette/Discogs).
@@ -476,6 +481,71 @@ Serialisierung, Active-Track-Guard).
   keine ganze Datei mehr umsonst. Die LRU-Reihenfolge deckt sich damit genau:
   nach einem Lauf steht der laufende Track auf Platz vier und überlebt die
   Verdrängung, der zuletzt gespielte fliegt raus.
+
+  **Die offene Frage ist am 2026-09-21 beantwortet** — und die Antwort lautet
+  nicht „der Provider liefert im Hintergrund nicht", sondern: der Share war
+  tot. Siehe den nächsten Eintrag; die Reichweite der Vorausschau war nie das
+  eigentliche Problem.
+- **Der Share ist bei gesperrtem iPhone nicht wieder aufbaubar — Ursache ist
+  der Keychain, nicht der FileProvider.** Befund vom 2026-09-21: Set um 14:28
+  gestartet, um 15:04 „The source could not be read while the iPhone was
+  locked". Das Gerätelog zeigt die Kette vollständig:
+
+  ```
+  14:37:10  smbclientd  idleTimerFired: entering idle-disconnect
+  14:37:13  smbclientd  Error retrieving item … Code=-25308
+  14:37:13  smbclientd  connectToServer: unable to obtain credentials
+  14:37:15  kernel      lock state change unlocked (0)
+  14:37:15  smbclientd  checkServerConnection: successfully connected
+  ```
+
+  `-25308` ist `errSecInteractionNotAllowed`: die Zugangsdaten des Shares
+  liegen im Keychain und sind bei gesperrtem Gerät nicht lesbar. Der
+  Fehlschlag endet **in derselben Sekunde**, in der das Gerät entsperrt wird —
+  eindeutiger wird eine Korrelation nicht. Jeder Zugriff danach quittiert mit
+  `errno 80` (EAUTH), beim Nutzer sichtbar als
+  `getattrlist = 80` (15:03:47) und `AVAudioFile … error 2003334207`
+  (15:03:49).
+
+  Getrennt hat die Session **der Idle-Timer von `smbclientd`**, nicht das
+  Netz: gemessene 2:09, 2:01, ~2:00 zwischen letztem Zugriff und
+  `idleTimerFired`. Ein sechsminütiger Track mit einminütiger Vorausschau
+  reisst die Lücke bei jedem Track auf. Danach reicht die Wiedergabe genau so
+  weit wie die vier Kopien im `PlaybackCache` — am 21.09. rund zwanzig
+  Minuten (14:43 erster Fehlschlag, 15:03 Abbruch).
+
+  Wichtig für die Einordnung: eine **bestehende** Session liefert auch bei
+  gesperrtem Gerät. Nur der Neuaufbau scheitert. Die frühere Formulierung
+  „gesperrt liefert der Provider nicht" war zu pauschal.
+
+  Fix in zwei Teilen (Build 34):
+  - `SourceKeepAlive` fragt einmal pro Minute die Attribute der laufenden
+    Datei ab — derselbe `getattrlist`, den der FileProvider ohnehin macht; er
+    geht bis zur SMB-Session durch und setzt deren Idle-Timer zurück. Eigene
+    `DispatchQueue`. Bei lokalen Quellen ein No-op.
+  - `ProtectedDataMonitor` meldet Sperren und Entsperren. Scheitert ein Load
+    genau an der Sperre, holt der `PlayerStore` ihn beim Entsperren einmal
+    nach — innerhalb von 15 Minuten, sonst finge die App nach einer im
+    Hintergrund verbrachten Stunde beim Aufsperren an zu spielen. Ein
+    eigener Eingriff (Play/Pause) sagt den Versuch ab.
+
+  **Bleibt offen:** stirbt die TCP-Verbindung selbst (Mobilfunk-Handover,
+  VPN-Wechsel — im Log vom 21.09. zweimal), braucht auch dieser Reconnect den
+  Keychain und scheitert gesperrt. Dagegen hilft nur der `PlaybackCache`.
+- **Tag-Writes bei gesperrtem Gerät liefen in den In-place-Fallback.** Derselbe
+  Nachmittag, dreimal dieselbe Kette: `copyItem failed … errno=80 — falling
+  back`, danach `In-place write failed … File is not writable`. Der
+  Sibling-Temp scheitert an der toten Session, und `TagLibTrackStore`
+  eskaliert daraufhin auf den **nicht-atomaren** Write direkt auf die
+  Originaldatei — der Fallback ist für abweisende SMB-ACLs gedacht, nicht für
+  eine Verbindung, die nachweislich kaputt ist. `save` prüft deshalb vorher
+  den `ProtectedDataMonitor` und wirft `.deviceLocked`, bevor irgendetwas
+  angefasst wird; nur für Quellen hinter einem FileProvider bzw. auf einem
+  Netz-Volume (dieselbe Unterscheidung wie im `PlaybackCache`), auf macOS
+  greift der Riegel nie. `.deviceLocked` ist wie `.fileInUse` kein Fehler,
+  sondern ein „später" (`StoreError.isDeferrable`) — geparkt in
+  `pendingSaves`, nachgeholt beim Entsperren. Betroffen ist vor allem die
+  Auto-Analyse, die bei jedem Track-Load läuft.
 - **FileProvider liefert sequenziell — und ein Read wartet bis zu seiner
   Stelle.** Die zentrale Erkenntnis des 2026-09-20, am Gerät über Mobilfunk
   gemessen (vier Tracks, Zeiten in Sekunden):
@@ -586,7 +656,11 @@ Serialisierung, Active-Track-Guard).
 - **Aktiver Track:** Schreibvorgänge auf die im Player offene Datei werden mit
   `StoreError.fileInUse` abgelehnt, in `pendingSaves` geparkt und beim
   Track-Wechsel nachgeholt (Mac + iOS). iOS flusht zusätzlich bei
-  `scenePhase == .background`.
+  `scenePhase == .background` und beim Entsperren (`drainPendingSaves`, seit
+  Build 34 auch für `.deviceLocked`). Alle vier Schreibpfade des iOS-
+  `LibraryStore` gehen durch `persistOrPark` — vorher nahmen
+  `setActiveTrack` und `flushPendingSaves` den Eintrag **vor** dem
+  Schreibversuch aus der Queue, ein erneut verschobener Save war damit weg.
 - **Sparkle-Sandbox:** XPC-Services über `SUEnableInstallerLauncherService` +
   `SUEnableDownloaderService` in Info.plist und
   `temporary-exception.mach-lookup.global-name` (`<bundle-id>-spks`/`-spki`)
