@@ -4,7 +4,7 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-21 (iOS 1.3-34 in TestFlight, Mac v1.3-17).
+Letzte Aktualisierung: 2026-09-21 (iOS 1.3-35 in TestFlight, Mac v1.3-17).
 
 ---
 
@@ -21,14 +21,19 @@ Letzte Aktualisierung: 2026-09-21 (iOS 1.3-34 in TestFlight, Mac v1.3-17).
   mitwachsende Waveform.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 34) in TestFlight. Der 20. September war ein
-  Befund-Tag am Gerät; die Builds 18–27 sind die Kette daraus (Playhead,
-  Flugmodus, Absturz beim Trackwechsel, Wiedergabe-Cache, Ladefortschritt —
-  alle unter „Wichtige gelöste Probleme"). Build 34 bringt den Befund vom
-  21. September: der SMB-Share ist bei gesperrtem iPhone nicht neu aufbaubar,
-  weil `smbclientd` nicht an den Keychain kommt (`SourceKeepAlive`,
-  `ProtectedDataMonitor`, aufgeschobene Tag-Writes).
-  Build-Nummern der Plattformen laufen auseinander (iOS 34, Mac 17), weil
+- **iOS-Release:** 1.3 (Build 35) in TestFlight, VALID; 34 ist abgelaufen.
+  Der 20. September war ein Befund-Tag am Gerät; die Builds 18–27 sind die
+  Kette daraus (Playhead, Flugmodus, Absturz beim Trackwechsel,
+  Wiedergabe-Cache, Ladefortschritt — alle unter „Wichtige gelöste Probleme").
+  Build 34 brachte den ersten Befund vom 21. September: der SMB-Share ist bei
+  gesperrtem iPhone nicht neu aufbaubar, weil `smbclientd` nicht an den
+  Keychain kommt (`SourceKeepAlive`, `ProtectedDataMonitor`, aufgeschobene
+  Tag-Writes). **Build 35 korrigiert den `SourceKeepAlive` aus 34** — der
+  zweite Testlauf desselben Tages zeigte, dass dessen Attribut-Abfrage die
+  SMB-Session gar nicht erreicht (Details unter „Wichtige gelöste Probleme").
+  Dazu die grössere Cache-Reichweite (9 statt 4 Dateien, ~45 statt ~20
+  Minuten) und der Ladefehler des laufenden Tracks im Gerätelog.
+  Build-Nummern der Plattformen laufen auseinander (iOS 35, Mac 17), weil
   iOS-Befunde eigene Builds bekommen. `scripts/asc-expire-builds.sh` lässt nach
   jedem Upload die älteren Builds ablaufen — Apple macht das nicht zuverlässig,
   und zwei installierbare Builds nebeneinander bedeuten Fehlermeldungen zu
@@ -567,7 +572,7 @@ Serialisierung, Active-Track-Guard).
   Ebenfalls ausgeschlossen: Bluetooth. Die A2DP-Latenzmeldungen laufen von
   16:46 bis 17:35 lückenlos durch, keine Route-Changes, keine Interruption.
 
-  Was daraus folgte:
+  Was daraus folgte (Build 35):
   - `SourceKeepAlive` macht jetzt einen **echten Lesezugriff** — `open`, ein
     Byte von wanderndem Offset, `close`, Handle mit `F_NOCACHE`. Erst der
     `open` löst den `LIAccessCheck` des LiveFS-Providers aus. Ob das reicht,
@@ -816,6 +821,39 @@ Serialisierung, Active-Track-Guard).
 ---
 
 ## Offene Punkte
+
+### Unmittelbar — Verifikation zu Build 35
+
+- **Wirkt der Wach-Lesezugriff?** Unbeantwortet, bis ein Gerätelog eines
+  echten Sets vorliegt. Die Entscheidungszeile ist `smbclientd:
+  idleTimerFired` — bleibt sie während des Sets aus, hat der `open` die
+  SMB-Session erreicht; taucht sie weiter auf, ist der nächste Kandidat eine
+  Verzeichnis-Enumeration statt des Ein-Byte-Lesezugriffs. Vergleichbar wird
+  es nur unter denselben Bedingungen wie am 21.09.: AirPods, iPhone gesperrt
+  in der Tasche, NAS über VPN.
+
+  Auslesen (der `sudo`-Prompt braucht ein echtes Terminal, nicht die
+  Claude-Session):
+
+  ```sh
+  sudo /usr/bin/log collect --device-udid <UDID> \
+      --start "<JJJJ-MM-TT HH:MM:SS>" --output ios-test.logarchive
+  ```
+
+  Im Archiv zählen drei Muster: `idleTimerFired` (s. o.),
+  `SourceKeepAlive: Wach-Lesezugriff` (einer pro Minute; eine Dauer über 0.0s
+  heisst, der Aufruf ging bis zum Server) und `PlayerStore: Load gescheitert`
+  (neu — der Abbruch des laufenden Tracks samt Sperrzustand).
+- **Mac-Klick-Test zu Build 35 steht aus.** Der `PlaybackCache` ist geteilter
+  Core-Code, und seine Kapazität hat sich mit Build 35 von 4 auf 9 geändert;
+  auf dem Mac greift er bei gemounteten Netz-Volumes. Zu prüfen: Track laden,
+  abspielen, mehrfach skippen. Bewusst **nicht** vor dem iOS-Testlauf
+  gemacht (Entscheid des Nutzers, 2026-09-21): für den Mac steht kein Release
+  an, und der Code wird nach der Auswertung ohnehin wieder angefasst.
+  Es gibt keine Test-Suite für die Apps — der Klick-Test ist die einzige
+  Absicherung.
+
+### Features und Altlasten
 
 - **iCloud-Sync der Library** zwischen Mac und iPhone (App Group + CloudKit).
 - **WAV-Tagging** tiefer lösen (aktuell nur UI-Warnung).
