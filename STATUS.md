@@ -530,6 +530,61 @@ Serialisierung, Active-Track-Guard).
   **Bleibt offen:** stirbt die TCP-Verbindung selbst (Mobilfunk-Handover,
   VPN-Wechsel — im Log vom 21.09. zweimal), braucht auch dieser Reconnect den
   Keychain und scheitert gesperrt. Dagegen hilft nur der `PlaybackCache`.
+- **Build 34 hat nicht gewirkt — die Attribut-Abfrage erreicht die
+  SMB-Session nicht.** Zweiter Test am 2026-09-21, 16:45–17:42, AirPods,
+  iPhone die meiste Zeit gesperrt. Gerätearchiv über
+  `sudo log collect --device-udid … --start …` gezogen.
+
+  Der `SourceKeepAlive` meldete neunmal „Quelle erreichbar … (0.0s)" und kein
+  einziges Mal „antwortet nicht" — auch in den Fenstern, in denen der Share
+  nachweislich tot war (`-25308` → `connectToServer: unable to obtain
+  credentials` → `checkServerConnection error: 80`, bei jedem Track-Wechsel
+  ein Burst). Und `smbclientd: idleTimerFired` kam im selben Set **fünfmal**
+  (16:48:20, 17:05:27, 17:06:37, 17:12:46, 17:13:09). `resourceValues` wird
+  aus dem Metadaten-Cache des FileProviders beantwortet; die 0.0s sind das
+  Indiz, der Idle-Disconnect der Beweis.
+
+  Die Folge ist zweimal dieselbe Kette — Share stirbt, Wiedergabe läuft genau
+  `capacity` Dateien weit, dann Stille bis zum Entsperren:
+
+  | | erster Lauf | zweiter Lauf |
+  |---|---|---|
+  | Idle-Disconnect | 16:48:20 | 17:13:09 |
+  | letzter Track aus dem Cache | 17:02:44 | 17:29:00 |
+  | Stillstand | ~17:08 | 17:35:55 (`playbackRate 0.0`) |
+  | Entsperrt → spielt wieder | 17:10:38 → 17:10:44 | 17:41:12 → 17:41:21 |
+
+  Beide Male exakt **zwanzig Minuten** Reichweite. Der zweite Abbruch traf
+  genau die Datei, die um 17:15:41, 17:21:30 und 17:29:04 nicht vorzuholen
+  war (`20_crazy_box_…`) — und die um 17:41:21 dann sofort lief.
+
+  **Der Doppeldruck auf den AirPods war nie das Problem.** Die beiden
+  `MPSkipTrackCommandEvent` (Typ 4, NextTrack) um 17:10:13 und 17:10:19
+  stehen im App-Prozess, der Handler quittiert `status=Success`. Es passierte
+  nichts, weil der Zieltrack nicht ladbar war: Share tot, Cache leer. Kein
+  Remote-Command-Problem.
+
+  Ebenfalls ausgeschlossen: Bluetooth. Die A2DP-Latenzmeldungen laufen von
+  16:46 bis 17:35 lückenlos durch, keine Route-Changes, keine Interruption.
+
+  Was daraus folgte:
+  - `SourceKeepAlive` macht jetzt einen **echten Lesezugriff** — `open`, ein
+    Byte von wanderndem Offset, `close`, Handle mit `F_NOCACHE`. Erst der
+    `open` löst den `LIAccessCheck` des LiveFS-Providers aus. Ob das reicht,
+    entscheidet das nächste Archiv: bleibt `idleTimerFired` während eines
+    Sets aus, hat es gewirkt — sonst ist der nächste Kandidat eine
+    Verzeichnis-Enumeration. Deshalb steht jeder Tick im Log, nicht nur der
+    Wechsel.
+  - Vorausschau 3 → **8**, `PlaybackCache`-Kapazität 4 → **9**: rund
+    fünfundvierzig Minuten Reichweite statt zwanzig. Symptombekämpfung, aber
+    unabhängig davon wirksam, ob der Wach-Lesezugriff durchkommt.
+  - Der Ladefehler des **laufenden** Tracks steht jetzt auf `.error` im
+    Gerätelog. Er fehlte komplett; nur die Vorausschau meldete sich. `log
+    collect` behält ohnehin nur `default` und `error` — die `.debug`-Zeilen
+    des `PlaybackCache` tauchen im Archiv gar nicht erst auf.
+  - `center.playbackState` auf iOS entfernt: das Log quittiert jeden Aufruf
+    mit „Ignoring setPlaybackState because application does not contain
+    entitlement". Massgeblich ist `MPNowPlayingInfoPropertyPlaybackRate`.
 - **Tag-Writes bei gesperrtem Gerät liefen in den In-place-Fallback.** Derselbe
   Nachmittag, dreimal dieselbe Kette: `copyItem failed … errno=80 — falling
   back`, danach `In-place write failed … File is not writable`. Der
