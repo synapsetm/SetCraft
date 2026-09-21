@@ -137,14 +137,23 @@ final class LibraryStore {
     /// unterscheiden, welche Message vom Scan gesetzt wurde.
     private var scanDiagnosticActive = false
 
-    /// Saves, die TagLibTrackStore mit `.fileInUse` abgelehnt hat — die Datei
-    /// ist gerade im Player aktiv. Werden in `setActiveTrack` automatisch
-    /// nachgeholt, sobald der Player auf einen anderen Track wechselt.
+    /// Saves, die der `TagLibTrackStore` verschoben hat: die Datei ist gerade
+    /// im Player aktiv (`.fileInUse`) oder das Gerät ist gesperrt und der
+    /// Share damit unerreichbar (`.deviceLocked`). Werden in `setActiveTrack`
+    /// beim Track-Wechsel und in `drainPendingSaves` beim Entsperren
+    /// nachgeholt.
     private var pendingSaves: [UUID: Track] = [:]
 
     init(database: DatabaseService, repository: LibraryRepository) {
         self.database = database
         self.repository = repository
+
+        // Beim Entsperren nachholen, was der gesperrte Share abgewiesen hat.
+        // Das betrifft vor allem die Auto-Analyse: sie läuft beim Laden jedes
+        // Tracks, also auch mitten in einem Set mit dem iPhone in der Tasche.
+        ProtectedDataMonitor.shared.onBecameAvailable { [weak self] in
+            Task { @MainActor in await self?.drainPendingSaves() }
+        }
     }
 
     /// Tracks, bei denen Artist oder Titel fehlt — die Kundschaft der
@@ -379,19 +388,47 @@ final class LibraryStore {
     /// `flushPendingSaves` beim App-Backgrounding (siehe scenePhase-Hook).
     func updateTrack(_ track: Track) async {
         replaceInList(track)
+        do {
+            try await persistOrPark(track)
+        } catch {
+            lastError = String(localized: "Save failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Einziger Schreibpfad in die Datei — und die Stelle, an der entschieden
+    /// wird, ob ein Fehlschlag dem Nutzer gehört oder nur ein „später" ist.
+    ///
+    /// Zwei Gründe verschieben einen Save, statt ihn abzulehnen:
+    /// `.fileInUse` (die Datei läuft gerade im Player) und `.deviceLocked`
+    /// (das iPhone ist gesperrt, der Share liefert nicht — siehe
+    /// `ProtectedDataMonitor`). Beide landen in `pendingSaves`;
+    /// `setActiveTrack` holt sie beim nächsten Track-Wechsel nach,
+    /// `drainPendingSaves` beim Entsperren, `flushPendingSaves` beim
+    /// Backgrounding.
+    ///
+    /// Ein echter Fehler nimmt den Eintrag dagegen aus der Queue und fliegt
+    /// weiter — sonst versuchte die App bis zum Appende immer wieder
+    /// denselben aussichtslosen Write.
+    private func persistOrPark(_ track: Track, force: Bool = false) async throws {
         let token = scopes.token(for: track.url)
         defer { token?.release() }
         do {
-            try await repository.save(track)
+            try await repository.save(track, force: force)
             pendingSaves.removeValue(forKey: track.id)
-        } catch let storeError as TagLibTrackStore.StoreError {
-            if case .fileInUse = storeError {
-                pendingSaves[track.id] = track
-            } else {
-                lastError = String(localized: "Save failed: \(storeError.localizedDescription)")
-            }
+        } catch let storeError as TagLibTrackStore.StoreError where storeError.isDeferrable {
+            pendingSaves[track.id] = track
         } catch {
-            lastError = String(localized: "Save failed: \(error.localizedDescription)")
+            pendingSaves.removeValue(forKey: track.id)
+            throw error
+        }
+    }
+
+    /// Nachholen, was wegen des gesperrten Geräts liegengeblieben ist.
+    /// Ohne `force`: der Active-Track-Guard gilt weiter, der laufende Track
+    /// wartet also bis zum nächsten Wechsel.
+    func drainPendingSaves() async {
+        for track in Array(pendingSaves.values) {
+            try? await persistOrPark(track)
         }
     }
 
@@ -401,13 +438,13 @@ final class LibraryStore {
     /// bevor der Player auf einen anderen Track wechselt. `replaceItemAt`
     /// ist atomar; die noch offene `AVAudioFile`-fd zeigt anschließend
     /// aufs alte inode und spielt weiter ohne Glitch.
+    ///
+    /// `force` überspringt nur den Active-Track-Guard. Ist das Gerät
+    /// gesperrt, bleibt der Save auch hier liegen — gegen einen Share, der
+    /// keine Session mehr aufbauen kann, hilft Zwang nicht.
     func flushPendingSaves() async {
-        let saves = Array(pendingSaves.values)
-        pendingSaves.removeAll()
-        for track in saves {
-            let token = scopes.token(for: track.url)
-            try? await repository.save(track, force: true)
-            token?.release()
+        for track in Array(pendingSaves.values) {
+            try? await persistOrPark(track, force: true)
         }
     }
 
@@ -419,14 +456,8 @@ final class LibraryStore {
     func setActiveTrack(_ url: URL?) async {
         await repository.setActiveTrack(url)
 
-        let drainable = pendingSaves.values.filter { $0.url != url }
-        for track in drainable {
-            pendingSaves.removeValue(forKey: track.id)
-        }
-        for track in drainable {
-            let token = scopes.token(for: track.url)
-            try? await repository.save(track)
-            token?.release()
+        for track in Array(pendingSaves.values.filter { $0.url != url }) {
+            try? await persistOrPark(track)
         }
     }
 
@@ -565,27 +596,9 @@ final class LibraryStore {
             // sich zwischendurch verändert haben (laufender Scan, andere
             // Selektion).
             replaceInList(updated)
-            try await persistAnalyzed(updated)
+            try await persistOrPark(updated)
         } catch {
             lastError = String(localized: "Analysis failed: \(error.localizedDescription)")
-        }
-    }
-
-    /// Schreibt die analysierten BPM/Key-Werte in Datei + DB. Wenn die Datei
-    /// gerade im Player aktiv ist, lehnt `TagLibTrackStore` mit `.fileInUse`
-    /// ab — das ist kein Fehler, sondern Schutz vor parallelen Writes auf
-    /// die offene `AVAudioFile`. Wir parken den Save dann in `pendingSaves`,
-    /// `setActiveTrack` holt ihn beim nächsten Player-Wechsel nach.
-    private func persistAnalyzed(_ track: Track) async throws {
-        do {
-            try await repository.save(track)
-            pendingSaves.removeValue(forKey: track.id)
-        } catch let storeError as TagLibTrackStore.StoreError {
-            if case .fileInUse = storeError {
-                pendingSaves[track.id] = track
-            } else {
-                throw storeError
-            }
         }
     }
 

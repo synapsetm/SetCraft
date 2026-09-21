@@ -9,13 +9,25 @@ public actor TagLibTrackStore: TrackStore {
 
     public enum StoreError: LocalizedError {
         case fileInUse
+        case deviceLocked
         case bridgeFailed(URL, underlying: Error?)
         case fileSystem(URL, stage: String, underlying: Error)
+
+        /// Kein Fehlschlag, sondern ein „später": der Aufrufer soll den Save
+        /// parken statt ihn dem Nutzer als Problem zu melden.
+        public var isDeferrable: Bool {
+            switch self {
+            case .fileInUse, .deviceLocked: return true
+            case .bridgeFailed, .fileSystem: return false
+            }
+        }
 
         public var errorDescription: String? {
             switch self {
             case .fileInUse:
                 return "File is currently active in the player — write skipped."
+            case .deviceLocked:
+                return "Device is locked — write deferred until it is unlocked."
             case .bridgeFailed(let url, let underlying):
                 return "TagLib could not write \(url.lastPathComponent): \(underlying?.localizedDescription ?? "unknown")"
             case .fileSystem(let url, let stage, let underlying):
@@ -77,6 +89,25 @@ public actor TagLibTrackStore: TrackStore {
         }
 
         let original = track.url
+
+        // Bei gesperrtem Gerät kommt `smbclientd` nicht an die Zugangsdaten
+        // des Shares (`errSecInteractionNotAllowed`) — jeder Zugriff endet
+        // mit EAUTH. Ohne diesen Riegel lief der Write in den Fallback:
+        // `copyItem` scheitert mit errno 80, und der Store versucht als
+        // letzte Eskalation einen **nicht-atomaren** In-place-Write auf die
+        // Originaldatei, der dann seinerseits scheitert. Genau die Kette
+        // steht dreimal im Gerätelog vom 2026-09-21. Eine Datei auf einer
+        // Netz-Quelle nicht-atomar anzufassen, während die Verbindung
+        // nachweislich kaputt ist, ist der schlechteste Moment dafür.
+        //
+        // `shouldCache` beantwortet hier dieselbe Frage wie im
+        // `PlaybackCache`: liegt die Datei hinter einem FileProvider bzw.
+        // auf einem Netz-Volume? Nur dann hängt der Write an einer Session,
+        // die das Sperren nicht überlebt.
+        if !ProtectedDataMonitor.shared.isAvailable,
+           PlaybackCache.shared.shouldCache(original) {
+            throw StoreError.deviceLocked
+        }
         let fm = FileManager.default
 
         let comment = RatingPrefix.format(track.rating, rest: track.comment)
