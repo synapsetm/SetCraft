@@ -32,7 +32,20 @@ public actor WaveformCache {
         if let onPartial { partialObservers[url, default: []].append(onPartial) }
         if let running = inflight[url] { return try await running.value }
 
-        let mtime = (try? fileModifiedDate(url: url)) ?? Date()
+        // Der `stat` geht bei einer FileProvider-URL (iCloud, NAS/SMB) zum
+        // Provider und braucht dort Sekunden statt Mikrosekunden. Bis hierher
+        // lief er synchron IM Actor und hielt damit alles an, was sonst noch
+        // über den Actor will: die Zwischenstände des laufenden Tracks
+        // (`publish`) genauso wie die Anfrage für den neu geladenen. Genau der
+        // Gerätebefund vom 2026-09-21 — stehende Welle beim laufenden Track,
+        // gar keine beim neuen. Jetzt auf einer eigenen Queue, nicht im
+        // Cooperative Pool (CLAUDE.md).
+        let mtime = await Self.modifiedDate(of: url) ?? Date()
+
+        // Der Actor war während des `await` frei: ein zweiter Aufrufer für
+        // dieselbe URL kann inzwischen fertig geworden oder gestartet sein.
+        if let cached = stored[url] { return cached }
+        if let running = inflight[url] { return try await running.value }
 
         // Erst die DB anfragen.
         if let database, let fromDB = try? await database.loadWaveform(url: url, expectedModifiedAt: mtime) {
@@ -44,7 +57,14 @@ public actor WaveformCache {
         // Sonst: berechnen und speichern.
         let database = database
         let task = Task<WaveformData, Error>.detached(priority: .utility) { [weak self] in
-            let computed = try WaveformAnalyzer.analyze(url: url) { partial in
+            // Gelesen wird aus der Wiedergabe-Kopie, wenn es eine gibt —
+            // dieselbe Regel, nach der die BPM/Key-Analyse schon liest
+            // (`LibraryStore.analyze`). Der gerade geöffnete Track liegt dort
+            // lokal vor; die Welle hängt damit nicht am FileProvider und
+            // konkurriert nicht mit der Vorausschau um dieselbe Leitung.
+            // Ohne Kopie (Mac, lokale Datei) bleibt es bei der Quelle.
+            let readURL = PlaybackCache.shared.existingCopy(of: url) ?? url
+            let computed = try WaveformAnalyzer.analyze(url: readURL) { partial in
                 // `onPartial` läuft auf dem Decoder-Thread — den Zwischenstand
                 // deshalb über den Actor verteilen, nicht direkt.
                 Task { await self?.publish(partial, for: url) }
@@ -64,6 +84,10 @@ public actor WaveformCache {
         } catch {
             inflight[url] = nil
             partialObservers[url] = nil
+            // Bis hierher endete ein Fehlschlag lautlos: `PlayerStore`
+            // verschluckt ihn, und im Gerätelog stand nichts. Eine fehlende
+            // Welle war damit nicht nachvollziehbar.
+            Self.log.error("waveform failed for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
             throw error
         }
     }
@@ -107,8 +131,23 @@ public actor WaveformCache {
         inflight.removeAll()
     }
 
-    private func fileModifiedDate(url: URL) throws -> Date {
-        let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
-        return (attrs[.modificationDate] as? Date) ?? Date()
+    /// Eigene Queue für den `stat`. Blockiert der Provider, blockiert genau
+    /// ein Thread hier — nicht der Actor und nicht der Cooperative Pool, dessen
+    /// enges Thread-Budget ein sekundenlang hängender Aufruf sprengt.
+    private static let metadataQueue = DispatchQueue(
+        label: "ch.buehler.beat.SetCraft.waveform-metadata",
+        qos: .utility
+    )
+
+    /// Änderungsdatum der QUELLE — der DB-Cache ist darüber geschlüsselt, auch
+    /// wenn aus der Wiedergabe-Kopie gerechnet wird. Kommt nichts zurück
+    /// (offline, Platzhalter), setzt der Aufrufer `Date()` ein und rechnet neu.
+    private nonisolated static func modifiedDate(of url: URL) async -> Date? {
+        await withCheckedContinuation { continuation in
+            metadataQueue.async {
+                let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+                continuation.resume(returning: attrs?[.modificationDate] as? Date)
+            }
+        }
     }
 }
