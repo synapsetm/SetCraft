@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import OSLog
 import SetCraftCore
 import UIKit
 
@@ -16,6 +17,18 @@ import UIKit
 @Observable
 @MainActor
 final class PlayerStore {
+
+    /// Warum überhaupt ins Gerätelog: `lastError` steht in der UI, und wer
+    /// das iPhone in der Tasche hat, sieht sie nie. Im Log vom 2026-09-21
+    /// fehlte genau diese Zeile — die Vorausschau meldete ihre Fehlschläge,
+    /// der Abbruch des **laufenden** Sets um 17:35:55 stand nirgends, und
+    /// warum der Doppeldruck um 17:10:13 nichts tat, war nur indirekt zu
+    /// erschliessen. `.error`, weil `log collect` nur `default` und `error`
+    /// behält.
+    private static let log = Logger(
+        subsystem: "ch.buehler.beat.SetCraft", category: "PlayerStore"
+    )
+
     var currentTrack: Track?
     var lastError: String?
 
@@ -299,9 +312,16 @@ final class PlayerStore {
             // Der Flugmodus-Fall bekommt einen eigenen Satz. „Failed to load
             // track: The operation couldn’t be completed." sagt dem Nutzer
             // nichts — dass das Gerät offline ist, sagt ihm alles.
+            let locked = !UIApplication.shared.isProtectedDataAvailable
+            Self.log.error("""
+                Load gescheitert für \(track.url.lastPathComponent, privacy: .public): \
+                \(error.localizedDescription, privacy: .public) \
+                (Gerät \(locked ? "gesperrt" : "entsperrt", privacy: .public), \
+                Versuch \(attempt, privacy: .public))
+                """)
             if case AudioEngineError.sourceOffline = error {
                 lastError = String(localized: "The source is not reachable — the device is offline and this track is not stored locally.")
-            } else if !UIApplication.shared.isProtectedDataAvailable {
+            } else if locked {
                 // Hier und nur hier abgefragt: im Moment des Fehlschlags. Wer
                 // die Meldung später liest, hat das iPhone längst entsperrt.
                 lastError = String(localized: "The source could not be read while the iPhone was locked, and this track was not prefetched.")
@@ -360,6 +380,10 @@ final class PlayerStore {
             // legt sie neu an, und der zweite Anlauf spielt daraus.
             return false
         } catch {
+            Self.log.error("""
+                Engine-Load gescheitert für \(track.url.lastPathComponent, privacy: .public): \
+                \(error.localizedDescription, privacy: .public)
+                """)
             lastError = String(localized: "Failed to load track: \(error.localizedDescription)")
             return true
         }
