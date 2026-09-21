@@ -36,7 +36,6 @@ final class NowPlayingManager {
             // bleibt der vorherige Track samt Play/Pause-Button auf dem
             // Lock-Screen sichtbar.
             center.nowPlayingInfo = nil
-            center.playbackState = .stopped
             return
         }
 
@@ -50,11 +49,14 @@ final class NowPlayingManager {
         info[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
 
         center.nowPlayingInfo = info
-        // `playbackState` ist die maßgebliche Quelle für den Play/Pause-Button
-        // auf Lock-Screen und Control-Center. Ohne explizites Setzen kann iOS
-        // den Button auf dem alten Wert „kleben" lassen, obwohl
-        // `playbackRate` im Info-Dict bereits auf 0 steht.
-        center.playbackState = player.isPlaying ? .playing : .paused
+        // Kein `center.playbackState` mehr. Der Kommentar hier behauptete bis
+        // zum 2026-09-21, das sei die massgebliche Quelle für den
+        // Play/Pause-Button — auf iOS stimmt das nicht: das Gerätelog
+        // quittiert jeden Aufruf mit „Ignoring setPlaybackState because
+        // application does not contain entitlement". Die Eigenschaft ist auf
+        // iOS Apple-internen Playern vorbehalten; massgeblich ist
+        // `MPNowPlayingInfoPropertyPlaybackRate` im Info-Dict, und das steht
+        // oben.
 
         // Artwork nur bei Track-Wechsel neu laden — vermeidet redundante
         // ArtworkReader-Aufrufe bei jedem Play/Pause/Seek.
