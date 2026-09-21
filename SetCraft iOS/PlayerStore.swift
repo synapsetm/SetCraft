@@ -64,6 +64,21 @@ final class PlayerStore {
     /// zum eben re-sortierten Nachbarn springt.
     private var playbackQueue: [URL] = []
 
+    /// Track, dessen Load daran gescheitert ist, dass das iPhone gesperrt war
+    /// und der Share deshalb nichts geliefert hat. Wird beim Entsperren
+    /// einmal automatisch nachgeholt.
+    private var lockedRetryTrack: Track?
+
+    /// Bis wann dieser Nachhol-Versuch noch erwünscht ist.
+    ///
+    /// Ohne Frist könnte die App Stunden später beim Entsperren plötzlich
+    /// Musik anfangen — iOS stellt einer im Hintergrund suspendierten App
+    /// Notifications beim Fortsetzen zu. Eine Viertelstunde deckt den Fall
+    /// ab, um den es geht (das Set läuft weiter, der Nutzer holt das Gerät
+    /// aus der Tasche), und schliesst den anderen aus.
+    private var lockedRetryDeadline: Date?
+    private static let lockedRetryWindow: TimeInterval = 15 * 60
+
     init(library: LibraryStore, session: AudioSessionManager, waveformCache: WaveformCache) {
         self.engine = AVAudioEnginePlayer()
         self.library = library
@@ -95,6 +110,13 @@ final class PlayerStore {
             guard let self, self.currentTrack?.url == track.url else { return }
             self.currentTrack = track
             self.nowPlaying?.update()
+        }
+
+        // Beim Entsperren den Track nachholen, der genau daran gescheitert
+        // ist. Der Nutzer soll nach dem Griff in die Tasche weiterhören,
+        // statt erst eine rote Meldung wegtippen zu müssen.
+        ProtectedDataMonitor.shared.onBecameAvailable { [weak self] in
+            Task { @MainActor in self?.retryAfterUnlock() }
         }
 
         // Master-Tempo der letzten Session wiederherstellen. Kein Track
@@ -212,10 +234,31 @@ final class PlayerStore {
     /// Mehr als zwei Anläufe gibt es nicht. Ist die Quelle selbst das Problem,
     /// hilft Wiederholen nicht, und der Nutzer soll das lesen statt zuzusehen.
     private func performLoad(_ track: Track, snapshotQueue: Bool) async {
+        lockedRetryTrack = nil
+        lockedRetryDeadline = nil
         for attempt in 1...2 {
             let done = await attemptLoad(track, snapshotQueue: snapshotQueue, attempt: attempt)
             if done { return }
         }
+    }
+
+    /// Wird gerufen, wenn das iPhone entsperrt wird. Holt genau den einen
+    /// Load nach, der an der Sperre gescheitert ist — und nur den, und nur
+    /// innerhalb des Zeitfensters.
+    private func retryAfterUnlock() {
+        guard let track = lockedRetryTrack,
+              let deadline = lockedRetryDeadline,
+              Date() < deadline
+        else {
+            lockedRetryTrack = nil
+            lockedRetryDeadline = nil
+            return
+        }
+        lockedRetryTrack = nil
+        lockedRetryDeadline = nil
+        // `snapshotQueue: false` — die Playback-Queue von damals gilt weiter,
+        // das hier ist die Fortsetzung desselben Sets, kein neuer Tap.
+        load(track, snapshotQueue: false)
     }
 
     /// Ein Anlauf. `true` = fertig (geladen oder endgültig gescheitert),
@@ -262,6 +305,11 @@ final class PlayerStore {
                 // Hier und nur hier abgefragt: im Moment des Fehlschlags. Wer
                 // die Meldung später liest, hat das iPhone längst entsperrt.
                 lastError = String(localized: "The source could not be read while the iPhone was locked, and this track was not prefetched.")
+                // Beim Entsperren noch einmal versuchen — dann kann
+                // `smbclientd` die Zugangsdaten des Shares wieder aus dem
+                // Keychain lesen und die Session neu aufbauen.
+                lockedRetryTrack = track
+                lockedRetryDeadline = Date().addingTimeInterval(Self.lockedRetryWindow)
             } else {
                 lastError = String(localized: "Failed to load track: \(error.localizedDescription)")
             }
@@ -286,6 +334,10 @@ final class PlayerStore {
                 playbackQueue = library.tracks.map(\.url)
             }
             engine.play()
+            // Quelle warmhalten, solange aus ihr gespielt wird — sonst lässt
+            // `smbclientd` die SMB-Session nach zwei Minuten Leerlauf fallen
+            // und kann sie bei gesperrtem Gerät nicht wieder aufbauen.
+            SourceKeepAlive.shared.start(for: track.url)
             loadWaveform(for: track.url)
             nowPlaying?.update()
             // BPM und Key berechnen, falls sie nicht in den Tags stehen —
@@ -413,6 +465,10 @@ final class PlayerStore {
         // erledigt, sobald der Nutzer selbst wieder Hand anlegt — sonst
         // klebt sie unter einem Track, der längst wieder spielt.
         lastError = nil
+        // Der Nutzer hat selbst eingegriffen — ein automatischer Nachhol-
+        // Versuch beim nächsten Entsperren wäre jetzt nur noch Überraschung.
+        lockedRetryTrack = nil
+        lockedRetryDeadline = nil
         if engine.isPlaying { pause() } else { play() }
     }
 

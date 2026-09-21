@@ -22,6 +22,11 @@ final class AppBootstrap {
     let nowPlayingManager: NowPlayingManager
 
     init() {
+        // Vor allem anderen: der Monitor kennt den Sperr-Zustand sonst erst
+        // nach dem ersten Wechsel, und `LibraryStore`/`PlayerStore` hängen
+        // sich gleich darunter mit ihren Handlern ein.
+        ProtectedDataMonitor.shared.start()
+
         let supportDir = (try? FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
