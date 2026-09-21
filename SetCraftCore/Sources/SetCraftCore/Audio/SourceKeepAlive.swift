@@ -17,10 +17,26 @@ import OSLog
 /// Wiedergabe reicht nur noch so weit wie die Kopien im `PlaybackCache`
 /// (am 2026-09-21 rund 20 Minuten, dann Abbruch).
 ///
-/// **Was es tut.** Einmal pro Minute eine Attribut-Abfrage auf die laufende
-/// Datei. Das ist derselbe `getattrlist`, den der FileProvider ohnehin
-/// ständig macht — er geht durch bis zur SMB-Session und setzt deren
-/// Idle-Timer zurück. Kosten: ein paar hundert Bytes pro Minute.
+/// **Was es tut.** Einmal pro Minute ein **echter Lesezugriff** auf die
+/// laufende Datei: `open`, ein Byte von wechselndem Offset, `close` — der
+/// Handle mit `F_NOCACHE`, damit die Seite nicht aus dem UBC beantwortet
+/// wird. Kosten: ein Byte pro Minute plus den Protokoll-Overhead.
+///
+/// **Warum nicht mehr `resourceValues`.** Genau das stand hier bis Build 34,
+/// mit der Annahme, es sei „derselbe `getattrlist`, den der FileProvider
+/// ohnehin macht". Das Gerätelog vom 2026-09-21 widerlegt sie: neun Ticks
+/// meldeten „Quelle erreichbar (0.0s)" — auch in den Fenstern, in denen der
+/// Share nachweislich tot war (`-25308` bei jedem Track-Wechsel), und
+/// `idleTimerFired` kam im selben Set **fünfmal**. Die Attribut-Abfrage wird
+/// aus dem Metadaten-Cache des FileProviders beantwortet und erreicht die
+/// SMB-Session nie. Die 0.0s waren das Indiz, der Idle-Disconnect der Beweis.
+///
+/// **Woran sich der Erfolg ablesen lässt.** Nicht am Rückgabewert dieser
+/// Klasse, sondern am Gerätelog: taucht während eines Sets noch
+/// `smbclientd: idleTimerFired` auf, erreicht auch dieser Aufruf den Server
+/// nicht und der nächste Kandidat ist eine Verzeichnis-Enumeration. Damit
+/// sich das überhaupt gegenprüfen lässt, steht **jeder** Tick im Log, nicht
+/// nur der Wechsel — eine Zeile pro Minute, rund fünfzig pro Set.
 ///
 /// **Was es nicht kann.** Stirbt die TCP-Verbindung selbst (Mobilfunk-Handover,
 /// VPN-Wechsel — im Log zweimal passiert), braucht auch dieser Reconnect den
@@ -44,9 +60,11 @@ public final class SourceKeepAlive: @unchecked Sendable {
     private let lock = NSLock()
     private var timer: DispatchSourceTimer?
     private var target: URL?
-    /// Ergebnis der letzten Abfrage — nur Wechsel werden geloggt, sonst
-    /// stünde im Gerätelog minütlich dieselbe Zeile.
-    private var lastReachable: Bool?
+    /// Zähler der Ticks für diese Datei. Dient nur dazu, den Lese-Offset
+    /// wandern zu lassen — zweimal dieselbe Stelle käme aus dem Cache des
+    /// Providers, und genau das ist der Fehler, den diese Klasse gerade
+    /// hinter sich hat.
+    private var probeCount = 0
 
     /// Abstand zwischen zwei Abfragen. Deutlich unter den ~2 Minuten, nach
     /// denen `smbclientd` die Session fallen lässt.
@@ -71,7 +89,7 @@ public final class SourceKeepAlive: @unchecked Sendable {
         // weiter.
         let created: DispatchSourceTimer? = lock.withLock {
             target = source
-            lastReachable = nil
+            probeCount = 0
             guard timer == nil else { return nil }
 
             let fresh = DispatchSource.makeTimerSource(queue: queue)
@@ -97,37 +115,82 @@ public final class SourceKeepAlive: @unchecked Sendable {
             let existing = timer
             timer = nil
             target = nil
-            lastReachable = nil
+            probeCount = 0
             return existing
         }
         running?.cancel()
     }
 
     private func tick() {
-        guard let url = lock.withLock({ target }) else { return }
+        let url: URL
+        let offsetSeed: Int
+        switch lock.withLock({ () -> (URL, Int)? in
+            guard let target else { return nil }
+            probeCount += 1
+            return (target, probeCount)
+        }) {
+        case .none:
+            return
+        case .some(let pair):
+            (url, offsetSeed) = pair
+        }
 
         let started = Date()
-        let reachable = (try? url.resourceValues(forKeys: [.fileSizeKey])) != nil
-        let elapsed = Date().timeIntervalSince(started)
+        let result = read(oneByteOf: url, seed: offsetSeed)
+        let elapsed = String(format: "%.1f", Date().timeIntervalSince(started))
+        let name = url.lastPathComponent
 
-        let changed: Bool = lock.withLock {
-            guard lastReachable != reachable else { return false }
-            lastReachable = reachable
-            return true
-        }
-        guard changed else { return }
-
-        if reachable {
+        switch result {
+        case .success:
             Self.log.notice("""
-                Quelle erreichbar: \(url.lastPathComponent, privacy: .public) \
-                (\(String(format: "%.1f", elapsed), privacy: .public)s)
+                Wach-Lesezugriff ok: \(name, privacy: .public) (\(elapsed, privacy: .public)s)
                 """)
-        } else {
+        case .failure(let error):
             Self.log.error("""
-                Quelle antwortet nicht: \(url.lastPathComponent, privacy: .public) \
-                (\(String(format: "%.1f", elapsed), privacy: .public)s) — \
+                Wach-Lesezugriff gescheitert: \(name, privacy: .public) \
+                (\(elapsed, privacy: .public)s) — \(error.localizedDescription, privacy: .public). \
                 Session vermutlich getrennt und bei gesperrtem Gerät nicht neu aufbaubar.
                 """)
+        }
+    }
+
+    /// Ein Byte von einer wandernden Stelle der Datei — der eigentliche
+    /// Wach-Impuls.
+    ///
+    /// Drei Details, die hier keine Kosmetik sind:
+    ///
+    /// - **`open`, nicht `stat`.** Erst der Open löst beim LiveFS-Provider den
+    ///   `LIAccessCheck` aus, und der prüft die Server-Verbindung. Ein `stat`
+    ///   wird aus dem Metadaten-Cache bedient und merkt nichts.
+    /// - **`F_NOCACHE`.** Ohne das beantwortet der Unified Buffer Cache die
+    ///   Leseanforderung aus dem RAM, sobald die Seite einmal drin war.
+    /// - **Wandernder Offset.** Damit nicht jeder Tick auf derselben Seite
+    ///   landet, die der Provider längst lokal hat.
+    private func read(oneByteOf url: URL, seed: Int) -> Result<Void, Error> {
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        let handle: FileHandle
+        do {
+            handle = try FileHandle(forReadingFrom: url)
+        } catch {
+            return .failure(error)
+        }
+        defer { try? handle.close() }
+
+        // Rückgabewert bewusst ignoriert: schlägt F_NOCACHE fehl, ist der
+        // Lesezugriff immer noch besser als die frühere Attribut-Abfrage.
+        _ = fcntl(handle.fileDescriptor, F_NOCACHE, 1)
+
+        do {
+            if size > 1 {
+                // Goldener-Schnitt-Schritt: wandert über die Datei, ohne sich
+                // früh zu wiederholen, und braucht keinen Zufallsgenerator.
+                let offset = (UInt64(seed) &* 2_654_435_761) % UInt64(size - 1)
+                try handle.seek(toOffset: offset)
+            }
+            _ = try handle.read(upToCount: 1)
+            return .success(())
+        } catch {
+            return .failure(error)
         }
     }
 }
