@@ -16,7 +16,16 @@ import SetCraftCore
 @MainActor
 final class LibraryStore {
     var folders: [FolderRecord] = []
-    var selectedFolderID: String?
+
+    /// ID der aktiven Quelle. Wird bei jeder Änderung mitgeschrieben, damit
+    /// der nächste App-Start wieder denselben Ordner öffnet (siehe
+    /// `restoreSavedFolders`).
+    var selectedFolderID: String? {
+        didSet {
+            guard selectedFolderID != oldValue else { return }
+            LastSelectedSource.id = selectedFolderID
+        }
+    }
     var tracks: [Track] = []
     var isScanning = false
     var lastError: String?
@@ -268,8 +277,9 @@ final class LibraryStore {
         scopes.activeURL
     }
 
-    /// Lädt alle gespeicherten Quellen beim App-Start. Wenn welche vorhanden
-    /// sind, wird die zuletzt hinzugefügte aktiv geschaltet — wie auf dem Mac.
+    /// Lädt alle gespeicherten Quellen beim App-Start und aktiviert die
+    /// zuletzt benutzte — wie auf dem Mac. Ist die nicht mehr da, greift der
+    /// Fallback auf die zuletzt hinzugefügte (`LastSelectedSource.resolve`).
     /// Idempotent: weitere Aufrufe (z. B. wenn SwiftUI das `.task` beim
     /// Tab-Wechsel neu feuert) sind ein No-op und triggern keinen Re-Scan.
     func restoreSavedFolders() async {
@@ -277,8 +287,8 @@ final class LibraryStore {
         didRestoreFolders = true
         let saved = (try? await database.listFolders()) ?? []
         folders = saved
-        if let last = saved.last {
-            await selectFolder(id: last.id)
+        if let target = LastSelectedSource.resolve(in: saved) {
+            await selectFolder(id: target.id)
         }
     }
 

@@ -32,8 +32,15 @@ final class LibraryViewModel {
     var folders: [FolderRecord] = []
 
     /// ID des aktuell angezeigten Ordners. Schaltet beim Wechsel den
-    /// `tracks`-Inhalt um.
-    var selectedFolderID: String?
+    /// `tracks`-Inhalt um. Wird bei jeder Änderung mitgeschrieben, damit der
+    /// nächste App-Start wieder dieselbe Quelle öffnet (siehe
+    /// `restoreSavedFolders`).
+    var selectedFolderID: String? {
+        didSet {
+            guard selectedFolderID != oldValue else { return }
+            LastSelectedSource.id = selectedFolderID
+        }
+    }
 
     /// Aktuell aktive Sortierreihenfolge. Default: Titel A→Z. Mehrere
     /// Comparators sind möglich (z. B. Artist → Album → Titel).
@@ -303,8 +310,10 @@ final class LibraryViewModel {
         return tracks.first(where: { $0.url.standardizedFileURL == url })
     }
 
-    /// Lädt die gespeicherten Ordner und scannt automatisch den zuletzt
-    /// hinzugefügten. Wird in `ContentView.onAppear` ausgelöst — und von
+    /// Lädt die gespeicherten Ordner und scannt automatisch die zuletzt
+    /// benutzte Quelle; ist die nicht mehr da, die zuletzt hinzugefügte
+    /// (`LastSelectedSource.resolve`). Wird in `ContentView.onAppear`
+    /// ausgelöst — und von
     /// `handleExternallyOpenedFile`, falls das Open-Event zuerst kommt.
     /// Idempotent: der zweite Aufruf hängt sich an den laufenden Task.
     @MainActor
@@ -316,8 +325,8 @@ final class LibraryViewModel {
                 guard let self else { return }
                 self.folders = folders
             }
-            if let last = folders.last {
-                await self?.selectFolder(id: last.id)
+            if let target = LastSelectedSource.resolve(in: folders) {
+                await self?.selectFolder(id: target.id)
             }
         }
     }
