@@ -827,30 +827,41 @@ Serialisierung, Active-Track-Guard).
 
 ### Unmittelbar — Verifikation zu Build 35
 
-- **Wirkt der Wach-Lesezugriff? Nein — er hält die SMB-Session nicht offen.**
-  Gerätelog vom 2026-09-22 ausgewertet (Archiv `build/ios-20260922-1944.logarchive`,
-  Fenster 21.09. 19:45 – 22.09. 19:45). Herangezogene Session: 18:12–18:39,
-  vier Track-Wechsel, mehrfaches Sperren/Entsperren.
+- **Wirkt der Wach-Lesezugriff? Sehr wahrscheinlich ja — abschliessend belegt
+  ist es noch nicht.** Gerätelog vom 2026-09-22 ausgewertet (Archiv
+  `build/ios-20260922-1944.logarchive`, Fenster 21.09. 19:45 – 22.09. 19:45).
+  Herangezogene Session: 18:10–18:39, fünf Tracks, vier Track-Wechsel,
+  Telefon überwiegend gesperrt, NAS über Tailscale (lokale Adresse
+  `100.82.184.47`) — die Bedingungen vom 21.09. sind also getroffen.
 
-  - `Wach-Lesezugriff ok`: 35 Treffer, sauber im Minutentakt, Dauer
-    **0.4–1.9 s**. Der Aufruf geht also bis zum Server und wird nicht lokal
-    beantwortet — der Mechanismus selbst läuft wie gebaut.
-  - `smbclientd: idleTimerFired`: **taucht trotzdem weiter auf**, auch mitten
-    in der Wiedergabe (18:13:35, 18:35:41). Damit ist die Entscheidungszeile
-    gegen den Wach-Lesezugriff gefallen.
+  - `Wach-Lesezugriff ok`: 35 Treffer, sauber im Minutentakt, Dauer 0.4–1.9 s.
   - `Load gescheitert`: **kein einziger Treffer** über den ganzen Tag, ebenso
-    kein gescheiterter Keep-Alive. Kein Track ist abgebrochen.
+    kein gescheiterter Keep-Alive. Alle vier Track-Wechsel fanden bei
+    **gesperrtem** Telefon statt (z. B. 18:31:00 gesperrt → 18:31:55 neuer
+    Track) und liefen durch.
+  - `smbclientd: idleTimerFired` taucht weiter auf (18:13:35, 18:35:41) —
+    **betrifft aber eine andere Verbindung.** Es sind zwei SMB-Server
+    gemountet. Die Wiedergabe-Verbindung `C3838` (`IPv4#3ef09276`) blieb von
+    18:10:35 bis 18:39:45 durchgehend `ready` und hatte über die ganze Zeit
+    Verkehr. Idle-disconnected wurde `C3836`/`C3840` (`IPv4#5d653ac8`) — der
+    ungenutzte zweite Server.
 
-  Plausibelste Erklärung für den Widerspruch aus „Read dauert 0.5 s" und
-  „Idle-Timer feuert": `smbclientd` zählt für seinen Timer nur echte
-  SMB-Operationen, und der FileProvider beantwortet das eine Byte aus seinem
-  eigenen Cache. Nächster Kandidat bleibt damit wie notiert eine
-  **Verzeichnis-Enumeration** statt des Ein-Byte-Lesezugriffs.
+  **Diese Zeile taugt deshalb nur mit Verbindungs-Zuordnung als Kriterium.**
+  Die Zuordnung geht über die Connection-ID in den `com.apple.network`-Zeilen
+  von `smbclientd`, nicht über die `idleTimerFired`-Zeile selbst (Server und
+  Share stehen dort als `<private>`).
 
-  Zwei Vorbehalte: ob die Bedingungen denen vom 21.09. entsprachen (AirPods,
-  iPhone gesperrt in der Tasche, NAS über VPN), geht aus dem Log nicht hervor.
-  Und dass nichts abbrach, belegt den Keep-Alive nicht — es kann ebenso am
-  `PlaybackCache` liegen, der seit Build 35 neun Tracks hält.
+  Dass der Timer auf `C3840` exakt 120 s nach dem Verbindungsaufbau feuerte
+  (18:33:41 → 18:35:41), passt zum Mechanismus: der Wach-Lesezugriff alle 60 s
+  liegt unter dieser Schwelle und hält die genutzte Session offen.
+
+  Was zum Freispruch fehlt: die Session war **29 Minuten** lang und damit
+  kürzer als die Reichweite des `PlaybackCache` (9 Dateien, ~45 Minuten) — die
+  Loads können auch aus dem Cache gekommen sein. Und die längste
+  ununterbrochen gesperrte Strecke war ~10 Minuten (18:20:48–18:30:37), der
+  Ausfall vom 21.09. brauchte eine deutlich längere. Beweiskräftig wird erst
+  ein Set über **> 45 Minuten und > 9 Tracks bei durchgehend gesperrtem
+  Telefon**, bei dem der Cache leerläuft und ein Load wirklich ans Netz muss.
 
   Auslesen (der `sudo`-Prompt braucht ein echtes Terminal, nicht die
   Claude-Session; UDID des iPhone: `00008130-0009758610C1401C`):
