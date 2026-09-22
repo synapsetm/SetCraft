@@ -65,9 +65,12 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
 ## Was die Apps können
 
 ### Bibliothek (beide Plattformen)
-- Mehrere persistente Quellen über Security-Scoped Bookmarks; letzte aktive
-  Quelle wird beim Start wiederhergestellt. iOS zieht Quellen (inkl. NAS/SMB)
-  über die Files-App / FileProvider.
+- Mehrere persistente Quellen über Security-Scoped Bookmarks; die zuletzt
+  **benutzte** Quelle wird beim Start wieder aktiviert (`LastSelectedSource`
+  in Core, UserDefaults-Schlüssel von Mac und iOS geteilt; Fallback auf die
+  zuletzt hinzugefügte, wenn die gemerkte weg ist). Bis 2026-09-22 kam
+  stattdessen immer `folders.last` — die zuletzt hinzugefügte. iOS zieht
+  Quellen (inkl. NAS/SMB) über die Files-App / FileProvider.
 - SQLite-Cache (GRDB) für Track-Metadaten und Waveforms. **Datei = Quelle der
   Wahrheit**, Cache invalidiert via `mtime`. Kalter Scan rechnet im
   Hintergrund, warmer Scan kommt aus dem Cache.
@@ -824,26 +827,46 @@ Serialisierung, Active-Track-Guard).
 
 ### Unmittelbar — Verifikation zu Build 35
 
-- **Wirkt der Wach-Lesezugriff?** Unbeantwortet, bis ein Gerätelog eines
-  echten Sets vorliegt. Die Entscheidungszeile ist `smbclientd:
-  idleTimerFired` — bleibt sie während des Sets aus, hat der `open` die
-  SMB-Session erreicht; taucht sie weiter auf, ist der nächste Kandidat eine
-  Verzeichnis-Enumeration statt des Ein-Byte-Lesezugriffs. Vergleichbar wird
-  es nur unter denselben Bedingungen wie am 21.09.: AirPods, iPhone gesperrt
-  in der Tasche, NAS über VPN.
+- **Wirkt der Wach-Lesezugriff? Nein — er hält die SMB-Session nicht offen.**
+  Gerätelog vom 2026-09-22 ausgewertet (Archiv `build/ios-20260922-1944.logarchive`,
+  Fenster 21.09. 19:45 – 22.09. 19:45). Herangezogene Session: 18:12–18:39,
+  vier Track-Wechsel, mehrfaches Sperren/Entsperren.
+
+  - `Wach-Lesezugriff ok`: 35 Treffer, sauber im Minutentakt, Dauer
+    **0.4–1.9 s**. Der Aufruf geht also bis zum Server und wird nicht lokal
+    beantwortet — der Mechanismus selbst läuft wie gebaut.
+  - `smbclientd: idleTimerFired`: **taucht trotzdem weiter auf**, auch mitten
+    in der Wiedergabe (18:13:35, 18:35:41). Damit ist die Entscheidungszeile
+    gegen den Wach-Lesezugriff gefallen.
+  - `Load gescheitert`: **kein einziger Treffer** über den ganzen Tag, ebenso
+    kein gescheiterter Keep-Alive. Kein Track ist abgebrochen.
+
+  Plausibelste Erklärung für den Widerspruch aus „Read dauert 0.5 s" und
+  „Idle-Timer feuert": `smbclientd` zählt für seinen Timer nur echte
+  SMB-Operationen, und der FileProvider beantwortet das eine Byte aus seinem
+  eigenen Cache. Nächster Kandidat bleibt damit wie notiert eine
+  **Verzeichnis-Enumeration** statt des Ein-Byte-Lesezugriffs.
+
+  Zwei Vorbehalte: ob die Bedingungen denen vom 21.09. entsprachen (AirPods,
+  iPhone gesperrt in der Tasche, NAS über VPN), geht aus dem Log nicht hervor.
+  Und dass nichts abbrach, belegt den Keep-Alive nicht — es kann ebenso am
+  `PlaybackCache` liegen, der seit Build 35 neun Tracks hält.
 
   Auslesen (der `sudo`-Prompt braucht ein echtes Terminal, nicht die
-  Claude-Session):
+  Claude-Session; UDID des iPhone: `00008130-0009758610C1401C`):
 
   ```sh
   sudo /usr/bin/log collect --device-udid <UDID> \
-      --start "<JJJJ-MM-TT HH:MM:SS>" --output ios-test.logarchive
+      --last 1d --output ios-test.logarchive
   ```
 
-  Im Archiv zählen drei Muster: `idleTimerFired` (s. o.),
-  `SourceKeepAlive: Wach-Lesezugriff` (einer pro Minute; eine Dauer über 0.0s
-  heisst, der Aufruf ging bis zum Server) und `PlayerStore: Load gescheitert`
-  (neu — der Abbruch des laufenden Tracks samt Sperrzustand).
+  Im Archiv zählen die drei Muster oben. Die App-eigenen Zeilen kommen alle
+  aus einem Subsystem:
+
+  ```sh
+  /usr/bin/log show --archive ios-test.logarchive \
+      --predicate 'subsystem == "ch.buehler.beat.SetCraft"' --info --debug --style compact
+  ```
 - **Mac-Klick-Test zu Build 35 steht aus.** Der `PlaybackCache` ist geteilter
   Core-Code, und seine Kapazität hat sich mit Build 35 von 4 auf 9 geändert;
   auf dem Mac greift er bei gemounteten Netz-Volumes. Zu prüfen: Track laden,
