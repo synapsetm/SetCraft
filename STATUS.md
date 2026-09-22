@@ -21,7 +21,11 @@ Letzte Aktualisierung: 2026-09-21 (iOS 1.3-35 in TestFlight, Mac v1.3-17).
   mitwachsende Waveform.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 35) in TestFlight, VALID; 34 ist abgelaufen.
+- **iOS-Release:** 1.3 (Build 36) in TestFlight (hochgeladen 2026-09-22 20:11);
+  35 war der Stand davor, 34 ist abgelaufen. **Build 36 bringt ausser der
+  gemerkten Quelle (s. u.) keine Änderung am Netz-/Cache-Verhalten** — er ist
+  der Stand für den längeren Testlauf, der über die Cache-Reichweite
+  hinausgeht.
   Der 20. September war ein Befund-Tag am Gerät; die Builds 18–27 sind die
   Kette daraus (Playhead, Flugmodus, Absturz beim Trackwechsel,
   Wiedergabe-Cache, Ladefortschritt — alle unter „Wichtige gelöste Probleme").
