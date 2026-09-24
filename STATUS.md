@@ -17,8 +17,7 @@ Letzte Aktualisierung: 2026-09-24 (iOS 1.3-37 in TestFlight, Mac v1.3-18).
   Wettlauf beim Durchskippen, unbrauchbare Wiedergabe-Kopie, Waveform
   blockiert den Actor nicht mehr, Cache 4 → 9, gemerkte Quelle über
   App-Starts, Tag-Schreibfehler mit Domain/Code/errno.
-  v1.3-17 brachte davor:
-  Bringt den korrigierten Playhead (s. u.), Auto-Advance am Track-Ende,
+  v1.3-17 brachte davor den korrigierten Playhead (s. u.), Auto-Advance am Track-Ende,
   „copy to folder" im Kontextmenü samt erhaltener Selektion, die Ladeanzeige
   über der leeren Tabelle, den Swift-6-Sprachmodus und den Wiedergabe-Cache
   (der auf dem Mac nur bei gemounteten Netz-Volumes greift).
@@ -30,11 +29,11 @@ Letzte Aktualisierung: 2026-09-24 (iOS 1.3-37 in TestFlight, Mac v1.3-18).
 - **iOS-Release:** 1.3 (Build 37) in TestFlight (hochgeladen 2026-09-24 18:56,
   VALID). Er entfernt nur die Grössenabfrage im `SourceKeepAlive` — am
   Verhalten, das Build 36 über 92 Minuten belegt hat, ändert sich nichts.
-  36 war der Stand davor (hochgeladen 2026-09-22 20:11), 34 ist abgelaufen. **Build 36 bringt ausser der
-  gemerkten Quelle (s. u.) keine Änderung am Netz-/Cache-Verhalten** — er war
-  der Stand für den längeren Testlauf über die Cache-Reichweite hinaus, und
-  der ist am 2026-09-24 gelaufen: 92 Minuten, 14 Tracks, gesperrtes Telefon,
-  kein Aussetzer. Der Wach-Lesezugriff hält den SMB-Share offen (s. u.).
+  36 war der Stand davor (hochgeladen 2026-09-22 20:11), 34 ist abgelaufen.
+  **Build 36 war der Stand für den längeren Testlauf über die
+  Cache-Reichweite hinaus**, und der ist am 2026-09-24 gelaufen: 92 Minuten,
+  14 Tracks, gesperrtes Telefon, kein Aussetzer. Der Wach-Lesezugriff hält
+  den SMB-Share offen (s. u.).
   Der 20. September war ein Befund-Tag am Gerät; die Builds 18–27 sind die
   Kette daraus (Playhead, Flugmodus, Absturz beim Trackwechsel,
   Wiedergabe-Cache, Ladefortschritt — alle unter „Wichtige gelöste Probleme").
