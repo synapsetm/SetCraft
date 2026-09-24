@@ -70,6 +70,11 @@ public final class SourceKeepAlive: @unchecked Sendable {
     /// denen `smbclientd` die Session fallen lässt.
     private static let interval: TimeInterval = 60
 
+    /// Fenster, über das der Lese-Offset wandert. Klein genug, dass jede
+    /// Musikdatei es abdeckt, gross genug, dass sich die Seiten nicht
+    /// wiederholen.
+    private static let probeWindow: UInt64 = 1 << 20
+
     private init() {}
 
     /// Beginnt (oder verlegt) die Wach-Abfrage auf diese Datei.
@@ -157,7 +162,7 @@ public final class SourceKeepAlive: @unchecked Sendable {
     /// Ein Byte von einer wandernden Stelle der Datei — der eigentliche
     /// Wach-Impuls.
     ///
-    /// Drei Details, die hier keine Kosmetik sind:
+    /// Vier Details, die hier keine Kosmetik sind:
     ///
     /// - **`open`, nicht `stat`.** Erst der Open löst beim LiveFS-Provider den
     ///   `LIAccessCheck` aus, und der prüft die Server-Verbindung. Ein `stat`
@@ -166,8 +171,17 @@ public final class SourceKeepAlive: @unchecked Sendable {
     ///   Leseanforderung aus dem RAM, sobald die Seite einmal drin war.
     /// - **Wandernder Offset.** Damit nicht jeder Tick auf derselben Seite
     ///   landet, die der Provider längst lokal hat.
+    /// - **Keine Grössenabfrage.** Hier stand bis 2026-09-24 ein
+    ///   `resourceValues(forKeys: [.fileSizeKey])`, um den Offset zu
+    ///   begrenzen. Das ist derselbe Attribut-Pfad, dem diese Klasse gerade
+    ///   entkommen ist, und im Gerätelog vom 24.09. ist er als einziger
+    ///   Aufruf nachweisbar in den Keychain-Fehler gelaufen (Tick 17:11:27.068,
+    ///   0.4 s, `getAttr … checkServerConnection error: 80` 6 ms nach dessen
+    ///   Ende) — während `open` und `read` durchkamen. Der Offset wandert
+    ///   stattdessen in einem festen Fenster; liegt er hinter dem Dateiende,
+    ///   liefert der `read` null Bytes, und auch das ist ein erfolgreicher
+    ///   Round-Trip zum Server.
     private func read(oneByteOf url: URL, seed: Int) -> Result<Void, Error> {
-        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         let handle: FileHandle
         do {
             handle = try FileHandle(forReadingFrom: url)
@@ -181,12 +195,14 @@ public final class SourceKeepAlive: @unchecked Sendable {
         _ = fcntl(handle.fileDescriptor, F_NOCACHE, 1)
 
         do {
-            if size > 1 {
-                // Goldener-Schnitt-Schritt: wandert über die Datei, ohne sich
-                // früh zu wiederholen, und braucht keinen Zufallsgenerator.
-                let offset = (UInt64(seed) &* 2_654_435_761) % UInt64(size - 1)
-                try handle.seek(toOffset: offset)
-            }
+            // Goldener-Schnitt-Schritt über ein Fenster, das jede Musikdatei
+            // sicher abdeckt (1 MiB): wandert, ohne sich früh zu wiederholen,
+            // und braucht weder Zufallsgenerator noch Dateigrösse.
+            // Unsigned gerechnet: `&*` darf überlaufen, ein negatives
+            // Zwischenergebnis wäre beim Offset ein Absturz.
+            let offset = (UInt64(truncatingIfNeeded: seed) &* 2_654_435_761)
+                % Self.probeWindow
+            try handle.seek(toOffset: offset)
             _ = try handle.read(upToCount: 1)
             return .success(())
         } catch {

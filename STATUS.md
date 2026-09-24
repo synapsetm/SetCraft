@@ -4,7 +4,7 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-21 (iOS 1.3-35 in TestFlight, Mac v1.3-17).
+Letzte Aktualisierung: 2026-09-24 (iOS 1.3-36 in TestFlight, Mac v1.3-17).
 
 ---
 
@@ -23,9 +23,10 @@ Letzte Aktualisierung: 2026-09-21 (iOS 1.3-35 in TestFlight, Mac v1.3-17).
   Fenster, s. u.) und sollte übersprungen werden.
 - **iOS-Release:** 1.3 (Build 36) in TestFlight (hochgeladen 2026-09-22 20:11);
   35 war der Stand davor, 34 ist abgelaufen. **Build 36 bringt ausser der
-  gemerkten Quelle (s. u.) keine Änderung am Netz-/Cache-Verhalten** — er ist
-  der Stand für den längeren Testlauf, der über die Cache-Reichweite
-  hinausgeht.
+  gemerkten Quelle (s. u.) keine Änderung am Netz-/Cache-Verhalten** — er war
+  der Stand für den längeren Testlauf über die Cache-Reichweite hinaus, und
+  der ist am 2026-09-24 gelaufen: 92 Minuten, 14 Tracks, gesperrtes Telefon,
+  kein Aussetzer. Der Wach-Lesezugriff hält den SMB-Share offen (s. u.).
   Der 20. September war ein Befund-Tag am Gerät; die Builds 18–27 sind die
   Kette daraus (Playhead, Flugmodus, Absturz beim Trackwechsel,
   Wiedergabe-Cache, Ladefortschritt — alle unter „Wichtige gelöste Probleme").
@@ -597,6 +598,72 @@ Serialisierung, Active-Track-Guard).
   - `center.playbackState` auf iOS entfernt: das Log quittiert jeden Aufruf
     mit „Ignoring setPlaybackState because application does not contain
     entitlement". Massgeblich ist `MPNowPlayingInfoPropertyPlaybackRate`.
+- **Build 36 wirkt — der echte Lesezugriff hält den Share offen. Belegt am
+  2026-09-24.** Testlauf 17:06–18:38, **92 Minuten, 14 Tracks**, iPhone
+  durchgehend gesperrt bis auf zwei kurze Blicke (18:09:52–18:09:58,
+  18:37:33–18:37:58), NAS über LTE. Damit ist das Kriterium erfüllt, das die
+  Auswertung vom 22.09. noch offenliess: länger als die Cache-Reichweite und
+  mehr Tracks als seine Kapazität.
+
+  | | Build 34 (21.09.) | Build 36 (24.09.) |
+  |---|---|---|
+  | `SourceKeepAlive` | 9× „erreichbar (0.0s)" | 98× „ok", 0.1–0.8 s, lückenlos |
+  | `idleTimerFired` | 5× mitten im Set | 1× (17:10:23), danach nie |
+  | `-25308` / `error: 80` | Burst bei jedem Track-Wechsel | 2× (17:11:27, 17:18:45), danach nie |
+  | Wiedergabe | 2× Stille nach ~20 min | kein Aussetzer |
+
+  **Die beweiskräftige Strecke** ist 17:08:06 → 18:09:52: **61 Minuten
+  ununterbrochen gesperrt**, darin 10 Tracks. Bei Sperrbeginn waren erst zwei
+  Dateien angefasst, `PlaybackCache.capacity` ist 9 — die übrigen neun Loads
+  mussten zwingend ans Netz. Sie kamen durch.
+
+  Dass die Session dabei wirklich lebte, steht in einer Zeile, die auf den
+  ersten Blick wie ein Fehler aussieht:
+
+  ```
+  smbclientd  -[SMBNode sendCmpdRequest:]_block_invoke: Reply failed <2> ntStatus <0xc0000034>
+  ```
+
+  `0xc0000034` ist `STATUS_OBJECT_NAME_NOT_FOUND` — harmlos, aber es ist eine
+  **Antwort des Servers**. Diese Zeile kommt im ganzen Set genau einmal pro
+  Track-Wechsel, jeweils Sekunden vor dem Wechsel im Keep-Alive-Log: 17:20:51,
+  17:26:14, 17:34:05, 17:37:49, 17:43:40, 17:52:16, 18:00:10, 18:07:55,
+  18:16:30, 18:24:15, 18:31:53, 18:37:45. Zwölf Round-Trips ans Netz bei
+  gesperrtem Telefon, zwölf Antworten, kein Keychain-Fehler.
+
+  **Die zwei frühen Fehler sind kein Rückfall.** Es waren wie am 22.09. zwei
+  Verbindungen gemountet; die ungenutzte fiel um 17:10:23 in den
+  Idle-Disconnect, und ihr Wiederaufbau scheiterte zweimal am gesperrten
+  Keychain. Ab 17:18:45 trägt die lebende Verbindung alles. Der Aufruf, der
+  um 17:11:27.476 scheiterte, war identifizierbar das
+  `resourceValues(forKeys: [.fileSizeKey])` am Kopf von
+  `SourceKeepAlive.read(oneByteOf:seed:)` — Keep-Alive-Tick 17:11:27.068, 0.4 s
+  Laufzeit, Fehler 6 ms nach dessen Ende. Es lief über den Attribut-Pfad,
+  also genau den, dem die Klasse eigentlich entkommen wollte, und ist
+  deshalb entfernt worden (der Offset wandert jetzt ohne Grössenabfrage).
+
+  **Weiterhin ungetestet:** der Fall, in dem die TCP-Verbindung selbst stirbt
+  (Mobilfunk-Handover, VPN-Wechsel). Er trat in diesem Set nicht ein.
+
+  Archiv ziehen (der `sudo`-Prompt braucht ein echtes Terminal, nicht die
+  Claude-Session; UDID des iPhone: `00008130-0009758610C1401C`):
+
+  ```sh
+  sudo /usr/bin/log collect --device-udid <UDID> \
+      --start 'YYYY-MM-DD HH:MM:SS' --output ios-test.logarchive
+  ```
+
+  Die App-eigenen Zeilen kommen alle aus einem Subsystem; die drei Muster
+  oben stehen bei `smbclientd`:
+
+  ```sh
+  /usr/bin/log show --archive ios-test.logarchive \
+      --predicate 'subsystem == "ch.buehler.beat.SetCraft"' --info --debug --style compact
+  ```
+
+  Die Zuordnung einer `idleTimerFired`-Zeile zu einer Verbindung geht nur
+  über die Connection-ID in den `com.apple.network`-Zeilen von `smbclientd` —
+  Server und Share stehen in der Zeile selbst als `<private>`.
 - **Tag-Writes bei gesperrtem Gerät liefen in den In-place-Fallback.** Derselbe
   Nachmittag, dreimal dieselbe Kette: `copyItem failed … errno=80 — falling
   back`, danach `In-place write failed … File is not writable`. Der
@@ -829,65 +896,15 @@ Serialisierung, Active-Track-Guard).
 
 ## Offene Punkte
 
-### Unmittelbar — Verifikation zu Build 35
+### Unmittelbar
 
-- **Wirkt der Wach-Lesezugriff? Sehr wahrscheinlich ja — abschliessend belegt
-  ist es noch nicht.** Gerätelog vom 2026-09-22 ausgewertet (Archiv
-  `build/ios-20260922-1944.logarchive`, Fenster 21.09. 19:45 – 22.09. 19:45).
-  Herangezogene Session: 18:10–18:39, fünf Tracks, vier Track-Wechsel,
-  Telefon überwiegend gesperrt, NAS über Tailscale (lokale Adresse
-  `100.82.184.47`) — die Bedingungen vom 21.09. sind also getroffen.
-
-  - `Wach-Lesezugriff ok`: 35 Treffer, sauber im Minutentakt, Dauer 0.4–1.9 s.
-  - `Load gescheitert`: **kein einziger Treffer** über den ganzen Tag, ebenso
-    kein gescheiterter Keep-Alive. Alle vier Track-Wechsel fanden bei
-    **gesperrtem** Telefon statt (z. B. 18:31:00 gesperrt → 18:31:55 neuer
-    Track) und liefen durch.
-  - `smbclientd: idleTimerFired` taucht weiter auf (18:13:35, 18:35:41) —
-    **betrifft aber eine andere Verbindung.** Es sind zwei SMB-Server
-    gemountet. Die Wiedergabe-Verbindung `C3838` (`IPv4#3ef09276`) blieb von
-    18:10:35 bis 18:39:45 durchgehend `ready` und hatte über die ganze Zeit
-    Verkehr. Idle-disconnected wurde `C3836`/`C3840` (`IPv4#5d653ac8`) — der
-    ungenutzte zweite Server.
-
-  **Diese Zeile taugt deshalb nur mit Verbindungs-Zuordnung als Kriterium.**
-  Die Zuordnung geht über die Connection-ID in den `com.apple.network`-Zeilen
-  von `smbclientd`, nicht über die `idleTimerFired`-Zeile selbst (Server und
-  Share stehen dort als `<private>`).
-
-  Dass der Timer auf `C3840` exakt 120 s nach dem Verbindungsaufbau feuerte
-  (18:33:41 → 18:35:41), passt zum Mechanismus: der Wach-Lesezugriff alle 60 s
-  liegt unter dieser Schwelle und hält die genutzte Session offen.
-
-  Was zum Freispruch fehlt: die Session war **29 Minuten** lang und damit
-  kürzer als die Reichweite des `PlaybackCache` (9 Dateien, ~45 Minuten) — die
-  Loads können auch aus dem Cache gekommen sein. Und die längste
-  ununterbrochen gesperrte Strecke war ~10 Minuten (18:20:48–18:30:37), der
-  Ausfall vom 21.09. brauchte eine deutlich längere. Beweiskräftig wird erst
-  ein Set über **> 45 Minuten und > 9 Tracks bei durchgehend gesperrtem
-  Telefon**, bei dem der Cache leerläuft und ein Load wirklich ans Netz muss.
-
-  Auslesen (der `sudo`-Prompt braucht ein echtes Terminal, nicht die
-  Claude-Session; UDID des iPhone: `00008130-0009758610C1401C`):
-
-  ```sh
-  sudo /usr/bin/log collect --device-udid <UDID> \
-      --last 1d --output ios-test.logarchive
-  ```
-
-  Im Archiv zählen die drei Muster oben. Die App-eigenen Zeilen kommen alle
-  aus einem Subsystem:
-
-  ```sh
-  /usr/bin/log show --archive ios-test.logarchive \
-      --predicate 'subsystem == "ch.buehler.beat.SetCraft"' --info --debug --style compact
-  ```
-- **Mac-Klick-Test zu Build 35 steht aus.** Der `PlaybackCache` ist geteilter
-  Core-Code, und seine Kapazität hat sich mit Build 35 von 4 auf 9 geändert;
-  auf dem Mac greift er bei gemounteten Netz-Volumes. Zu prüfen: Track laden,
-  abspielen, mehrfach skippen. Bewusst **nicht** vor dem iOS-Testlauf
-  gemacht (Entscheid des Nutzers, 2026-09-21): für den Mac steht kein Release
-  an, und der Code wird nach der Auswertung ohnehin wieder angefasst.
+- **Mac-Klick-Test steht aus.** Der `PlaybackCache` ist geteilter Core-Code,
+  und seine Kapazität hat sich mit Build 35 von 4 auf 9 geändert; auf dem Mac
+  greift er bei gemounteten Netz-Volumes. Dazu kommt jetzt die entfernte
+  Grössenabfrage im `SourceKeepAlive` (24.09.) — auch geteilter Code, auf dem
+  Mac allerdings ein No-op bei lokalen Quellen. Zu prüfen: Track laden,
+  abspielen, mehrfach skippen. Der iOS-Testlauf, auf den das bewusst gewartet
+  hat (Entscheid des Nutzers, 2026-09-21), ist seit 2026-09-24 ausgewertet.
   Es gibt keine Test-Suite für die Apps — der Klick-Test ist die einzige
   Absicherung.
 
