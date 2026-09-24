@@ -58,7 +58,11 @@ public final class PlaybackCache: @unchecked Sendable {
     /// Preis: rund 90 MB in `Caches/` statt 40. Exakt so viele wie die
     /// Vorausschau holt — Platz für einen zehnten gibt es nicht, der zuletzt
     /// gespielte Track fliegt also raus.
-    private static let capacity = 9
+    /// Nicht `private`: die Tests leiten ihre Erwartungen daraus ab,
+    /// statt die Zahl zu wiederholen. Als sie 4 → 9 ging, blieben zwei
+    /// Tests mit hartcodierter 4 stehen und schlugen fehl, ohne dass es
+    /// jemandem auffiel.
+    static let capacity = 9
 
     private let lock = NSLock()
     /// Zuletzt benutzte Cache-Dateinamen, jüngste zuerst. Das ist die

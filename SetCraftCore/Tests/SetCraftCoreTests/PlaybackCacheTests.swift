@@ -1,10 +1,15 @@
 import XCTest
 @testable import SetCraftCore
 
-/// Der Wiedergabe-Cache hält höchstens zwei Dateien: den laufenden Track und
-/// den vorausgeholten. Getestet wird, was schiefgehen kann, ohne dass man es
-/// hört — eine halbe Kopie, ein nicht wiedergefundener Eintrag, ein Cache, der
-/// über die Grenze wächst.
+/// Der Wiedergabe-Cache hält `PlaybackCache.capacity` Dateien: den laufenden
+/// Track und die vorausgeholten. Getestet wird, was schiefgehen kann, ohne
+/// dass man es hört — eine halbe Kopie, ein nicht wiedergefundener Eintrag,
+/// ein Cache, der über die Grenze wächst.
+///
+/// Die Kapazität steht hier nirgends als Zahl. Sie ist seit 2026-09-20 zweimal
+/// gewachsen (2 → 4 → 9), und beim zweiten Mal blieben die Erwartungen auf 4
+/// stehen — zwei rote Tests, die niemand bemerkte, bis sie am 2026-09-24 vor
+/// einem Release auffielen.
 /// Sammelt Ergebnisse aus nebenläufigen Closures. Swift 6 lässt das Mutieren
 /// einer eingefangenen `var` dort nicht zu.
 private final class ResultBox: @unchecked Sendable {
@@ -74,15 +79,16 @@ final class PlaybackCacheTests: XCTestCase {
         XCTAssertNil(PlaybackCache.shared.existingCopy(of: source))
     }
 
-    /// Kapazität 4 seit 2026-09-20: laufender Track plus die drei
-    /// vorausgeholten. Fünf Dateien passen nicht, die älteste muss weichen.
-    func test_cache_haeltNurDieVierJuengsten() throws {
-        let files = try (1...5).map { try makeFile("n\($0).mp3", bytes: [UInt8($0)]) }
+    /// Laufender Track plus die vorausgeholten. Eine Datei mehr als die
+    /// Kapazität passt nicht, die älteste muss weichen.
+    func test_cache_haeltNurDieJuengsten() throws {
+        let count = PlaybackCache.capacity + 1
+        let files = try (1...count).map { try makeFile("n\($0).mp3", bytes: [UInt8($0)]) }
         for file in files { store(file) }
 
         for survivor in files.dropFirst() {
             XCTAssertNotNil(PlaybackCache.shared.existingCopy(of: survivor),
-                            "\(survivor.lastPathComponent) gehört zu den vier jüngsten")
+                            "\(survivor.lastPathComponent) gehört zu den jüngsten \(PlaybackCache.capacity)")
         }
         XCTAssertNil(PlaybackCache.shared.existingCopy(of: files[0]),
                      "die älteste muss verdrängt sein — der Cache ist kein Archiv")
@@ -91,7 +97,10 @@ final class PlaybackCacheTests: XCTestCase {
     func test_erneuterZugriff_schuetztVorVerdraengung() throws {
         let a = try makeFile("a2.mp3", bytes: [1])
         let b = try makeFile("b2.mp3", bytes: [2])
-        let rest = try (1...3).map { try makeFile("r\($0).mp3", bytes: [UInt8(10 + $0)]) }
+        // So viele Füller, dass a und b zusammen mit ihnen genau eine Datei
+        // über die Kapazität kommen — und damit genau einer verdrängt wird.
+        let rest = try (1...(PlaybackCache.capacity - 1))
+            .map { try makeFile("r\($0).mp3", bytes: [UInt8(10 + $0)]) }
 
         store(a)
         store(b)
@@ -102,7 +111,8 @@ final class PlaybackCacheTests: XCTestCase {
 
         XCTAssertNotNil(PlaybackCache.shared.existingCopy(of: a),
                         "gerade benutzt, darf nicht verdrängt werden")
-        XCTAssertNil(PlaybackCache.shared.existingCopy(of: b))
+        XCTAssertNil(PlaybackCache.shared.existingCopy(of: b),
+                     "der älteste Eintrag muss weichen, nicht der gerade benutzte")
     }
 
     /// Beim Durchskippen holen `prefetch` und `prefetchAhead` auf getrennten
