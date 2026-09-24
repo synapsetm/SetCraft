@@ -4,14 +4,20 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-24 (iOS 1.3-36 in TestFlight, Mac v1.3-17).
+Letzte Aktualisierung: 2026-09-24 (iOS 1.3-37 in TestFlight, Mac v1.3-18).
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.3-17 (Build 17), notarisiert, Sparkle-Auto-Update live.
+- **Mac-Release:** v1.3-18 (Build 18), notarisiert, Sparkle-Auto-Update live.
+  Bugfix-Release vom 2026-09-24, nach erfolgreichem Klick-Test: holt die
+  Core-Korrekturen nach, die seit Build 17 an der iOS-Front entstanden sind —
+  Wettlauf beim Durchskippen, unbrauchbare Wiedergabe-Kopie, Waveform
+  blockiert den Actor nicht mehr, Cache 4 → 9, gemerkte Quelle über
+  App-Starts, Tag-Schreibfehler mit Domain/Code/errno.
+  v1.3-17 brachte davor:
   Bringt den korrigierten Playhead (s. u.), Auto-Advance am Track-Ende,
   „copy to folder" im Kontextmenü samt erhaltener Selektion, die Ladeanzeige
   über der leeren Tabelle, den Swift-6-Sprachmodus und den Wiedergabe-Cache
@@ -21,8 +27,10 @@ Letzte Aktualisierung: 2026-09-24 (iOS 1.3-36 in TestFlight, Mac v1.3-17).
   mitwachsende Waveform.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 36) in TestFlight (hochgeladen 2026-09-22 20:11);
-  35 war der Stand davor, 34 ist abgelaufen. **Build 36 bringt ausser der
+- **iOS-Release:** 1.3 (Build 37) in TestFlight (hochgeladen 2026-09-24 18:56,
+  VALID). Er entfernt nur die Grössenabfrage im `SourceKeepAlive` — am
+  Verhalten, das Build 36 über 92 Minuten belegt hat, ändert sich nichts.
+  36 war der Stand davor (hochgeladen 2026-09-22 20:11), 34 ist abgelaufen. **Build 36 bringt ausser der
   gemerkten Quelle (s. u.) keine Änderung am Netz-/Cache-Verhalten** — er war
   der Stand für den längeren Testlauf über die Cache-Reichweite hinaus, und
   der ist am 2026-09-24 gelaufen: 92 Minuten, 14 Tracks, gesperrtes Telefon,
@@ -898,15 +906,8 @@ Serialisierung, Active-Track-Guard).
 
 ### Unmittelbar
 
-- **Mac-Klick-Test steht aus.** Der `PlaybackCache` ist geteilter Core-Code,
-  und seine Kapazität hat sich mit Build 35 von 4 auf 9 geändert; auf dem Mac
-  greift er bei gemounteten Netz-Volumes. Dazu kommt jetzt die entfernte
-  Grössenabfrage im `SourceKeepAlive` (24.09.) — auch geteilter Code, auf dem
-  Mac allerdings ein No-op bei lokalen Quellen. Zu prüfen: Track laden,
-  abspielen, mehrfach skippen. Der iOS-Testlauf, auf den das bewusst gewartet
-  hat (Entscheid des Nutzers, 2026-09-21), ist seit 2026-09-24 ausgewertet.
-  Es gibt keine Test-Suite für die Apps — der Klick-Test ist die einzige
-  Absicherung.
+- _(nichts offen — der Mac-Klick-Test vom 2026-09-24 war erfolgreich und ist
+  in v1.3-18 eingeflossen.)_
 
 ### Features und Altlasten
 
