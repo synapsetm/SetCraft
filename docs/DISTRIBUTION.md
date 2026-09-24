@@ -67,8 +67,10 @@ gehosteten Appcast.
 ```sh
 # Sparkle wurde via Swift Package eingebunden. Das CLI-Tooling liegt im
 # DerivedData-Cache, nachdem Xcode das Paket einmal aufgelöst hat.
+# Achtung: der bin-Ordner liegt unter .../artifacts/sparkle/Sparkle/bin —
+# also nach 'bin' suchen, nicht nach 'Sparkle'.
 SPARKLE_BIN_DIR="$(find ~/Library/Developer/Xcode/DerivedData \
-    -type d -name 'Sparkle' -path '*/artifacts/*/bin' 2>/dev/null | head -1)"
+    -type d -name bin -path '*/artifacts/*/Sparkle/bin' 2>/dev/null | head -1)"
 
 # Ohne Cache: einmal `xcodebuild -resolvePackageDependencies` laufen lassen.
 
@@ -132,11 +134,19 @@ GitHub-Release-Upload → Appcast-Generierung → Pages-Commit + Push).
 
 Vor jedem Release:
 
-- `MARKETING_VERSION` (z. B. `1.1`) und `CURRENT_PROJECT_VERSION` (Buildnummer,
-  monoton steigend, z. B. `4`) in der Xcode-Projektkonfiguration anheben.
-  **Beide Targets gemeinsam** — im pbxproj steht jeder Wert viermal
-  (Mac und iOS, je Debug und Release), damit Mac-DMG und TestFlight-Build
-  dieselbe Version tragen.
+- `MARKETING_VERSION` (z. B. `1.3`) und `CURRENT_PROJECT_VERSION` (Buildnummer,
+  monoton steigend) in der Xcode-Projektkonfiguration anheben. Im pbxproj steht
+  jeder Wert **viermal** — Mac und iOS, je Debug und Release.
+- **Die Build-Nummern laufen seit 1.3-16 bewusst auseinander** (Stand
+  2026-09-24: Mac 18, iOS 37), weil iOS-only-Fixes eigene TestFlight-Builds
+  bekommen, während für den Mac kein Release ansteht. Anzuheben ist also nur
+  das Target, das released wird. Die iOS-Configs sind die mit
+  `PRODUCT_BUNDLE_IDENTIFIER = ch.buehler.beat.SetCraft.iOS`; alternativ
+  `BUILD_NUMBER=<n> ./scripts/release-ios.sh`, das überschreibt den Wert.
+  `MARKETING_VERSION` bleibt gemeinsam.
+- **Beide Release-Skripte prüfen die Lokalisierung** — nach dem Archive, vor
+  dem Export. Ein fehlender deutscher String bricht ab, bevor etwas
+  notarisiert oder hochgeladen wird. Bewusst übergehen: `SKIP_L10N_CHECK=1`.
 - Das Skript zieht beide Werte automatisch und benennt das DMG entsprechend
   (`SetCraft-1.1-4.dmg`).
 - **Den Versions-Commit vorher pushen.** Der Vorflug-Check in `release.sh`

@@ -53,6 +53,15 @@ beat-matched chops.
   (Universal / DnB / Psy-Trance / House / HipHop / Disco), plus a ⅔ / 1½
   factor for triplet mis-detections. Re-analyze and manual ×2 / ÷2 / ×1.5 /
   ÷1.5 corrections per track from the context menu / edit sheet.
+- **Plays from network sources** — a NAS over SMB or iCloud Drive on iOS,
+  mounted network volumes on macOS — without ever reading straight from the
+  provider URL. Such a read blocks until the sequential download reaches its
+  offset, which the engine renders as silence under a running playhead, with
+  no error. Playback therefore runs from a local `PlaybackCache` (the current
+  track plus eight prefetched ones), and a once-a-minute one-byte read keeps
+  the SMB session from idling out — because reconnecting needs the keychain,
+  which a locked iPhone will not hand over. Verified on device: 92 minutes,
+  14 tracks, phone locked throughout, no dropout.
 - **DJ mixes are left alone.** Anything from 20 minutes up is treated as a
   mix (derived purely from its duration): BPM/key analysis and waveform
   prefetch are skipped, because both say little about a whole set while
@@ -177,7 +186,7 @@ bookmarks; iOS uses `UIDocumentPickerViewController` for source folders.
 cd SetCraftCore && swift test
 ```
 
-222 tests, no network access — the Discogs layer is exercised through an
+233 tests, no network access — the Discogs layer is exercised through an
 HTTP stub built from real API responses.
 
 ### 4) Localisation check

@@ -122,8 +122,13 @@ if [ -n "$SPARKLE_BIN_DIR" ] && [ -x "$SPARKLE_BIN_DIR/generate_appcast" ]; then
 elif command -v generate_appcast >/dev/null 2>&1; then
     GENERATE_APPCAST="$(command -v generate_appcast)"
 else
+    # Der bin-Ordner liegt unter .../artifacts/sparkle/Sparkle/bin. Hier stand
+    # bis 2026-09-24 `-name 'Sparkle' -path '*/artifacts/*/bin'` — ein
+    # Verzeichnis namens Sparkle, dessen Pfad auf bin endet, kann es nicht
+    # geben, die Suche lief immer leer. Folge: SPARKLE_BIN_DIR musste bei
+    # jedem Release von Hand gesetzt werden.
     AUTO_SPARKLE_BIN="$(find "$HOME/Library/Developer/Xcode/DerivedData" \
-        -type d -name 'Sparkle' -path '*/artifacts/*/bin' 2>/dev/null | head -1)"
+        -type d -name bin -path '*/artifacts/*/Sparkle/bin' 2>/dev/null | head -1)"
     if [ -n "$AUTO_SPARKLE_BIN" ] && [ -x "$AUTO_SPARKLE_BIN/generate_appcast" ]; then
         GENERATE_APPCAST="$AUTO_SPARKLE_BIN/generate_appcast"
     fi

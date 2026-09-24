@@ -298,18 +298,48 @@ nicht beantworten liess:
 - `totalFileAllocatedSize` meldet von Anfang an 100 %. Das Dateisystem gibt
   über den Download-Fortschritt **nichts** preis.
 
-Daraus folgen drei verbindliche Regeln:
+Daraus folgen vier verbindliche Regeln:
 
 1. **Nie direkt von der Provider-URL abspielen.** Die Engine-Reads laufen sonst
    in Daten, die noch nicht da sind — das Ergebnis ist Stille bei laufendem
    Playhead, ohne Fehlermeldung. Gespielt wird aus `PlaybackCache` (höchstens
-   vier Dateien: laufender + die drei vorausgeholten Tracks).
+   `PlaybackCache.capacity` Dateien: laufender + die vorausgeholten Tracks;
+   seit 2026-09-21 neun statt vier, rund fünfundvierzig Minuten Reichweite).
 2. **Vollständigkeit beweist, wer jedes Byte gelesen hat.** Die häppchenweise
    Kopie ist zugleich die Prüfung; eine separate Leseprobe wäre ein zweiter
    Durchlauf durch dieselbe Datei. Eine Grössen-Gegenprobe fängt den
    stillschweigend kurzen Read ab.
 3. **Fortschritt kommt aus der eigenen Kopie**, nicht vom Dateisystem —
    256-KB-Häppchen, jedes zurückkehrende Häppchen sind übertragene Bytes.
+
+Dazu kommt eine vierte Regel, die erst 2026-09-21 sichtbar wurde und den
+eigentlichen Ausfallgrund benennt:
+
+4. **Die Session muss wachgehalten werden.** `smbclientd` trennt eine
+   SMB-Session nach rund zwei Minuten Leerlauf selbst. Der Wiederaufbau
+   braucht die Zugangsdaten aus dem Keychain — und die sind bei **gesperrtem**
+   iPhone nicht lesbar (`errSecInteractionNotAllowed` / `-25308`). Ein
+   sechsminütiger Track mit einminütiger Vorausschau reisst diese Lücke bei
+   jedem Track auf; danach reicht die Wiedergabe nur noch so weit wie der
+   `PlaybackCache`. Eine **bestehende** Session liefert auch gesperrt — nur
+   der Neuaufbau scheitert.
+
+   `SourceKeepAlive` hält sie offen: einmal pro Minute ein **echter
+   Lesezugriff** auf die laufende Datei — `open`, ein Byte von wanderndem
+   Offset, `close`, Handle mit `F_NOCACHE`. Eine Attribut-Abfrage genügt
+   **nicht**: sie wird aus dem Metadaten-Cache des FileProviders beantwortet
+   und erreicht die Session nie (belegt am 2026-09-21, Build 34). Erst der
+   `open` löst den `LIAccessCheck` des LiveFS-Providers aus. Eigene
+   `DispatchQueue`, bei lokalen Quellen ein No-op.
+
+   **Belegt am 2026-09-24** mit Build 36: 92 Minuten, 14 Tracks, Telefon
+   durchgehend gesperrt, kein Aussetzer — darin eine Strecke von 61 Minuten
+   ununterbrochener Sperre mit zehn Tracks, also mehr, als der Cache fasst.
+   Details in `STATUS.md`.
+
+   Ungelöst bleibt der Fall, in dem die TCP-Verbindung selbst stirbt
+   (Mobilfunk-Handover, VPN-Wechsel): dieser Reconnect braucht ebenfalls den
+   Keychain. Dagegen hilft nur der `PlaybackCache`.
 
 Und eine Warnung, die über den Player hinausgeht: **jede Datei-API kann bei
 einer Provider-Quelle blockieren**, auch eine reine Metadaten-Abfrage
