@@ -4,7 +4,7 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-09-24 (iOS 1.3-37 in TestFlight, Mac v1.3-18).
+Letzte Aktualisierung: 2026-10-02 (Security-Review abgearbeitet; iOS 1.3-37 in TestFlight, Mac v1.3-18).
 
 ---
 
@@ -322,7 +322,19 @@ Serialisierung, Active-Track-Guard).
   Platzhalter, „ß", Keys ohne Katalogeintrag und abweichende Übersetzungen
   zwischen den Plattformen; Karteileichen und `de` == Key bei Einzelbegriffen
   („Album") bleiben Hinweise. `SKIP_L10N_CHECK=1` übergeht das Gate bewusst.
-- About-Panel mit vollständigen Lizenz-Credits (GPL §6).
+- **Signierter Sparkle-Feed** (seit 2026-10-02): `SURequireSignedFeed` +
+  `SUVerifyUpdateBeforeExtraction` in `SetCraft/Info.plist`. Die beiden Keys
+  gehören zusammen — nur einer gesetzt, und Sparkle bricht beim Start ab.
+  `generate_appcast` signiert den Appcast daraufhin selbst (liest den Schalter
+  aus dem Bundle im Archiv); `release.sh` prüft nach dem Erzeugen, dass der
+  `<!-- sparkle-signatures:`-Block da ist, und bricht sonst ab — vor dem Push.
+  **`docs/appcast.xml` darum nie von Hand editieren**, das macht die Signatur
+  ungültig und der Update-Check schlägt bei allen Clients fehl.
+- About-Panel mit vollständigen Lizenz-Credits (GPL §6). SetCraft selbst steht
+  unter **GPLv3+** (`LICENSE`, seit 2026-10-02) — die statisch gelinkten
+  aubio/libKeyFinder lassen keine andere Wahl, und „nicht-kommerziell" ändert
+  daran nichts: die Pflichten hängen am Verteilen. Lizenztabelle pro
+  Abhängigkeit im `README.md`.
 - Lokalisiert (EN + DE, Auto-Switch). Dark Mode als Default.
 
 ---
@@ -889,9 +901,16 @@ Serialisierung, Active-Track-Guard).
   Rekordbox), Round-Trip in `RatingPrefix.parse/format`.
 - WAV ist als Tag-Ziel schwach → UI-Warnung im Edit-Sheet, Write läuft durch.
 - Rekordbox lädt geänderte Tags nicht automatisch neu („reload tags" nötig).
-- Vendor-Versionen: TagLib 2.3.1 (utfcpp 4.1.1), libKeyFinder 2.2.8 + fftw
+- Vendor-Versionen: TagLib 2.3.2 (utfcpp 4.1.1), libKeyFinder 2.2.8 + fftw
   3.3.11, aubio 0.4.9 (letztes Release seit 2019 — kein Upgrade-Pfad).
-  Gepinnt jeweils oben in `Vendor/*/build-*.sh`.
+  Gepinnt jeweils oben in `Vendor/*/build-*.sh`, **samt SHA-256 jedes
+  Tarballs**. Die Prüfung bricht den Build ab, wenn der Download abweicht;
+  vorher wurde ungeprüft entpackt und gebaut, und das Ergebnis wandert als
+  eingecheckte `.xcframework` in jedes Release. Die Werte für fftw,
+  libKeyFinder, aubio und `waf` sind gegen die bereits vorhandenen
+  Quellbäume in `Vendor/*/src/` gegengeprüft, nicht nur beim Download
+  festgeschrieben. Beim Versions-Bump neu setzen —
+  `curl -fsSL <url> | shasum -a 256`.
 - Vendor-Binärgrößen: TagLib 16 MB, KeyFinder 8 MB, aubio 5 MB.
 - Bundle-IDs: Mac `ch.buehler.beat.SetCraft`, iOS `ch.buehler.beat.SetCraft.iOS`.
   Sparkle-EdDSA-Public-Key + `SUFeedURL` in `SetCraft/Info.plist`.
@@ -917,7 +936,6 @@ Serialisierung, Active-Track-Guard).
 - **Live-Activities** (iOS) für die Wiedergabe.
 - **Multi-Source-Aggregation** („Alle Tracks" über mehrere Ordner).
 - **Phase 5c / SFBAudioEngine** (Ogg Vorbis, schnelleres FLAC) — erst bei Bedarf.
-- **Waveform-Prefetch-Throttling** bei sehr großen Libraries (TaskGroup-Limit).
 - **Discogs-Token im Klartext** in den App-Einstellungen (`UserDefaults`).
   Für einen Read-only-Token auf einen offenen Katalog vertretbar, gehört aber
   in den Keychain, sobald es eine Keychain-Schicht gibt.

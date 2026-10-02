@@ -18,6 +18,32 @@ fi
 FFTW_VERSION="3.3.11"
 KEYFINDER_VERSION="2.2.8"
 
+# SHA-256 der Quell-Tarballs. Beide Werte sind gegen die bereits im Repo
+# liegenden Quellbäume geprüft (`src/fftw-3.3.11`, `src/libkeyfinder-2.2.8`,
+# mit denen die eingecheckte .xcframework gebaut wurde) und nicht nur beim
+# Download festgeschrieben. Beim Versions-Bump neu setzen:
+#   curl -fsSL <url> | shasum -a 256
+FFTW_SHA256="5630c24cdeb33b131612f7eb4b1a9934234754f9f388ff8617458d0be6f239a1"
+# Achtung: GitHub-Archiv-Tarballs (`/archive/refs/tags/`) sind nicht so
+# verlässlich byte-stabil wie Release-Assets — ändert GitHub einmal die
+# Kompression, schlägt die Prüfung fehl, ohne dass jemand etwas manipuliert
+# hat. Dann Inhalt gegen den vorhandenen Baum in `src/` vergleichen und den
+# Wert neu setzen.
+KEYFINDER_SHA256="a54fc6c5ff435bb4b447f175bc97f9081fb5abf0edd5d125e6f5215c8fff4d11"
+
+# Prüft eine heruntergeladene Datei und bricht bei Abweichung ab.
+verify_sha256() {
+  local file="$1" expected="$2" actual
+  actual="$(shasum -a 256 "$file" | awk '{print $1}')"
+  if [ "$actual" != "$expected" ]; then
+    echo "FEHLER: Prüfsumme von $(basename "$file") passt nicht." >&2
+    echo "  erwartet: $expected" >&2
+    echo "  erhalten: $actual" >&2
+    rm -f "$file"
+    exit 1
+  fi
+}
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 WORK_DIR="$HERE/build"
@@ -33,6 +59,7 @@ mkdir -p "$WORK_DIR" "$SRC_DIR"
 if [ ! -d "$FFTW_SRC" ]; then
   echo "==> Downloading fftw $FFTW_VERSION"
   curl -fsSL "https://www.fftw.org/fftw-$FFTW_VERSION.tar.gz" -o "$SRC_DIR/fftw.tar.gz"
+  verify_sha256 "$SRC_DIR/fftw.tar.gz" "$FFTW_SHA256"
   tar -xzf "$SRC_DIR/fftw.tar.gz" -C "$SRC_DIR"
   rm "$SRC_DIR/fftw.tar.gz"
 fi
@@ -44,6 +71,7 @@ if [ ! -d "$KF_SRC" ]; then
   kf_url_base="https://github.com/mixxxdj/libkeyfinder/archive/refs/tags"
   curl -fsSL "$kf_url_base/$KEYFINDER_VERSION.tar.gz" -o "$SRC_DIR/keyfinder.tar.gz" \
     || curl -fsSL "$kf_url_base/v$KEYFINDER_VERSION.tar.gz" -o "$SRC_DIR/keyfinder.tar.gz"
+  verify_sha256 "$SRC_DIR/keyfinder.tar.gz" "$KEYFINDER_SHA256"
   tar -xzf "$SRC_DIR/keyfinder.tar.gz" -C "$SRC_DIR"
   rm "$SRC_DIR/keyfinder.tar.gz"
 fi

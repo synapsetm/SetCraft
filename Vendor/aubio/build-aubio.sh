@@ -28,6 +28,30 @@ fi
 
 AUBIO_VERSION="0.4.9"
 
+# SHA-256 der bezogenen Dateien. `waf` ist davon der wichtigste Pin: die Datei
+# wird nicht nur entpackt, sie wird als Build-Skript AUSGEFÜHRT.
+#
+# Beide Werte sind gegen den bereits im Repo liegenden Quellbaum geprüft
+# (`src/aubio-0.4.9`, mit dem die eingecheckte .xcframework gebaut wurde) und
+# nicht nur beim Download festgeschrieben. Beim Versions-Bump neu setzen:
+#   curl -fsSL <url> | shasum -a 256
+AUBIO_SHA256="d48282ae4dab83b3dc94c16cf011bcb63835c1c02b515490e1883049c3d1f3da"
+WAF_VERSION="2.1.6"
+WAF_SHA256="4bc4587a11925e19739da021e021a5764d39759fada85563bc6d4ded17515b14"
+
+# Prüft eine heruntergeladene Datei und bricht bei Abweichung ab.
+verify_sha256() {
+  local file="$1" expected="$2" actual
+  actual="$(shasum -a 256 "$file" | awk '{print $1}')"
+  if [ "$actual" != "$expected" ]; then
+    echo "FEHLER: Prüfsumme von $(basename "$file") passt nicht." >&2
+    echo "  erwartet: $expected" >&2
+    echo "  erhalten: $actual" >&2
+    rm -f "$file"
+    exit 1
+  fi
+}
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 WORK_DIR="$HERE/build"
@@ -42,6 +66,7 @@ mkdir -p "$SRC_DIR"
 if [ ! -d "$SRC" ]; then
   echo "==> Downloading aubio $AUBIO_VERSION"
   curl -fsSL "https://aubio.org/pub/aubio-$AUBIO_VERSION.tar.bz2" -o "$SRC_DIR/aubio.tar.bz2"
+  verify_sha256 "$SRC_DIR/aubio.tar.bz2" "$AUBIO_SHA256"
   tar -xjf "$SRC_DIR/aubio.tar.bz2" -C "$SRC_DIR"
   rm "$SRC_DIR/aubio.tar.bz2"
 fi
@@ -49,7 +74,8 @@ fi
 # Aubio 0.4.9 bringt ein altes waf mit, das mit Python >=3.12 nicht läuft.
 if [ ! -f "$SRC/.waf-replaced" ]; then
   echo "==> Replacing bundled waf with current upstream"
-  curl -fsSL "https://waf.io/waf-2.1.6" -o "$SRC/waf"
+  curl -fsSL "https://waf.io/waf-$WAF_VERSION" -o "$SRC/waf"
+  verify_sha256 "$SRC/waf" "$WAF_SHA256"
   chmod +x "$SRC/waf"
   rm -rf "$SRC/waflib"
   touch "$SRC/.waf-replaced"

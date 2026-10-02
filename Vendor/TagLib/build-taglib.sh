@@ -15,8 +15,39 @@ if ! xcode-select -p 2>/dev/null | grep -q "Xcode.app"; then
   fi
 fi
 
-TAGLIB_VERSION="2.3.1"
+TAGLIB_VERSION="2.3.2"
 UTFCPP_VERSION="4.1.1"
+
+# SHA-256 der Quell-Tarballs. Ohne diese Prüfung wurde hier blind entpackt und
+# gebaut, was curl geliefert hat — und das Ergebnis wandert als eingecheckte
+# .xcframework in jedes Release.
+#
+# Woher die Werte kommen: TagLib veröffentlicht keine Prüfsummen (nur den
+# Tarball als Release-Asset), also sind sie beim ersten Bezug über HTTPS
+# festgeschrieben. Das erkennt keinen bereits kompromittierten Erstbezug, aber
+# jede spätere Änderung an der Datei — und genau darum geht es bei einem Pin.
+# Beim Versions-Bump neu setzen:
+#   curl -fsSL <url> | shasum -a 256
+TAGLIB_SHA256="3ca2d8afaa7f1cf7f6ed10e511ebc368bfacd6dcaa3dbfa690b89e502e8963dc"
+# Achtung: GitHub-Archiv-Tarballs (`/archive/refs/tags/`) sind nicht so
+# verlässlich byte-stabil wie Release-Assets — ändert GitHub einmal die
+# Kompression, schlägt die Prüfung fehl, ohne dass jemand etwas manipuliert
+# hat. Dann Inhalt gegen den vorhandenen Baum in `src/` vergleichen und den
+# Wert neu setzen.
+UTFCPP_SHA256="1ca68016f0abc24172998e39ce0d8f8e2b7a26f7579a0ff85d4e1b9a7aea56f8"
+
+# Prüft eine heruntergeladene Datei und bricht bei Abweichung ab.
+verify_sha256() {
+  local file="$1" expected="$2" actual
+  actual="$(shasum -a 256 "$file" | awk '{print $1}')"
+  if [ "$actual" != "$expected" ]; then
+    echo "FEHLER: Prüfsumme von $(basename "$file") passt nicht." >&2
+    echo "  erwartet: $expected" >&2
+    echo "  erhalten: $actual" >&2
+    rm -f "$file"
+    exit 1
+  fi
+}
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
@@ -35,6 +66,7 @@ if [ ! -d "$TAGLIB_SRC" ]; then
   echo "==> Downloading TagLib $TAGLIB_VERSION"
   curl -fsSL "https://github.com/taglib/taglib/releases/download/v$TAGLIB_VERSION/taglib-$TAGLIB_VERSION.tar.gz" \
     -o "$SRC_DIR/taglib.tar.gz"
+  verify_sha256 "$SRC_DIR/taglib.tar.gz" "$TAGLIB_SHA256"
   tar -xzf "$SRC_DIR/taglib.tar.gz" -C "$SRC_DIR"
   rm "$SRC_DIR/taglib.tar.gz"
 fi
@@ -43,6 +75,7 @@ if [ ! -d "$UTFCPP_SRC" ]; then
   echo "==> Downloading utfcpp $UTFCPP_VERSION"
   curl -fsSL "https://github.com/nemtrif/utfcpp/archive/refs/tags/v$UTFCPP_VERSION.tar.gz" \
     -o "$SRC_DIR/utfcpp.tar.gz"
+  verify_sha256 "$SRC_DIR/utfcpp.tar.gz" "$UTFCPP_SHA256"
   tar -xzf "$SRC_DIR/utfcpp.tar.gz" -C "$SRC_DIR"
   rm "$SRC_DIR/utfcpp.tar.gz"
 fi
