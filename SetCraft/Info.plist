@@ -45,6 +45,29 @@
 	<true/>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
+	<!-- Signierter Appcast plus Prüfung VOR dem Entpacken. Die beiden Keys
+	     gehören zusammen — Sparkle bricht beim Start mit einem Fehler ab,
+	     wenn `SURequireSignedFeed` ohne `SUVerifyUpdateBeforeExtraction`
+	     gesetzt ist (SPUUpdater.m, „needs to also be enabled").
+
+	     Ohne sie war die Lage schon nicht offen: jedes DMG trägt seine
+	     EdDSA-Signatur im Appcast, ein manipulierter Feed allein kann also
+	     keinen fremden Code ausliefern. Was die Keys zusätzlich bringen:
+	     der Entpacker (zip/aar) sieht keine unverifizierten Bytes mehr, und
+	     die Feed-Metadaten selbst — Version, Release Notes, Mindest-OS —
+	     sind authentifiziert statt nur per HTTPS geholt.
+
+	     `generate_appcast` liest `SURequireSignedFeed` aus dem Bundle im
+	     Archiv (ArchiveItem.swift) und signiert den Appcast daraufhin
+	     selbst, mit demselben Keychain-Key wie die DMGs. release.sh kopiert
+	     das Ergebnis unverändert nach docs/ — wer appcast.xml danach von
+	     Hand anfasst, macht die Feed-Signatur ungültig und muss
+	     `generate_appcast` erneut laufen lassen. Alte Clients ohne diese
+	     Keys ignorieren die zusätzliche Signatur. -->
+	<key>SURequireSignedFeed</key>
+	<true/>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 	<!-- Sandbox-Modus: Sparkles Installer- und Downloader-XPC-Services
 	     aktivieren. Damit lädt und installiert Sparkle aus den XPCs heraus
 	     (siehe Mach-Lookup-Entitlements in SetCraft.entitlements und

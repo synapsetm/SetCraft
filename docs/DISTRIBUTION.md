@@ -103,6 +103,37 @@ Branch `main` / `/docs`*.
 
 Die DMG selbst landet **nicht** in `docs/`, sondern als Asset eines
 **GitHub-Releases** (`https://github.com/synapsetm/SetCraft/releases/download/<tag>/<dmg>`).
+
+### 3.4) Signierter Feed (seit 2026-10-02)
+
+`SetCraft/Info.plist` setzt zusätzlich zwei Schalter, die **nur zusammen**
+funktionieren — ist nur einer gesetzt, bricht Sparkle beim Start mit einem
+Fehler ab:
+
+```xml
+<key>SURequireSignedFeed</key>
+<true/>
+<key>SUVerifyUpdateBeforeExtraction</key>
+<true/>
+```
+
+Jede DMG war schon vorher EdDSA-signiert; ein manipulierter Feed allein konnte
+also keinen fremden Code ausliefern. Neu ist, dass der **Appcast selbst**
+signiert ist und die Signatur **vor dem Entpacken** geprüft wird — der
+Entpacker sieht keine unverifizierten Bytes mehr, und Version, Release Notes
+und Mindest-OS im Feed sind authentifiziert statt nur per HTTPS geholt.
+
+Zu tun ist dafür nichts: `generate_appcast` liest `SURequireSignedFeed` aus dem
+Bundle im Archiv und hängt die Feed-Signatur selbst an, mit demselben
+Keychain-Key wie bei den DMGs. Sie steht als `<!-- sparkle-signatures:`-Block
+am Ende von `appcast.xml`; `release.sh` bricht ab, wenn der Block fehlt.
+
+> **`docs/appcast.xml` nie von Hand editieren.** Jede Änderung am Inhalt macht
+> die Feed-Signatur ungültig, und der Update-Check schlägt dann bei allen
+> Clients fehl. Stattdessen `generate_appcast` erneut laufen lassen.
+
+Alte Installationen ohne diese Keys ignorieren die zusätzliche Signatur, der
+Umstieg braucht also keinen Zwischenschritt.
 Das Release-Skript erzeugt den Tag, lädt die DMG hoch und schreibt im
 `enclosure`-Tag des Appcasts die korrekte Download-URL.
 

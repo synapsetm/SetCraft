@@ -281,6 +281,14 @@ log "Sparkle-Appcast erzeugen (Download-URL-Prefix: $DOWNLOAD_URL_PREFIX)"
 
 [ -f "$DIST_DIR/appcast.xml" ] || die "generate_appcast hat keine appcast.xml erzeugt."
 
+# Die App verlangt seit 2026-10-02 einen signierten Feed (`SURequireSignedFeed`
+# in Info.plist). generate_appcast liest den Schalter aus dem Bundle im Archiv
+# und haengt die Feed-Signatur als `<!-- sparkle-signatures:`-Block an. Fehlt
+# der Block, wuerde jeder Update-Check der neuen Version fehlschlagen — und
+# zwar erst beim Nutzer. Darum hier abbrechen, vor dem Push.
+grep -q '<!-- sparkle-signatures:' "$DIST_DIR/appcast.xml" \
+    || die "Appcast ist nicht signiert (kein sparkle-signatures-Block). Steht SURequireSignedFeed in SetCraft/Info.plist und ist der EdDSA-Private-Key im Keychain?"
+
 log "Appcast nach docs/ kopieren und pushen"
 mkdir -p "$(dirname "$APPCAST_PUBLISHED_PATH")"
 cp "$DIST_DIR/appcast.xml" "$APPCAST_PUBLISHED_PATH"
