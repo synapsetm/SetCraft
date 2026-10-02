@@ -30,6 +30,56 @@ durchlaufen.
 Optional: für signierte Installer-Pakete (`.pkg`) zusätzlich
 „Developer ID Installer". Für DMG-Distribution nicht nötig.
 
+### Sub-CA: zwingend G2
+
+Die ursprüngliche ausstellende Stelle („Developer ID Certification Authority",
+`OU=Apple Certification Authority`) **läuft am 1. Februar 2027 ab**, und mit ihr
+jedes von ihr ausgestellte Zertifikat — unabhängig davon, wann es erzeugt wurde.
+Ausgestellt wird nur noch von **G2** (`OU=G2`, gültig bis 17.09.2031).
+
+**Nimm Schritt 2 oben über das Portal, nicht über Xcode.** Xcodes
+*Settings → Accounts → Manage Certificates → + → Developer ID Application*
+hat am 2026-10-02 noch ein Zertifikat der **alten** Sub-CA ausgegeben; das fiel
+erst beim Nachrechnen des Ablaufdatums auf. Im Portal fragt Apple nach dem
+*Developer ID Certificate Intermediary* — dort ausdrücklich **G2 Sub-CA**
+wählen.
+
+Nach dem Import prüfen — der Name allein sagt nichts, beide Sub-CAs stellen
+gleichnamige Zertifikate aus:
+
+```sh
+security find-certificate -c "Developer ID Application: <Name> (D75S77JA58)" -p \
+  | openssl x509 -noout -issuer -enddate
+```
+
+Erwartet: `OU=G2` und ein Ablauf 2031. `release.sh` prüft das beim Vorflug
+selbst und bricht ab, wenn das gewählte Zertifikat von der alten Sub-CA kommt
+(bewusst übergehen: `ALLOW_LEGACY_DEVID=1`).
+
+> **Ein Developer-ID-Zertifikat lässt sich nicht selbst widerrufen.** Die API
+> antwortet mit `403 — "This certificate can only be revoked by Apple Developer
+> Program Support"`, und im Portal fehlt der Knopf aus demselben Grund: ein
+> Widerruf träfe sämtliche damit signierte, bereits ausgelieferte Software.
+> Ein versehentlich erzeugtes Zertifikat lässt man darum einfach ablaufen und
+> löscht es lokal aus dem Keychain (`security delete-identity -Z <SHA-1>`).
+
+### Mehrere gleichnamige Zertifikate
+
+Beim Wechsel der Sub-CA liegen alt und neu gleichzeitig im Keychain, unter
+**identischem Namen**. `codesign --sign "<Name>"` bricht dann ab:
+
+```
+Developer ID Application: … : ambiguous (matches "…" and "…" in login.keychain-db)
+```
+
+`release.sh` löst die Identity deshalb seit 2026-10-02 über den **SHA-1** auf
+und wählt das Zertifikat mit dem spätesten Ablaufdatum. Für den Export gilt das
+nicht — `ExportOptions.plist` steht auf `signingStyle: automatic`, da wählt
+Xcode selbst. Darum prüft das Skript nach dem Export **und** nach dem
+DMG-Signieren, mit welchem Zertifikat tatsächlich signiert wurde, und bricht bei
+Abweichung ab. Sauberer ist es trotzdem, das alte Zertifikat nach dem Umstieg
+lokal zu entfernen.
+
 ---
 
 ## 2) Notarytool-Keychain-Profil anlegen
@@ -362,9 +412,13 @@ Der schreibende Zugriff laeuft ueber `asc_api_patch` in `scripts/asc-auth.sh`
 
 ## 9) Troubleshooting-Häppchen
 
-- **„Developer-ID-Identity nicht auflösbar"**: Zertifikat nicht im Login-
-  Keychain oder noch nicht verifiziert. Login-Keychain entsperren, Cert neu
-  doppelklicken.
+- **„Keine signierfaehige Developer ID Application-Identity"**: Zertifikat
+  nicht im Login-Keychain, nicht verifiziert — oder ohne privaten Schlüssel.
+  Letzteres passiert, wenn die `.cer` auf einem anderen Rechner erzeugt wurde
+  als der CSR: dann liegt zwar das Zertifikat da, aber keine Identity.
+  `security find-identity -v -p codesigning` zeigt nur Identities.
+- **`ambiguous (matches … and …)`**: zwei gleichnamige Developer-ID-Zertifikate
+  im Keychain, typisch beim Sub-CA-Wechsel. Siehe Abschnitt 1.
 - **Notary-Fehler `Invalid signature`**: Sandbox + Hardened Runtime müssen
   beide aktiv sein, und alle eingebetteten Frameworks (auch Sparkle, auch die
   xcframeworks) müssen Developer-ID-signiert sein. `xcodebuild archive`

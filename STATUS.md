@@ -322,6 +322,21 @@ Serialisierung, Active-Track-Guard).
   Platzhalter, „ß", Keys ohne Katalogeintrag und abweichende Übersetzungen
   zwischen den Plattformen; Karteileichen und `de` == Key bei Einzelbegriffen
   („Album") bleiben Hinweise. `SKIP_L10N_CHECK=1` übergeht das Gate bewusst.
+- **Developer-ID-Zertifikat auf die G2-Sub-CA** (2026-10-02). Die alte
+  ausstellende Stelle laeuft am 2027-02-01 ab, und mit ihr jedes von ihr
+  ausgestellte Zertifikat. Aktuell signiert `6CD58429…`, Issuer `OU=G2`,
+  gueltig bis 2031-09-17. **Nur ueber das Portal anlegen** — Xcodes
+  „Manage Certificates" gab am selben Tag noch eines der alten Sub-CA aus.
+  Zwei Folgen davon stecken jetzt in `release.sh`: die Identity wird ueber
+  den SHA-1 mit dem spaetesten Ablaufdatum aufgeloest statt ueber den Namen
+  (alt und neu heissen identisch, `codesign` brach mit „ambiguous" ab — und
+  zwar erst in Schritt 5, nach Archive und Notarisierung), und nach Export
+  wie nach DMG-Signatur wird geprueft, mit welchem Zertifikat wirklich
+  signiert wurde. Der Export laeuft ueber `signingStyle: automatic`, da
+  waehlt Xcode selbst. Ein Zertifikat der alten Sub-CA bricht den Release ab
+  (`ALLOW_LEGACY_DEVID=1` uebergeht das). Selbst widerrufen laesst sich ein
+  Developer-ID-Zertifikat uebrigens nicht — die ASC-API antwortet mit 403,
+  „can only be revoked by Apple Developer Program Support".
 - **Signierter Sparkle-Feed** (seit 2026-10-02): `SURequireSignedFeed` +
   `SUVerifyUpdateBeforeExtraction` in `SetCraft/Info.plist`. Die beiden Keys
   gehören zusammen — nur einer gesetzt, und Sparkle bricht beim Start ab.

@@ -82,6 +82,74 @@ require_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "Benötigter Befehl nicht gefunden: $1"
 }
 
+# Waehlt die Developer-ID-Identity und gibt "<SHA-1>\t<Issuer>\t<Ablauf>" aus.
+#
+# Bis 2026-10-02 stand hier der Zertifikats-NAME, und `codesign` loeste ihn
+# selbst auf. Das ging gut, solange es genau eines gab. Sobald ein zweites
+# gleichnamiges dazukommt — und beim Wechsel der Sub-CA kommt genau das vor,
+# alt und neu heissen identisch — bricht `codesign` mit "ambiguous (matches
+# ... and ...)" ab. Und zwar in Schritt 5, also nach Archive, Notarisierung
+# und Stapling der App. Darum jetzt ueber den SHA-1, bestimmt ueber das
+# spaeteste Ablaufdatum.
+resolve_devid_identity() {
+    python3 - <<'PY'
+import re, subprocess, sys
+from datetime import datetime
+
+def sh(*args):
+    return subprocess.run(args, capture_output=True, text=True).stdout
+
+# Nur Identities (Zertifikat PLUS privater Schluessel) kommen in Frage —
+# ein Zertifikat ohne Schluessel kann nicht signieren.
+usable = set(re.findall(r'\)\s+([0-9A-F]{40})\s+"Developer ID Application',
+                        sh("security", "find-identity", "-v", "-p", "codesigning")))
+
+candidates = []
+raw = sh("security", "find-certificate", "-a", "-Z", "-p", "-c", "Developer ID Application")
+for block in re.split(r"(?=SHA-1 hash: )", raw):
+    h = re.search(r"SHA-1 hash: ([0-9A-F]{40})", block)
+    pem = re.search(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", block, re.S)
+    if not (h and pem) or h.group(1) not in usable:
+        continue
+    info = subprocess.run(["openssl", "x509", "-noout", "-enddate", "-issuer"],
+                          input=pem.group(0), capture_output=True, text=True).stdout
+    end = re.search(r"notAfter=(.+)", info)
+    issuer = re.search(r"issuer=(.+)", info)
+    if not (end and issuer):
+        continue
+    when = datetime.strptime(end.group(1).strip(), "%b %d %H:%M:%S %Y %Z")
+    candidates.append((when, h.group(1), issuer.group(1).strip(), end.group(1).strip()))
+
+if not candidates:
+    sys.exit(1)
+when, h, issuer, end = max(candidates)
+print(f"{h}\t{issuer}\t{end}")
+PY
+}
+
+# Prueft, mit welchem Zertifikat ein Artefakt wirklich signiert wurde. Der
+# Export laeuft ueber `signingStyle: automatic`, Xcode waehlt das Zertifikat
+# dort also selbst — ohne diese Kontrolle koennte die .app an einem anderen
+# Zertifikat haengen als die DMG, und gemerkt haette es niemand.
+assert_signed_with_expected() {
+    local artifact="$1" label="$2"
+    local tmp leaf actual
+    tmp="$(mktemp -d)"
+    codesign -d --extract-certificates="$tmp/cert" "$artifact" 2>/dev/null \
+        || { rm -rf "$tmp"; die "$label: Signatur nicht lesbar."; }
+    leaf="$tmp/cert0"
+    [ -f "$leaf" ] || { rm -rf "$tmp"; die "$label: kein Signaturzertifikat gefunden."; }
+    actual="$(openssl x509 -inform DER -in "$leaf" -noout -fingerprint -sha1 \
+        | cut -d= -f2 | tr -d ':')"
+    rm -rf "$tmp"
+    [ "$actual" = "$DEVID_IDENTITY_SHA1" ] \
+        || die "$label wurde mit einem anderen Zertifikat signiert als erwartet.
+  erwartet: $DEVID_IDENTITY_SHA1
+  benutzt:  $actual
+  Bei 'signingStyle: automatic' trifft Xcode die Wahl selbst — liegt mehr als
+  ein Developer-ID-Zertifikat im Keychain, kann es das falsche erwischen."
+}
+
 # ---------- Vorflug-Checks ----------------------------------------------------
 
 log "Vorflug-Check"
@@ -94,9 +162,34 @@ require_cmd git
 require_cmd gh
 require_cmd python3
 
-if ! security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
-    die "Kein 'Developer ID Application'-Zertifikat im Keychain. Siehe docs/DISTRIBUTION.md."
-fi
+DEVID_PICK="$(resolve_devid_identity)" \
+    || die "Keine signierfaehige 'Developer ID Application'-Identity im Keychain (Zertifikat ohne privaten Schluessel zaehlt nicht). Siehe docs/DISTRIBUTION.md."
+readonly DEVID_IDENTITY_SHA1="$(printf '%s' "$DEVID_PICK" | cut -f1)"
+readonly DEVID_ISSUER="$(printf '%s' "$DEVID_PICK" | cut -f2)"
+readonly DEVID_EXPIRY="$(printf '%s' "$DEVID_PICK" | cut -f3)"
+
+# Die alte Sub-CA ("Developer ID Certification Authority", OU=Apple
+# Certification Authority) laeuft am 2027-02-01 ab, und mit ihr jedes von ihr
+# ausgestellte Zertifikat. Ausgestellt wird nur noch von OU=G2. Xcodes
+# "Manage Certificates" hat am 2026-10-02 trotzdem noch eines von der alten
+# ausgegeben — gemerkt haben wir das erst beim Nachrechnen des Ablaufdatums.
+# Darum hier der Riegel: lieber jetzt abbrechen als nach der Notarisierung.
+case "$DEVID_ISSUER" in
+    *OU=G2*) : ;;
+    *)
+        if [ "${ALLOW_LEGACY_DEVID:-0}" = "1" ]; then
+            log "WARNUNG: Signatur mit Zertifikat der ALTEN Sub-CA (ALLOW_LEGACY_DEVID=1). Laeuft am 2027-02-01 ab."
+        else
+            die "Das gewaehlte Developer-ID-Zertifikat stammt nicht von der G2-Sub-CA.
+  Issuer:   $DEVID_ISSUER
+  Ablauf:   $DEVID_EXPIRY
+  Neues Zertifikat im Portal anlegen und dabei ausdruecklich 'G2 Sub-CA'
+  waehlen (siehe docs/DISTRIBUTION.md). Bewusst uebergehen:
+  ALLOW_LEGACY_DEVID=1 ./scripts/release.sh"
+        fi
+        ;;
+esac
+log "Signatur-Identity: $DEVID_IDENTITY_SHA1 (gueltig bis $DEVID_EXPIRY)"
 
 # Sparkle-Placeholder dürfen nicht im Release stehen.
 if grep -q "REPLACE_ME" SetCraft/Info.plist; then
@@ -205,6 +298,10 @@ xcodebuild -exportArchive \
 
 [ -d "$EXPORTED_APP" ] || die "Export hat kein .app erzeugt: $EXPORTED_APP"
 
+# Vor der Notarisierung pruefen, nicht danach: ein Upload mit dem falschen
+# Zertifikat kostet sonst eine Runde beim Notary-Service.
+assert_signed_with_expected "$EXPORTED_APP" "Die exportierte .app"
+
 # ---------- 3) .app notarisieren + stapeln ------------------------------------
 
 log "ZIP für Notarytool-Upload erzeugen"
@@ -242,10 +339,8 @@ rm -rf "$STAGING_DIR"
 # ---------- 5) DMG signieren --------------------------------------------------
 
 log "DMG mit Developer ID signieren"
-readonly DEVID_IDENTITY="$(security find-identity -v -p codesigning \
-    | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
-[ -n "$DEVID_IDENTITY" ] || die "Developer-ID-Identity nicht auflösbar."
-codesign --sign "$DEVID_IDENTITY" --timestamp "$DMG_PATH"
+codesign --sign "$DEVID_IDENTITY_SHA1" --timestamp "$DMG_PATH"
+assert_signed_with_expected "$DMG_PATH" "Die DMG"
 
 # ---------- 6) DMG notarisieren + stapeln -------------------------------------
 
