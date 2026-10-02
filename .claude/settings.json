@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./scripts/asc-status.sh *)",
+      "Bash(python3 scripts/check-localization.py)",
+      "Bash(python3 scripts/check-localization.py *)",
+      "Bash(xcrun devicectl list *)",
+      "Bash(security find-certificate *)",
+      "Bash(openssl x509 *)",
+      "Bash(codesign -d*)",
+      "Bash(/usr/libexec/PlistBuddy -c \"Print*)",
+      "Bash(log stream *)",
+      "Bash(xcodebuild -list *)",
+      "Bash(shasum -a 256 *)",
+      "mcp__Claude_Browser__tabs_context",
+      "Bash(xcodebuild -project SetCraft.xcodeproj *)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project SetCraft.xcodeproj *)"
+    ]
+  }
+}
