@@ -14,7 +14,14 @@
       "Bash(shasum -a 256 *)",
       "mcp__Claude_Browser__tabs_context",
       "Bash(xcodebuild -project SetCraft.xcodeproj *)",
-      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project SetCraft.xcodeproj *)"
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project SetCraft.xcodeproj *)",
+      "Bash(swift build *)",
+      "Bash(swift test *)",
+      "Bash(log show *)",
+      "Bash(security find-identity *)",
+      "Bash(defaults read *)",
+      "Bash(xcrun notarytool history *)",
+      "Bash(xcrun simctl *)"
     ]
   }
 }
