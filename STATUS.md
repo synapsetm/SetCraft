@@ -36,10 +36,14 @@ Letzte Aktualisierung: 2026-10-02 (Security-Review abgearbeitet; iOS 1.3-37 in T
   mitwachsende Waveform.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 37) in TestFlight (hochgeladen 2026-09-24 18:56,
-  VALID). Er entfernt nur die Grössenabfrage im `SourceKeepAlive` — am
-  Verhalten, das Build 36 über 92 Minuten belegt hat, ändert sich nichts.
-  36 war der Stand davor (hochgeladen 2026-09-22 20:11), 34 ist abgelaufen.
+- **iOS-Release:** 1.3 (Build 38) in TestFlight (hochgeladen 2026-10-02 22:08,
+  VALID). Er zieht den Klang-Fix aus Mac v1.3-20 nach (Tempo über
+  `AVAudioUnitVarispeed`) und ist der erste iOS-Build mit TagLib 2.3.2.
+  Auf dem Gerät noch nicht gehört — der Klick-Test lief nur auf dem Mac.
+  37 war der Stand davor (hochgeladen 2026-09-24 18:56, seit 2026-10-02
+  abgelaufen): er entfernte nur die Grössenabfrage im `SourceKeepAlive` — am
+  Verhalten, das Build 36 über 92 Minuten belegt hat, änderte sich nichts.
+  36 (hochgeladen 2026-09-22 20:11) und 34 sind ebenfalls abgelaufen.
   **Build 36 war der Stand für den längeren Testlauf über die
   Cache-Reichweite hinaus**, und der ist am 2026-09-24 gelaufen: 92 Minuten,
   14 Tracks, gesperrtes Telefon, kein Aussetzer. Der Wach-Lesezugriff hält
@@ -952,9 +956,6 @@ Serialisierung, Active-Track-Guard).
 - **Sparkle-Update von 18 auf 19 am installierten Mac gegenprüfen.** v1.3-19
   ist der erste Release mit signiertem Feed; ob ein Client mit Build 18 das
   Update tatsächlich findet und installiert, zeigt sich erst dort.
-- **iOS-Build 37 traegt noch TagLib 2.3.1.** Unkritisch, weil die Builds nach
-  der Lizenzentscheidung (s. u.) ohnehin nur auf eigenen Geraeten laufen —
-  beim naechsten iOS-Build zieht es sich von selbst mit.
 - **Discogs-Token im Keychain** ist der verbliebene Punkt aus dem
   Security-Review vom 2026-10-02 (s. „Features und Altlasten").
 
