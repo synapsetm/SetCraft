@@ -38,7 +38,7 @@ oder durch permissiv lizenzierte ersetzt werden. Der macOS-Weg ist davon nicht b
 | Aufgabe | Werkzeug |
 |---|---|
 | Audio laden/dekodieren | AVFoundation (`AVAudioFile`) |
-| Abspielen + Tempo/Key | AVAudioEngine + `AVAudioUnitTimePitch` |
+| Abspielen + Tempo/Key | AVAudioEngine + `AVAudioUnitVarispeed` (Tempo) + `AVAudioUnitTimePitch` (Master-Key) |
 | BPM-Analyse | aubio (GPL) |
 | Key-Analyse | libKeyFinder (GPL) → Camelot |
 | Waveform-DSP (3 Bänder) | Accelerate / vDSP |

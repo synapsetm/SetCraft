@@ -29,12 +29,13 @@ deshalb sind sie hinter Protokollen gekapselt und austauschbar (siehe Architektu
 - **Fallback bei Bedarf:** `SFBAudioEngine` (eigene Decoder für Ogg Vorbis, WavPack, Monkey's Audio u. a.
   sowie schnellere FLAC-Dekodierung). Erst einziehen, wenn die echte Sammlung es nötig macht.
 
-### Abspielen + Tempo/Key — AVAudioEngine + AVAudioUnitTimePitch
-Ein einziger `AVAudioUnitTimePitch`-Knoten deckt **beide** Funktionen ab:
-- `rate` → Tempo (entkoppelt von der Tonhöhe = Key-Lock).
-- `pitch` → Tonhöhe in **Cents** (100 Cents = 1 Halbton).
-„Key ändern, Tempo lassen" = `rate = 1.0`, nur `pitch` drehen.
-„Tempo ändern, Key lassen" = nur `rate` drehen.
+### Abspielen + Tempo/Key — AVAudioEngine + AVAudioUnitVarispeed + AVAudioUnitTimePitch
+Zwei Knoten hintereinander (`playerNode → varispeed → timePitch → mixer`):
+- `AVAudioUnitVarispeed.rate` → Tempo. Reines Resampling, die Tonhöhe folgt dem Tempo
+  wie beim Plattenspieler (kein Key-Lock, siehe §5b) — ohne Vocoder-Artefakte.
+- `AVAudioUnitTimePitch.pitch` → Master-Key-Offset in **Cents** (100 Cents = 1 Halbton),
+  mit `overlap = 32`. Ohne Offset steht der Knoten auf `bypass`, weil sein Phase-Vocoder
+  die Transienten verschmiert.
 Nativ, lizenzfrei, kein C++-Bridging.
 - **Optionales Qualitäts-Upgrade später:** Rubber Band (GPL, hier ok) oder Signalsmith Stretch (MIT)
   als Ersatz für den Time-Pitch-Knoten — nur austauschen, wenn die native Qualität nicht reicht.
@@ -233,10 +234,10 @@ Ablauf pro Track: `rate = masterBPM / trackBPM` → `st = 12·log2(rate)` → `n
 Pitch-Class des Original-Keys um `n` verschieben → zurück auf Camelot mappen.
 
 ### Kein Key-Lock
-`AVAudioUnitTimePitch` entkoppelt Rate und Pitch konstruktionsbedingt — die App verhielt sich
-daher bis zu diesem Feature **immer** wie „Key-Lock an". Das wird bewusst kompensiert:
-der Player addiert `1200·log2(rate)` Cents auf den Master-Key-Offset, die Tonhöhe folgt also
-dem Tempo wie bei einem Plattenspieler.
+Das Tempo läuft über `AVAudioUnitVarispeed`: die Tonhöhe folgt dem Tempo wie bei einem
+Plattenspieler, um `1200·log2(rate)` Cents. (Früher lief das Tempo über `AVAudioUnitTimePitch`,
+der Rate und Pitch entkoppelt, und der Player addierte diese Cents als Kompensation auf den
+Master-Key-Offset — gleiches Ergebnis, aber hörbar verwaschen.)
 
 **Es gibt keinen Key-Lock-Schalter.** Ein solcher wurde gebaut und nach dem Praxistest wieder
 entfernt: SetCraft ist ein Vorbereitungswerkzeug, in dem die verschobenen Tonarten der

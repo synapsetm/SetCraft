@@ -17,9 +17,9 @@ beat-matched chops.
   block by block alongside the decoder and **grows from left to right while
   you wait**, instead of appearing only when the whole file is done — and
   nothing of the file is ever held in memory as a whole.
-- **Tempo control** via `AVAudioUnitTimePitch`: per-track or set globally as
-  a "master" value; every newly loaded track snaps to it. Key-lock is always
-  on — speed changes don't shift pitch.
+- **Tempo control** via `AVAudioUnitVarispeed`: per-track or set globally as
+  a "master" value; every newly loaded track snaps to it. There is no
+  key-lock — pitch follows speed, like on a turntable.
 - **Editable library** (Mac: inline text fields for title, artist, BPM,
   genre, album, label, comment + clickable 5-star rating; iOS: dedicated edit
   sheet). Atomic write-back via TagLib; writes to the currently playing file

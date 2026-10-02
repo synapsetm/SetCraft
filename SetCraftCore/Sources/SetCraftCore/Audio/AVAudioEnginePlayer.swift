@@ -195,7 +195,8 @@ public final class AVAudioEnginePlayer: AudioEngine {
             return cached.value
         }
         let session = AVAudioSession.sharedInstance()
-        let sessionLatency = session.outputLatency + session.ioBufferDuration + timePitch.latency
+        let pitchLatency = timePitch.bypass ? 0 : timePitch.latency
+        let sessionLatency = session.outputLatency + session.ioBufferDuration + pitchLatency
         let value = max(playerNode.outputPresentationLatency, sessionLatency)
         cachedOutputLatency = (value: value, measuredAt: now)
         return value
@@ -206,13 +207,12 @@ public final class AVAudioEnginePlayer: AudioEngine {
 
     // Stored properties, damit @Observable die Änderungen mitbekommt und
     // SwiftUI-Views (Chips, Slider, Anzeige) sich erneuern. didSet syncht
-    // den geklemmten Wert auf den nicht-observable AVAudioUnitTimePitch-Knoten.
+    // den geklemmten Wert auf die nicht-observable Knoten des Audio-Graphen.
     public var rate: Double = 1.0 {
         didSet {
             let clamped = max(0.5, min(2.0, rate))
-            timePitch.rate = Float(clamped)
+            varispeed.rate = Float(clamped)
             if rate != clamped { rate = clamped }
-            syncPitch()
         }
     }
 
@@ -224,23 +224,24 @@ public final class AVAudioEnginePlayer: AudioEngine {
         }
     }
 
-    /// Schreibt den effektiven Pitch auf den Knoten: der vom Master-Key
-    /// gesetzte Offset plus die Verschiebung, die sich aus der Rate ergibt.
+    /// Schreibt den vom Master-Key gesetzten Offset auf den TimePitch-Knoten.
     ///
-    /// `AVAudioUnitTimePitch` würde die Tonhöhe beim Tempowechsel von sich aus
-    /// konstant halten. Das kompensieren wir hier bewusst — SetCraft spielt
-    /// ohne Key-Lock, damit sich die Tonart wie beim Plattenspieler mit dem
-    /// Tempo verschiebt und die Anzeige in der Bibliothek dem Gehörten
-    /// entspricht (siehe `SPEC.md` §5b).
+    /// Das Tempo läuft nicht über diesen Knoten, sondern über `varispeed`:
+    /// SetCraft spielt ohne Key-Lock, die Tonart verschiebt sich wie beim
+    /// Plattenspieler mit dem Tempo (siehe `SPEC.md` §5b) — und genau das
+    /// liefert reines Resampling ohne Artefakte. Der Phase-Vocoder des
+    /// TimePitch verschmiert dagegen die Transienten; ohne Offset wird er
+    /// deshalb ganz umgangen.
     private func syncPitch() {
-        let varispeed = PitchMath.cents(forRate: rate)
-        timePitch.pitch = Float(max(-2400, min(2400, pitchCents + varispeed)))
+        timePitch.pitch = Float(pitchCents)
+        timePitch.bypass = pitchCents == 0
     }
 
     // MARK: - Private audio graph
 
     private let engine = AVAudioEngine()
     private let playerNode = AVAudioPlayerNode()
+    private let varispeed = AVAudioUnitVarispeed()
     private let timePitch = AVAudioUnitTimePitch()
 
     private var audioFile: AVAudioFile?
@@ -263,9 +264,15 @@ public final class AVAudioEnginePlayer: AudioEngine {
 
     public init() {
         engine.attach(playerNode)
+        engine.attach(varispeed)
         engine.attach(timePitch)
-        engine.connect(playerNode, to: timePitch, format: nil)
+        engine.connect(playerNode, to: varispeed, format: nil)
+        engine.connect(varispeed, to: timePitch, format: nil)
         engine.connect(timePitch, to: engine.mainMixerNode, format: nil)
+        // Maximum statt des Standards 8: mehr überlappende Fenster, weniger
+        // verwaschene Master-Key-Shifts, für etwas mehr CPU.
+        timePitch.overlap = 32
+        timePitch.bypass = true
     }
 
     // MARK: - AudioEngine
@@ -552,6 +559,7 @@ public final class AVAudioEnginePlayer: AudioEngine {
         position = 0
 
         engine.disconnectNodeOutput(playerNode)
+        engine.disconnectNodeOutput(varispeed)
         engine.disconnectNodeOutput(timePitch)
 
         // Die klassische `connect(_:to:format:)` meldet ein Format, mit dem sie
@@ -561,10 +569,12 @@ public final class AVAudioEnginePlayer: AudioEngine {
         // dieselbe Verbindung mit `error:`; dann landet ein unverdauliches
         // Format im `catch` des Aufrufers statt im Crash-Log.
         if #available(iOS 27.0, macOS 27.0, *) {
-            try engine.connectNode(playerNode, to: timePitch, format: file.processingFormat)
+            try engine.connectNode(playerNode, to: varispeed, format: file.processingFormat)
+            try engine.connectNode(varispeed, to: timePitch, format: file.processingFormat)
             try engine.connectNode(timePitch, to: engine.mainMixerNode, format: file.processingFormat)
         } else {
-            engine.connect(playerNode, to: timePitch, format: file.processingFormat)
+            engine.connect(playerNode, to: varispeed, format: file.processingFormat)
+            engine.connect(varispeed, to: timePitch, format: file.processingFormat)
             engine.connect(timePitch, to: engine.mainMixerNode, format: file.processingFormat)
         }
 
