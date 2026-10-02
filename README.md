@@ -86,7 +86,7 @@ beat-matched chops.
   the comment.
 - **Network sources that behave** (iOS: a NAS/SMB share mounted in the Files
   app; macOS: a mounted network volume). Playback never reads through the
-  file provider: the track is copied into a two-file cache first, so losing
+  file provider: the track is copied into a nine-file cache first, so losing
   the network mid-track can no longer turn into silence under a playhead that
   keeps running. The copy goes in chunks, which is also where the **real**
   progress bar comes from — the file system reports a provider-backed file as
@@ -104,7 +104,8 @@ beat-matched chops.
 - **Appearance toggle** (System / Light / Dark) on the macOS app via the
   "View" menu (default: Dark). Applied through `NSApp.appearance` so AppKit
   subviews (List, Table, Canvas) follow reliably.
-- **Auto-updates** (macOS) via Sparkle 2.x, EdDSA-signed. "Check for
+- **Auto-updates** (macOS) via Sparkle 2.x, EdDSA-signed. The appcast itself
+  is signed too, and an update is verified before it is unpacked. "Check for
   Updates…" menu plus a daily background poll.
 - **Distribution outside the App Store** (macOS):
   `scripts/release.sh` produces a Developer-ID-signed, notarized, stapled
@@ -157,7 +158,8 @@ Vendor/KeyFinder/build-keyfinder.sh
 
 Each script downloads the sources, builds for `arm64 + x86_64` (macOS) and
 `arm64 + arm64-simulator` (iOS) and drops the `.xcframework` into
-`SetCraftCore/Vendor/`. The `Vendor/*/build/` and `Vendor/*/src/`
+`SetCraftCore/Vendor/`. Every download is checked against a pinned SHA-256
+before anything is unpacked or built. The `Vendor/*/build/` and `Vendor/*/src/`
 directories are gitignored.
 
 Pre-built frameworks are already in the repo; you only need to run the
@@ -187,7 +189,7 @@ bookmarks; iOS uses `UIDocumentPickerViewController` for source folders.
 cd SetCraftCore && swift test
 ```
 
-233 tests, no network access — the Discogs layer is exercised through an
+242 tests, no network access — the Discogs layer is exercised through an
 HTTP stub built from real API responses.
 
 ### 4) Localisation check

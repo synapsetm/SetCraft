@@ -219,7 +219,7 @@ Vor jedem Release:
   monoton steigend) in der Xcode-Projektkonfiguration anheben. Im pbxproj steht
   jeder Wert **viermal** — Mac und iOS, je Debug und Release.
 - **Die Build-Nummern laufen seit 1.3-16 bewusst auseinander** (Stand
-  2026-09-24: Mac 18, iOS 37), weil iOS-only-Fixes eigene TestFlight-Builds
+  2026-10-02: Mac 19, iOS 37), weil iOS-only-Fixes eigene TestFlight-Builds
   bekommen, während für den Mac kein Release ansteht. Anzuheben ist also nur
   das Target, das released wird. Die iOS-Configs sind die mit
   `PRODUCT_BUNDLE_IDENTIFIER = ch.buehler.beat.SetCraft.iOS`; alternativ

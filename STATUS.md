@@ -4,15 +4,20 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-10-02 (Security-Review abgearbeitet; iOS 1.3-37 in TestFlight, Mac v1.3-18).
+Letzte Aktualisierung: 2026-10-02 (Security-Review abgearbeitet; iOS 1.3-37 in TestFlight, Mac v1.3-19).
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.3-18 (Build 18), notarisiert, Sparkle-Auto-Update live.
-  Bugfix-Release vom 2026-09-24, nach erfolgreichem Klick-Test: holt die
+- **Mac-Release:** v1.3-19 (Build 19), notarisiert, Sparkle-Auto-Update live.
+  Härtungs-Release vom 2026-10-02, nach erfolgreichem Klick-Test, ohne neue
+  Funktionen: der erste mit G2-Zertifikat, signiertem Appcast (samt Prüfung
+  vor dem Entpacken) und TagLib 2.3.2. Dazu der LRU-Deckel für den
+  Waveform-Speicher-Cache (192 MB auf macOS) und die entfernte
+  Mach-Exception für `audioanalyticsd`.
+  v1.3-18 war davor das Bugfix-Release vom 2026-09-24: holt die
   Core-Korrekturen nach, die seit Build 17 an der iOS-Front entstanden sind —
   Wettlauf beim Durchskippen, unbrauchbare Wiedergabe-Kopie, Waveform
   blockiert den Actor nicht mehr, Cache 4 → 9, gemerkte Quelle über
@@ -939,11 +944,9 @@ Serialisierung, Active-Track-Guard).
 
 ### Unmittelbar
 
-- **Mac-Release v1.3-19 steht aus.** Der Klick-Test vom 2026-10-02 war
-  erfolgreich; sieben Commits liegen ungepusht auf `main`. Der Release waere
-  der erste mit G2-Zertifikat, signiertem Appcast und TagLib 2.3.2 — also die
-  drei Dinge, die heute umgebaut wurden und sich erst im echten Lauf zeigen.
-  Build-Nummer vorher von 18 auf 19 ziehen.
+- **Sparkle-Update von 18 auf 19 am installierten Mac gegenprüfen.** v1.3-19
+  ist der erste Release mit signiertem Feed; ob ein Client mit Build 18 das
+  Update tatsächlich findet und installiert, zeigt sich erst dort.
 - **iOS-Build 37 traegt noch TagLib 2.3.1.** Unkritisch, weil die Builds nach
   der Lizenzentscheidung (s. u.) ohnehin nur auf eigenen Geraeten laufen —
   beim naechsten iOS-Build zieht es sich von selbst mit.
