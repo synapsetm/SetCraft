@@ -119,8 +119,9 @@ beat-matched chops.
 - **About panel** with full license and copyright listings for the bundled
   open-source libraries and a link back to the repo (GPL §6 compliant).
 
-This is a private, non-commercial project — GPL-licensed libraries are
-therefore fine to depend on.
+A private project that depends on GPL libraries and is therefore itself
+**GPLv3 or later** (`LICENSE`) — see [Licenses](#licenses) for what that means
+per dependency.
 
 > **Planning documents:** `CLAUDE.md` (project guardrails), `SPEC.md`
 > (full spec and phase plan), `STATUS.md` (rolling log).
@@ -241,18 +242,40 @@ straightforward and the GPL components in one swappable place.
 
 ## Licenses
 
-| Library | Purpose | License |
-|---|---|---|
-| AVFoundation, Accelerate, Metal | native | Apple |
-| aubio | BPM analysis | GPLv3 |
-| libKeyFinder | key analysis | GPLv3 |
-| FFTW | FFT for libKeyFinder | GPLv2+ |
-| TagLib | tag read / write | LGPLv2.1 / MPL |
-| utfcpp | UTF helpers in TagLib | Boost SL 1.0 |
-| GRDB.swift | SQLite cache | MIT |
-| Sparkle | auto-update (macOS) | MIT |
+**SetCraft is licensed under the GNU GPL v3 or later** — full text in
+`LICENSE`. That follows from its dependencies rather than from preference:
+aubio and libKeyFinder are GPLv3 and are linked **statically** into the
+binary, so every binary handed to anyone else is a combined work and has to
+be conveyed under the GPL.
 
-Because this is private / non-commercial use, the GPL terms are not a
-hassle here. Copyrights and full license texts live in the app's About
-panel; the vendor build scripts under `Vendor/` make the GPLv3 sources
-reproducibly available (GPL §6).
+Being a private, non-commercial project does **not** change that. GPL
+obligations attach to *conveying*, not to charging money — and SetCraft is
+conveyed: the macOS DMG hangs in GitHub Releases, the iOS build goes out via
+TestFlight.
+
+| Dependency | Version | License | Linkage | Distribution impact | Compliance artifact |
+|---|---|---|---|---|---|
+| aubio | 0.4.9 | GPLv3 | static, via ObjC++ bridge | combined work is GPL | `Vendor/aubio/build-aubio.sh` (pinned version + SHA-256) |
+| libKeyFinder | 2.2.8 (Mixxx fork) | GPLv3 | static, via ObjC++ bridge | combined work is GPL | `Vendor/KeyFinder/build-keyfinder.sh` |
+| FFTW | 3.3.11 | GPLv2+ | static, inside the KeyFinder xcframework | GPLv3-compatible (v2 *or later*) | `Vendor/KeyFinder/build-keyfinder.sh` |
+| TagLib | 2.3.2 | LGPLv2.1 / MPL | static | LGPL: relinking rights, satisfied by the published build script + sources | `Vendor/TagLib/build-taglib.sh` |
+| utfcpp | 4.1.1 | Boost SL 1.0 | header-only, inside TagLib | permissive, attribution only | About panel |
+| GRDB.swift | 7.x | MIT | SwiftPM | permissive, attribution only | About panel |
+| Sparkle | 2.9.x | MIT | SwiftPM (macOS only) | permissive, attribution only | About panel |
+| AVFoundation, Accelerate, Metal | — | Apple system frameworks | dynamic | system libraries, no obligation | — |
+
+Source availability (GPL §6): the repository is public, and the vendor build
+scripts pin each upstream version and verify the downloaded tarball by
+SHA-256, so the exact GPL sources that went into a release binary can be
+reproduced from the tag.
+
+> **Open point — GPLv3 and TestFlight / the App Store.** Apple's distribution
+> terms add restrictions that the FSF considers incompatible with GPLv3, so
+> shipping the iOS build with the GPL analysis libraries inside is unresolved,
+> not blessed. Clean ways out: keep iOS distribution to a private tester
+> circle, drop aubio/libKeyFinder from the iOS target and analyse on the Mac,
+> or replace them with permissively licensed analysis. Decide before the iOS
+> build goes anywhere near public release.
+
+Copyrights and full license texts of the bundled libraries also live in the
+app's About panel.
