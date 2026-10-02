@@ -939,8 +939,16 @@ Serialisierung, Active-Track-Guard).
 
 ### Unmittelbar
 
-- _(nichts offen — der Mac-Klick-Test vom 2026-09-24 war erfolgreich und ist
-  in v1.3-18 eingeflossen.)_
+- **Mac-Release v1.3-19 steht aus.** Der Klick-Test vom 2026-10-02 war
+  erfolgreich; sieben Commits liegen ungepusht auf `main`. Der Release waere
+  der erste mit G2-Zertifikat, signiertem Appcast und TagLib 2.3.2 — also die
+  drei Dinge, die heute umgebaut wurden und sich erst im echten Lauf zeigen.
+  Build-Nummer vorher von 18 auf 19 ziehen.
+- **iOS-Build 37 traegt noch TagLib 2.3.1.** Unkritisch, weil die Builds nach
+  der Lizenzentscheidung (s. u.) ohnehin nur auf eigenen Geraeten laufen —
+  beim naechsten iOS-Build zieht es sich von selbst mit.
+- **Discogs-Token im Keychain** ist der verbliebene Punkt aus dem
+  Security-Review vom 2026-10-02 (s. „Features und Altlasten").
 
 ### Features und Altlasten
 
@@ -953,7 +961,21 @@ Serialisierung, Active-Track-Guard).
 - **Phase 5c / SFBAudioEngine** (Ogg Vorbis, schnelleres FLAC) — erst bei Bedarf.
 - **Discogs-Token im Klartext** in den App-Einstellungen (`UserDefaults`).
   Für einen Read-only-Token auf einen offenen Katalog vertretbar, gehört aber
-  in den Keychain, sobald es eine Keychain-Schicht gibt.
+  in den Keychain, sobald es eine Keychain-Schicht gibt. Migrationsweg:
+  aus `UserDefaults` lesen, in den Keychain schreiben, Schreibvorgang prüfen,
+  alten Wert löschen, danach nur noch aus dem Keychain lesen.
+- **iOS-Verteilung ist lizenzbedingt auf eigene Geräte begrenzt**
+  (entschieden 2026-10-02, Option A). aubio und libKeyFinder sind GPLv3 und
+  statisch gelinkt; das iOS-Target nutzt sie real (`LibraryStore.analyze`,
+  `analyzeIfNeeded`, „Alle analysieren"). GPL-Pflichten haengen am Weitergeben
+  — solange die Builds nur auf eigenen Geraeten landen, wird nichts
+  weitergegeben. **Ein zweiter TestFlight-Tester ist deshalb eine
+  Lizenzentscheidung, keine organisatorische**: Apples Bedingungen binden
+  Installationen an Apple-IDs und Geraetezahlen, was die FSF als die von
+  GPLv3 §10 verbotenen „zusaetzlichen Restriktionen" liest (der VLC-Fall von
+  2011). Vorher zu klaeren: GPL-Analyse aus dem iOS-Target nehmen (kostet das
+  Feature) oder durch permissiv lizenzierte ersetzen (der einzige Weg in den
+  App Store, wuerde auch den Mac befreien). Der macOS-Weg ist nicht betroffen.
 - **Früher hörbarer Ton bei Netz-Quellen** — bewusst offen. Machbar wäre es:
   der Provider liefert sequenziell, man könnte mit eigenen Puffern abspielen,
   während der Download läuft (`AVAudioFile` kann das nicht, es legt die Länge

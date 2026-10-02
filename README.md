@@ -269,13 +269,20 @@ scripts pin each upstream version and verify the downloaded tarball by
 SHA-256, so the exact GPL sources that went into a release binary can be
 reproduced from the tag.
 
-> **Open point — GPLv3 and TestFlight / the App Store.** Apple's distribution
-> terms add restrictions that the FSF considers incompatible with GPLv3, so
-> shipping the iOS build with the GPL analysis libraries inside is unresolved,
-> not blessed. Clean ways out: keep iOS distribution to a private tester
-> circle, drop aubio/libKeyFinder from the iOS target and analyse on the Mac,
-> or replace them with permissively licensed analysis. Decide before the iOS
-> build goes anywhere near public release.
+> **GPLv3 and TestFlight — decided 2026-10-02: the iOS build stays on the
+> author's own devices.** GPL obligations attach to conveying, and a build
+> that never leaves its author's devices is not conveyed, so the question does
+> not arise. It would the moment a second person receives a build: Apple's
+> distribution terms bind installs to Apple IDs and device counts, which the
+> FSF reads as the "further restrictions" GPLv3 §10 forbids — the reason VLC
+> was pulled from the App Store in 2011.
+>
+> **Adding a second TestFlight tester is therefore a licensing decision, not a
+> logistical one.** Before that happens, pick one: drop aubio/libKeyFinder
+> from the iOS target and analyse on the Mac (costs the feature), or replace
+> them with permissively licensed analysis (the only route to a public
+> release, and it would free the Mac side too). The macOS DMG is unaffected
+> either way — public sources satisfy GPL §6 and Apple adds no terms there.
 
 Copyrights and full license texts of the bundled libraries also live in the
 app's About panel.

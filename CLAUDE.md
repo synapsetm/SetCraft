@@ -23,8 +23,13 @@ Kernmerkmale:
 Das Projekt ist **privat / nicht-kommerziell** — GPL-Libraries sind eingebunden, und **SetCraft
 selbst steht deshalb unter GPLv3+** (`LICENSE`). Nicht-kommerziell heißt *nicht* „GPL egal": die
 Pflichten hängen am Verteilen, nicht am Geldverdienen, und verteilt wird (DMG in GitHub Releases,
-iOS über TestFlight). Details pro Abhängigkeit in der Lizenztabelle im `README.md`; die
-GPLv3-Frage für TestFlight/App Store ist dort als offener Punkt vermerkt.
+iOS über TestFlight). Details pro Abhängigkeit in der Lizenztabelle im `README.md`.
+
+**iOS-Verteilung ist dadurch begrenzt** (entschieden 2026-10-02): die Builds bleiben auf den
+eigenen Geräten des Autors. Weitergabe an eine zweite Person — ein TestFlight-Tester, ein
+App-Store-Release — kollidiert mit Apples Zusatzbedingungen und ist deshalb eine
+Lizenzentscheidung, keine organisatorische. Vorher muss die GPL-Analyse aus dem iOS-Target
+oder durch permissiv lizenzierte ersetzt werden. Der macOS-Weg ist davon nicht betroffen.
 
 ---
 
