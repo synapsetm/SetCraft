@@ -23,15 +23,20 @@
 	     Sparkle unter `<bundle-id>-spks` (Installer) und `<bundle-id>-spki`
 	     (Downloader) registriert. Siehe
 	     https://sparkle-project.org/documentation/sandboxing/.
-	     `com.apple.audioanalyticsd` wird von AVAudioEngine intern beim
-	     Setup angerufen — ohne diese Exception wirft die Sandbox eine
-	     PRECONDITION-FAILURE-Warnung in die Konsole. Funktional läuft
-	     Audio auch ohne, aber die Warnung verschwindet damit. -->
+
+	     Hier stand bis 2026-10-02 zusätzlich `com.apple.audioanalyticsd`.
+	     AVAudioEngine ruft den Dienst beim Setup intern an, und ohne die
+	     Exception schreibt die Sandbox eine PRECONDITION-FAILURE-Warnung in
+	     die Konsole. Funktional braucht es sie nicht — Audio lief auch vorher
+	     ohne sie. Eine `temporary-exception` ist aber eine echte Erweiterung
+	     der Sandbox und müsste bei einer App-Store-Abgabe begründet werden,
+	     und das für eine Log-Zeile. Darum entfernt: die Warnung ist zurück,
+	     die Berechtigung weg. Nicht wieder aufnehmen, ohne einen Befund zu
+	     haben, der über die Konsolenmeldung hinausgeht. -->
 	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spks</string>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spki</string>
-		<string>com.apple.audioanalyticsd</string>
 	</array>
 </dict>
 </plist>
