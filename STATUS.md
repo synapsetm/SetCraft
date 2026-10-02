@@ -11,8 +11,13 @@ Letzte Aktualisierung: 2026-10-02 (Security-Review abgearbeitet; iOS 1.3-37 in T
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.3-19 (Build 19), notarisiert, Sparkle-Auto-Update live.
-  Härtungs-Release vom 2026-10-02, nach erfolgreichem Klick-Test, ohne neue
+- **Mac-Release:** v1.3-20 (Build 20), notarisiert, Sparkle-Auto-Update live.
+  Klang-Fix vom 2026-10-02, nach erfolgreichem Klick-Test: das Tempo läuft
+  über `AVAudioUnitVarispeed` statt über den Phase-Vocoder des
+  `AVAudioUnitTimePitch`, der die Transienten verschmierte. Der TimePitch
+  trägt nur noch den Master-Key-Offset (`overlap = 32`) und steht ohne
+  Offset auf Bypass.
+  v1.3-19 war davor das Härtungs-Release vom selben Tag, ohne neue
   Funktionen: der erste mit G2-Zertifikat, signiertem Appcast (samt Prüfung
   vor dem Entpacken) und TagLib 2.3.2. Dazu der LRU-Deckel für den
   Waveform-Speicher-Cache (192 MB auf macOS) und die entfernte
