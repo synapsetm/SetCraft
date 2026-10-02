@@ -10,11 +10,35 @@ public actor WaveformCache {
 
     private let database: DatabaseService?
 
-    public init(database: DatabaseService? = nil) {
+    /// Obergrenze für die im Speicher gehaltenen Wellen. Nötig, weil der
+    /// Waveform-Prefetch über die ganze Library läuft und `stored` vorher
+    /// monoton mitwuchs — verdrängt wurde nie, `clear()` rief niemand.
+    /// Eine Welle ist bei `hopSize` 512 rund 86 Bins pro Sekunde, ein
+    /// Sechs-Minuten-Track also ~31'000 Bins × 16 Byte ≈ 500 KB. Bei ein paar
+    /// tausend Tracks sind das Gigabyte. Verdrängt wird nach LRU; was wegfällt,
+    /// kommt beim nächsten Zugriff aus dem DB-Cache zurück, ohne neue FFT.
+    private let memoryBudget: Int
+
+    /// macOS darf mehr halten als iOS — dort ist das Speicherbudget des
+    /// Prozesses knapp und ein Jetsam-Kill kostet die laufende Wiedergabe.
+    public static let defaultMemoryBudget: Int = {
+#if os(iOS)
+        64 << 20
+#else
+        192 << 20
+#endif
+    }()
+
+    public init(database: DatabaseService? = nil, memoryBudget: Int = WaveformCache.defaultMemoryBudget) {
         self.database = database
+        self.memoryBudget = max(memoryBudget, 0)
     }
 
     private var stored: [URL: WaveformData] = [:]
+    /// Zugriffsreihenfolge, älteste zuerst. Bleibt klein — die Länge ist durch
+    /// `memoryBudget` begrenzt, das lineare Suchen darin fällt nicht auf.
+    private var recency: [URL] = []
+    private var storedBytes = 0
     private var inflight: [URL: Task<WaveformData, Error>] = [:]
     /// Interessenten an Zwischenständen pro URL. Mehrere Aufrufer teilen sich
     /// dieselbe laufende Berechnung und bekommen alle dieselben Teilstände.
@@ -28,7 +52,7 @@ public actor WaveformCache {
         for url: URL,
         onPartial: (@Sendable (WaveformData) -> Void)? = nil
     ) async throws -> WaveformData {
-        if let cached = stored[url] { return cached }
+        if let cached = hit(url) { return cached }
         if let onPartial { partialObservers[url, default: []].append(onPartial) }
         if let running = inflight[url] { return try await running.value }
 
@@ -44,12 +68,12 @@ public actor WaveformCache {
 
         // Der Actor war während des `await` frei: ein zweiter Aufrufer für
         // dieselbe URL kann inzwischen fertig geworden oder gestartet sein.
-        if let cached = stored[url] { return cached }
+        if let cached = hit(url) { return cached }
         if let running = inflight[url] { return try await running.value }
 
         // Erst die DB anfragen.
         if let database, let fromDB = try? await database.loadWaveform(url: url, expectedModifiedAt: mtime) {
-            stored[url] = fromDB
+            store(fromDB, for: url)
             Self.log.debug("waveform DB-hit: \(url.lastPathComponent, privacy: .public)")
             return fromDB
         }
@@ -77,7 +101,7 @@ public actor WaveformCache {
         inflight[url] = task
         do {
             let result = try await task.value
-            stored[url] = result
+            store(result, for: url)
             inflight[url] = nil
             partialObservers[url] = nil
             return result
@@ -120,15 +144,68 @@ public actor WaveformCache {
     }
 
     public func invalidate(_ url: URL) {
-        stored[url] = nil
+        drop(url)
         inflight[url]?.cancel()
         inflight[url] = nil
     }
 
     public func clear() {
         stored.removeAll()
+        recency.removeAll()
+        storedBytes = 0
         for (_, t) in inflight { t.cancel() }
         inflight.removeAll()
+    }
+
+    /// Belegter Speicher in Byte — für Tests und fürs Log.
+    public var cachedBytes: Int { storedBytes }
+
+    /// Liegt die Welle im Speicher? Rührt die Zugriffsreihenfolge **nicht** an,
+    /// ist also auch für eine Abfrage im Prefetch gefahrlos.
+    public func isCached(_ url: URL) -> Bool { stored[url] != nil }
+
+    // MARK: - LRU
+
+    /// Treffer im Speicher-Cache. Rückt die URL ans jüngste Ende.
+    private func hit(_ url: URL) -> WaveformData? {
+        guard let data = stored[url] else { return nil }
+        touch(url)
+        return data
+    }
+
+    private func touch(_ url: URL) {
+        if let index = recency.lastIndex(of: url) { recency.remove(at: index) }
+        recency.append(url)
+    }
+
+    private func store(_ data: WaveformData, for url: URL) {
+        drop(url)
+        stored[url] = data
+        storedBytes += Self.byteSize(of: data)
+        recency.append(url)
+        evictBeyondBudget()
+    }
+
+    private func drop(_ url: URL) {
+        guard let old = stored.removeValue(forKey: url) else { return }
+        storedBytes -= Self.byteSize(of: old)
+        if let index = recency.lastIndex(of: url) { recency.remove(at: index) }
+    }
+
+    /// Die jüngste Welle bleibt immer liegen, auch wenn sie allein das Budget
+    /// sprengt (ein sehr langer Mix) — sonst würfe der Cache genau das weg,
+    /// was gerade gebraucht wird, und jeder Zugriff rechnete neu.
+    private func evictBeyondBudget() {
+        while storedBytes > memoryBudget, recency.count > 1 {
+            let victim = recency.removeFirst()
+            guard let data = stored.removeValue(forKey: victim) else { continue }
+            storedBytes -= Self.byteSize(of: data)
+            Self.log.debug("waveform evicted: \(victim.lastPathComponent, privacy: .public)")
+        }
+    }
+
+    private static func byteSize(of data: WaveformData) -> Int {
+        data.bins.count * MemoryLayout<WaveformBin>.stride
     }
 
     /// Eigene Queue für den `stat`. Blockiert der Provider, blockiert genau
