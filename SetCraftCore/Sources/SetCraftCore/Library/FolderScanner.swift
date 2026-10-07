@@ -91,6 +91,14 @@ public enum FolderScanner {
         var placeholderCount = 0
         for url in enumerated {
             let resolved = resolveICloudPlaceholder(url)
+            // Versteckte Dateien sind nie Tracks — mit Ausnahme der eben
+            // aufgelösten iCloud-Platzhalter. Ohne diesen Riegel landeten
+            // die Sibling-Temps des Tag-Writes (`.setcraft-<UUID>-…`) als
+            // eigene Zeile in der Liste, sobald ein Scan einen laufenden
+            // Write erwischte; nach dem Write war die Datei weg und Analyse
+            // und Waveform scheiterten mit `wht?`. Auf SMB-Shares kommen
+            // AppleDouble-Dateien (`._name.mp3`) und `.smbdelete…` dazu.
+            if url == resolved, url.lastPathComponent.hasPrefix(".") { continue }
             let ext = resolved.pathExtension.lowercased()
             guard audioExtensions.contains(ext) else { continue }
             if url == resolved {
