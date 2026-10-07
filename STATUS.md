@@ -4,15 +4,23 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-10-02 (Security-Review abgearbeitet; iOS 1.3-37 in TestFlight, Mac v1.3-19).
+Letzte Aktualisierung: 2026-10-07 (Mac v1.3-21; iOS 1.3-38 in TestFlight).
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.3-20 (Build 20), notarisiert, Sparkle-Auto-Update live.
-  Klang-Fix vom 2026-10-02, nach erfolgreichem Klick-Test: das Tempo läuft
+- **Mac-Release:** v1.3-21 (Build 21), notarisiert, Sparkle-Auto-Update live.
+  Bugfix-Release vom 2026-10-07, nach erfolgreichem Klick-Test: der Mac
+  lädt Tracks jetzt wie iOS über `prefetch` und den `PlaybackCache` statt
+  die Quelle direkt auf dem MainActor zu öffnen, mit Ladeanzeige über der
+  Waveform und in der Library-Zeile. Eine verschobene/gelöschte Datei
+  meldet sich als `fileMissing` statt mit CoreAudio `'wht?'`. Der Scan
+  überspringt versteckte Dateien (Tag-Write-Temps `.setcraft-…`,
+  AppleDouble `._…`), ausser iCloud-Platzhaltern. Close-Button im
+  „Complete tags"-Fenster unten neben Apply.
+  v1.3-20 war davor der Klang-Fix vom 2026-10-02, nach erfolgreichem Klick-Test: das Tempo läuft
   über `AVAudioUnitVarispeed` statt über den Phase-Vocoder des
   `AVAudioUnitTimePitch`, der die Transienten verschmierte. Der TimePitch
   trägt nur noch den Master-Key-Offset (`overlap = 32`) und steht ohne
