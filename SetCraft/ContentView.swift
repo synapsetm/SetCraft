@@ -133,9 +133,17 @@ struct ContentView: View {
                     }
                 )
             }
-            if player.loadingURL != nil {
-                trackLoadOverlay
-            } else if waveform.isLoading {
+            // Als `.overlay`, nicht als weiteres ZStack-Kind: ein Overlay
+            // übernimmt die Grösse der Waveform. Als Geschwister hätte das
+            // `maxHeight: .infinity` den Stack nach unten aufgezogen, und der
+            // Balken landete unterhalb der Welle.
+            .overlay {
+                if player.loadingURL != nil {
+                    trackLoadOverlay
+                }
+            }
+            // Während des Track-Loads gehört die Fläche dem Overlay.
+            if player.loadingURL == nil, waveform.isLoading {
                 HStack(spacing: 6) {
                     // Sobald die ersten Bins da sind, zeigt der Balken den
                     // Fortschritt — die Welle wächst ja sichtbar mit.
@@ -151,7 +159,7 @@ struct ContentView: View {
                         .foregroundStyle(.primary.opacity(0.85))
                 }
                 .padding(8)
-            } else if let error = waveform.lastError {
+            } else if player.loadingURL == nil, let error = waveform.lastError {
                 Text(error)
                     .font(.caption)
                     .foregroundStyle(.orange)
