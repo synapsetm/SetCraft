@@ -4,6 +4,9 @@ import SetCraftCore
 
 struct LibraryView: View {
     @Bindable var library: LibraryViewModel
+    /// Track, den der Player gerade holt — die Zeile zeigt solange einen
+    /// Spinner in der Status-Spalte (wie `TrackRowView` auf iOS).
+    var loadingURL: URL? = nil
     let onLoadInPlayer: (Track) -> Void
 
     /// Persistente Konfiguration von Spaltenreihenfolge und -sichtbarkeit.
@@ -463,10 +466,16 @@ struct LibraryView: View {
     @TableColumnBuilder<Track, KeyPathComparator<Track>>
     private var primaryColumns: some TableColumnContent<Track, KeyPathComparator<Track>> {
         TableColumn("●") { track in
-            Circle()
-                .fill(library.unsavedTrackIDs.contains(track.id) ? Color.red : Color.clear)
-                .frame(width: 8, height: 8)
-                .help(library.unsavedTrackIDs.contains(track.id) ? "Unsaved changes" : "")
+            if track.url == loadingURL {
+                ProgressView()
+                    .controlSize(.mini)
+                    .help("Loading track")
+            } else {
+                Circle()
+                    .fill(library.unsavedTrackIDs.contains(track.id) ? Color.red : Color.clear)
+                    .frame(width: 8, height: 8)
+                    .help(library.unsavedTrackIDs.contains(track.id) ? "Unsaved changes" : "")
+            }
         }
         .width(14)
         .customizationID("status")

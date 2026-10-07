@@ -14,6 +14,16 @@
         }
       }
     },
+    "Loading track" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Track wird geladen"
+          }
+        }
+      }
+    },
     "Reading the folder. With many tracks on a network source this can take a moment." : {
       "localizations" : {
         "de" : {

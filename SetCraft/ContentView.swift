@@ -13,7 +13,7 @@ struct ContentView: View {
             playerPane
                 .padding(16)
             Divider()
-            LibraryView(library: library) { track in
+            LibraryView(library: library, loadingURL: player.loadingURL) { track in
                 player.loadTrack(track)
                 library.analyzeIfNeeded(track)
                 library.notePlay(forURL: track.url)
@@ -133,7 +133,9 @@ struct ContentView: View {
                     }
                 )
             }
-            if waveform.isLoading {
+            if player.loadingURL != nil {
+                trackLoadOverlay
+            } else if waveform.isLoading {
                 HStack(spacing: 6) {
                     // Sobald die ersten Bins da sind, zeigt der Balken den
                     // Fortschritt — die Welle wächst ja sichtbar mit.
@@ -157,6 +159,29 @@ struct ContentView: View {
                     .padding(8)
             }
         }
+    }
+
+    /// Ladeanzeige über der Waveform, solange der Player einen Track holt —
+    /// wie `WaveformCanvasView.trackLoadOverlay` auf iOS. Bei einer NAS-
+    /// Quelle mit Fortschritt aus der Cache-Kopie, sonst nur Spinner. Der
+    /// Blick liegt beim Laden ohnehin auf der Welle.
+    private var trackLoadOverlay: some View {
+        VStack(spacing: 8) {
+            if let fraction = player.loadProgress {
+                ProgressView(value: fraction)
+                    .tint(.orange)
+                    .frame(width: 220)
+                Text(verbatim: "\(Int(fraction * 100)) %")
+                    .font(.caption.monospacedDigit().weight(.medium))
+                    .foregroundStyle(.secondary)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.black.opacity(0.6))
+        .allowsHitTesting(false)
     }
 
     private var liveWaveformProgress: Double {

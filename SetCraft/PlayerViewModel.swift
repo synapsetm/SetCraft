@@ -31,6 +31,17 @@ final class PlayerViewModel {
     /// Durchklicken soll nur der zuletzt gewählte Track ankommen.
     private var loadTask: Task<Void, Never>?
 
+    /// URL des Tracks, der gerade geholt wird — zwischen Klick und erstem
+    /// Ton. Bei einer NAS-Quelle steckt darin die Kopie in den
+    /// `PlaybackCache`; Waveform-Overlay und Library-Zeile zeigen solange
+    /// einen Ladezustand. Gleiches Modell wie `PlayerStore` auf iOS.
+    var loadingURL: URL?
+
+    /// Anteil der übertragenen Bytes des gerade geladenen Tracks, 0…1.
+    /// `nil`, solange nichts bekannt ist — die Kopie hat noch nicht
+    /// begonnen, oder die Quelle ist lokal und wird gar nicht kopiert.
+    var loadProgress: Double?
+
     /// Holt die Datei zuerst auf der Materialisierungs-Queue
     /// (`AVAudioEnginePlayer.prefetch`), erst danach öffnet `player.load` sie
     /// auf dem MainActor. Bis 2026-10-07 öffnete der Mac die Quelle direkt
@@ -49,15 +60,26 @@ final class PlayerViewModel {
     @discardableResult
     private func load(url: URL, then onLoaded: (() -> Void)?) -> Task<Void, Never> {
         loadTask?.cancel()
+        loadingURL = url
+        loadProgress = nil
         let task = Task { [weak self] in
             do {
-                try await AVAudioEnginePlayer.prefetch(url: url)
+                try await AVAudioEnginePlayer.prefetch(url: url) { [weak self] fraction in
+                    Task { @MainActor in
+                        // Ein spät eintreffender Fortschritt eines abgelösten
+                        // Loads darf die Anzeige nicht mehr anfassen.
+                        guard let self, self.loadingURL == url else { return }
+                        self.loadProgress = fraction
+                    }
+                }
             } catch {
                 guard let self, !Task.isCancelled else { return }
+                self.finishLoading(url)
                 self.lastError = Self.message(for: error)
                 return
             }
             guard let self, !Task.isCancelled else { return }
+            self.finishLoading(url)
             self.load(url: url, allowRetry: true)
             if self.player.loadedURL == url {
                 onLoaded?()
@@ -65,6 +87,13 @@ final class PlayerViewModel {
         }
         loadTask = task
         return task
+    }
+
+    /// Räumt den Ladezustand weg — aber nur, wenn er noch diesem Load gehört.
+    private func finishLoading(_ url: URL) {
+        guard loadingURL == url else { return }
+        loadingURL = nil
+        loadProgress = nil
     }
 
     /// `allowRetry` deckt den einen Fall ab, in dem ein zweiter Versuch etwas
