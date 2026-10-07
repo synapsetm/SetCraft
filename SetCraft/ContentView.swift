@@ -362,9 +362,12 @@ struct ContentView: View {
     /// die Original-Werte der Chips nachgereicht (`player.load(url:)` allein
     /// kennt die Tags nicht).
     private func openExternalFile(_ url: URL) {
-        player.load(url: url)
+        let loading = player.load(url: url)
         Task {
             guard let track = await library.handleExternallyOpenedFile(url) else { return }
+            // Der Load läuft asynchron (Prefetch) — erst danach sagt
+            // `loadedURL`, ob der Track wirklich im Player steht.
+            await loading.value
             library.selectedTrackIDs = [track.id]
             library.analyzeIfNeeded(track)
             library.notePlay(forURL: track.url)

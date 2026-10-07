@@ -41,6 +41,10 @@ public enum AudioEngineError: Error, Sendable {
     /// nicht lokal. Eigener Fall, damit die UI-Schicht eine verständliche,
     /// lokalisierte Meldung daraus machen kann statt einer Cocoa-Floskel.
     case sourceOffline
+    /// Unter der URL liegt keine Datei mehr — verschoben oder gelöscht,
+    /// während die Liste sie noch zeigte. CoreAudio meldet das nur als
+    /// nacktes `'wht?'` (2003334207), darum ein eigener Fall.
+    case fileMissing
 }
 
 /// Bewusst **nicht** lokalisiert: `SetCraftCore` ist ein SwiftPM-Package ohne
@@ -64,6 +68,8 @@ extension AudioEngineError: LocalizedError {
             reason
         case .sourceOffline:
             "The device is offline and the source is not available locally."
+        case .fileMissing:
+            "The file no longer exists — it was moved or deleted."
         }
     }
 }

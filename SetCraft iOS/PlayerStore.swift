@@ -321,6 +321,8 @@ final class PlayerStore {
                 """)
             if case AudioEngineError.sourceOffline = error {
                 lastError = String(localized: "The source is not reachable — the device is offline and this track is not stored locally.")
+            } else if case AudioEngineError.fileMissing = error {
+                lastError = String(localized: "This track no longer exists at its location — it was moved or deleted.")
             } else if locked {
                 // Hier und nur hier abgefragt: im Moment des Fehlschlags. Wer
                 // die Meldung später liest, hat das iPhone längst entsperrt.

@@ -27,8 +27,44 @@ final class PlayerViewModel {
         }
     }
 
-    func load(url: URL) {
-        load(url: url, allowRetry: true)
+    /// Laufender Load. Ein neuer Load bricht ihn ab — beim schnellen
+    /// Durchklicken soll nur der zuletzt gewählte Track ankommen.
+    private var loadTask: Task<Void, Never>?
+
+    /// Holt die Datei zuerst auf der Materialisierungs-Queue
+    /// (`AVAudioEnginePlayer.prefetch`), erst danach öffnet `player.load` sie
+    /// auf dem MainActor. Bis 2026-10-07 öffnete der Mac die Quelle direkt
+    /// hier — bei einer SMB-Quelle synchroner Datei-IO auf dem MainActor,
+    /// und ohne `PlaybackCache` hing die Wiedergabe am Netz. Liegt im Cache
+    /// eine Kopie (Netz-Volume), spielt der Load aus ihr; lokale Dateien
+    /// kostet der Prefetch nur einen Open.
+    ///
+    /// Der zurückgegebene Task endet, wenn der Load durch ist — wer danach
+    /// `player.loadedURL` vergleichen will, wartet darauf.
+    @discardableResult
+    func load(url: URL) -> Task<Void, Never> {
+        load(url: url, then: nil)
+    }
+
+    @discardableResult
+    private func load(url: URL, then onLoaded: (() -> Void)?) -> Task<Void, Never> {
+        loadTask?.cancel()
+        let task = Task { [weak self] in
+            do {
+                try await AVAudioEnginePlayer.prefetch(url: url)
+            } catch {
+                guard let self, !Task.isCancelled else { return }
+                self.lastError = Self.message(for: error)
+                return
+            }
+            guard let self, !Task.isCancelled else { return }
+            self.load(url: url, allowRetry: true)
+            if self.player.loadedURL == url {
+                onLoaded?()
+            }
+        }
+        loadTask = task
+        return task
     }
 
     /// `allowRetry` deckt den einen Fall ab, in dem ein zweiter Versuch etwas
@@ -48,7 +84,20 @@ final class PlayerViewModel {
         } catch AudioEngineError.cachedCopyUnusable where allowRetry {
             load(url: url, allowRetry: false)
         } catch {
-            lastError = error.localizedDescription
+            lastError = Self.message(for: error)
+        }
+    }
+
+    /// Fehlertext für die rote Zeile unter dem Player. Die Fälle mit eigenem
+    /// Satz sind die, bei denen der CoreAudio-Code dem Nutzer nichts sagt.
+    private static func message(for error: Error) -> String {
+        switch error {
+        case AudioEngineError.fileMissing:
+            String(localized: "This track no longer exists at its location — it was moved or deleted.")
+        case AudioEngineError.sourceOffline:
+            String(localized: "The source is not reachable and this track is not stored locally.")
+        default:
+            error.localizedDescription
         }
     }
 
@@ -56,11 +105,11 @@ final class PlayerViewModel {
     /// werte mitnimmt. Wird aus der Library aufgerufen und ist die Grundlage
     /// für die Master-BPM/-Key-Logik.
     func loadTrack(_ track: Track) {
-        load(url: track.url)
         // load() setzt originale auf nil — danach erst die echten Werte setzen.
-        guard player.loadedURL == track.url else { return }
-        originalBPM = track.bpm
-        originalKey = track.key
+        load(url: track.url) { [weak self] in
+            self?.originalBPM = track.bpm
+            self?.originalKey = track.key
+        }
     }
 
     func togglePlay() {

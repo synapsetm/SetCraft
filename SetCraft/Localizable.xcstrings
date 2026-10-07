@@ -24,6 +24,26 @@
         }
       }
     },
+    "The source is not reachable and this track is not stored locally." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Quelle ist nicht erreichbar und dieser Track liegt nicht lokal."
+          }
+        }
+      }
+    },
+    "This track no longer exists at its location — it was moved or deleted." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Track liegt nicht mehr an seinem Ort — er wurde verschoben oder gelöscht."
+          }
+        }
+      }
+    },
     "—" : {
       "shouldTranslate" : false
     },

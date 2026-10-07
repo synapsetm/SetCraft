@@ -66,6 +66,7 @@ private final class NetworkReachability: @unchecked Sendable {
 public enum MaterializeOutcome: Sendable {
     case ok
     case offline
+    case missing
     case failed(reason: String)
 }
 
@@ -301,6 +302,8 @@ public final class AVAudioEnginePlayer: AudioEngine {
             return
         case .offline:
             throw AudioEngineError.sourceOffline
+        case .missing:
+            throw AudioEngineError.fileMissing
         case .failed(let reason):
             throw AudioEngineError.fileUnavailable(reason: reason)
         }
@@ -321,6 +324,8 @@ public final class AVAudioEnginePlayer: AudioEngine {
             break
         case .offline:
             log.error("Vorausschau: \(url.lastPathComponent, privacy: .public) — Gerät offline.")
+        case .missing:
+            log.error("Vorausschau: \(url.lastPathComponent, privacy: .public) — Datei existiert nicht mehr.")
         case .failed(let reason):
             log.error("""
                 Vorausschau gescheitert für \(url.lastPathComponent, privacy: .public): \
@@ -480,6 +485,15 @@ public final class AVAudioEnginePlayer: AudioEngine {
                         // Der Coordinator kommt zuerst: kann er die Datei nicht
                         // bereitstellen, lief die Closure oben gar nicht.
                         failure = describe(coordinatorError)
+                    }
+                    // Gescheitert UND keine Datei mehr am Pfad: verschoben
+                    // oder gelöscht. Erst hier gefragt, nicht vorab — ein
+                    // noch nicht geladenes iCloud-Item hat unter seinem
+                    // echten Namen ebenfalls keine Datei, bis die
+                    // Koordination sie heruntergeholt hat.
+                    if failure != nil, !FileManager.default.fileExists(atPath: url.path) {
+                        once.resume(.missing)
+                        return
                     }
                     once.resume(failure.map { .failed(reason: $0) } ?? .ok)
                 }
