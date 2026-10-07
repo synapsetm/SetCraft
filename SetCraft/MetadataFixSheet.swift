@@ -39,13 +39,8 @@ struct MetadataFixSheet: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text("Complete missing tags")
-                    .font(.headline)
-                Spacer()
-                Button("Close", action: onClose)
-                    .keyboardShortcut(.cancelAction)
-            }
+            Text("Complete missing tags")
+                .font(.headline)
 
             HStack(spacing: 12) {
                 Picker("Tracks", selection: $scope) {
@@ -193,6 +188,9 @@ struct MetadataFixSheet: View {
                 .disabled(model.proposals.isEmpty)
 
                 Spacer()
+
+                Button("Close", action: onClose)
+                    .keyboardShortcut(.cancelAction)
 
                 Button("Apply") {
                     model.applyAccepted()
