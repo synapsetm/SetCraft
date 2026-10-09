@@ -5,14 +5,14 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
         <title>SetCraft</title>
         <item>
             <title>1.3</title>
-            <pubDate>Wed, 07 Oct 2026 21:35:29 +0200</pubDate>
-            <sparkle:version>21</sparkle:version>
+            <pubDate>Fri, 09 Oct 2026 20:31:24 +0200</pubDate>
+            <sparkle:version>22</sparkle:version>
             <sparkle:shortVersionString>1.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/synapsetm/SetCraft/releases/download/v1.3-21/SetCraft-1.3-21.dmg" length="6787718" type="application/octet-stream" sparkle:edSignature="TgqkrIlygFsPa4KYz/2/PvIKcfxfeDw8ynOhHqRZVeVIaN5IPKyY0ndIltMpm9kkroAyLbxwiI98l1YOaoDuBw=="></enclosure>
+            <enclosure url="https://github.com/synapsetm/SetCraft/releases/download/v1.3-22/SetCraft-1.3-22.dmg" length="6787710" type="application/octet-stream" sparkle:edSignature="uK5MjDGRHDBRpQx0vb+ZyXU4GZ9ug3P+5UOoLVGEdPQeMO2D3fPd2wgMhlkx4ejgvLbQOznJI8oOHbWN3tbKDg=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: l1QzVtrAqMoIvYtyUkUwInemboqBO7Ws2q1HhtgtWvg4k3pZ+awZwAd1j9OafoYq/2ffCyqjJ9yJdyETzbd3Bw==
+edSignature: woX2NztXVsKxmZmP7e7r2lAef3uUEMP5VKOFJCYQmd0diMXaWjwEhBc+HGnNDLxVbp5qB++17aBbLdHiUqOiAQ==
 length: 1041
 -->
