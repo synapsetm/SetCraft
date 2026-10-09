@@ -4,15 +4,19 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-10-09 (Mac v1.3-23; iOS 1.3-38 in TestFlight).
+Letzte Aktualisierung: 2026-10-09 (Mac v1.3-24; iOS 1.3-38 in TestFlight).
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.3-23 (Build 23), notarisiert, Sparkle-Auto-Update live.
-  Release vom 2026-10-09, nach erfolgreichem Klick-Test: die Library-Tabelle
+- **Mac-Release:** v1.3-24 (Build 24), notarisiert, Sparkle-Auto-Update live.
+  Bugfix-Release vom 2026-10-09, **ohne vorherigen AirPlay-Gerätetest**: der
+  Waveform-Playhead zieht über AirPlay jetzt auch auf dem Mac die
+  Ausgabe-Latenz ab — gelesen aus dem CoreAudio-Ausgabegerät, als
+  Gegenstück zur `AVAudioSession` auf iOS.
+  v1.3-23 war davor das Release vom 2026-10-09, nach erfolgreichem Klick-Test: die Library-Tabelle
   markiert den Track im Player wie die iOS-Liste mit einem orangen
   Play-/Pause-Symbol in der Status-Spalte (rot bei ungespeicherten Änderungen).
   v1.3-22 war davor das Bugfix-Release vom 2026-10-09: eine
