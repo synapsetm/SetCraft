@@ -7,6 +7,11 @@ struct LibraryView: View {
     /// Track, den der Player gerade holt — die Zeile zeigt solange einen
     /// Spinner in der Status-Spalte (wie `TrackRowView` auf iOS).
     var loadingURL: URL? = nil
+    /// Track, der im Player steht — gespielt oder pausiert. Die Zeile zeigt
+    /// in der Status-Spalte das Play-/Pause-Symbol (wie `TrackRowView` auf iOS).
+    var currentURL: URL? = nil
+    /// Engine spielt gerade ab. Steuert nur das Symbol der aktuellen Zeile.
+    var isPlaying: Bool = false
     let onLoadInPlayer: (Track) -> Void
 
     /// Persistente Konfiguration von Spaltenreihenfolge und -sichtbarkeit.
@@ -470,6 +475,14 @@ struct LibraryView: View {
                 ProgressView()
                     .controlSize(.mini)
                     .help("Loading track")
+            } else if track.url == currentURL {
+                // Ungespeicherte Änderungen bleiben auch hier sichtbar: dann
+                // in Rot statt Orange, mit dem passenden Tooltip.
+                let unsaved = library.unsavedTrackIDs.contains(track.id)
+                Image(systemName: isPlaying ? "play.fill" : "pause.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(unsaved ? Color.red : Color.orange)
+                    .help(unsaved ? "Unsaved changes" : (isPlaying ? "Playing" : "Paused"))
             } else {
                 Circle()
                     .fill(library.unsavedTrackIDs.contains(track.id) ? Color.red : Color.clear)

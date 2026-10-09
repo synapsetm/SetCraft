@@ -13,7 +13,10 @@ struct ContentView: View {
             playerPane
                 .padding(16)
             Divider()
-            LibraryView(library: library, loadingURL: player.loadingURL) { track in
+            LibraryView(library: library,
+                        loadingURL: player.loadingURL,
+                        currentURL: player.player.loadedURL,
+                        isPlaying: player.player.isPlaying) { track in
                 player.loadTrack(track)
                 library.analyzeIfNeeded(track)
                 library.notePlay(forURL: track.url)

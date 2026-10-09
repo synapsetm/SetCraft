@@ -1465,6 +1465,16 @@
         }
       }
     },
+    "Paused" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pausiert"
+          }
+        }
+      }
+    },
     "Permanent deletion cannot be undone." : {
       "localizations" : {
         "de" : {
@@ -1501,6 +1511,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Play/Pause"
+          }
+        }
+      }
+    },
+    "Playing" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielt"
           }
         }
       }
