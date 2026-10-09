@@ -176,35 +176,97 @@ public final class AVAudioEnginePlayer: AudioEngine {
     /// Zeit vom PlayerNode-Output bis zur hörbaren Emission.
     ///
     /// `playerNode.outputPresentationLatency` ist die semantisch richtige Größe
-    /// und deckt auf dem Mac alles ab (93 ms TimePitch + 1 ms Hardware; das
+    /// und deckt bei lokaler Ausgabe alles ab (93 ms TimePitch + 1 ms Hardware; das
     /// `outputNode`-Pendant allein kennt die TimePitch-Latenz nicht).
     ///
-    /// Auf iOS ist nicht verlässlich, ob der Node die Route kennt — über
-    /// Bluetooth liegen dort 150–200 ms Funkstrecke, die `AVAudioSession`
-    /// in `outputLatency` ausweist. Darum das **Maximum** beider Schätzungen
-    /// derselben Strecke: das greift die Quelle ab, die von der Route weiß,
-    /// ohne sie doppelt zu zählen.
+    /// Ob der Node die Route kennt, ist aber nicht verlässlich — über
+    /// Bluetooth liegen 150–200 ms Funkstrecke, über AirPlay deutlich mehr.
+    /// Auf iOS weist die `AVAudioSession` sie in `outputLatency` aus, auf macOS
+    /// das CoreAudio-Ausgabegerät (siehe `deviceOutputLatency`). Darum das
+    /// **Maximum** beider Schätzungen derselben Strecke: das greift die Quelle
+    /// ab, die von der Route weiß, ohne sie doppelt zu zählen.
     private var outputLatency: TimeInterval {
-        #if os(iOS)
         // Gecacht, weil `livePosition` in einer 60-Hz-TimelineView gelesen wird
         // und diese Werte sonst 60-mal pro Sekunde auf dem MainActor abgefragt
-        // würden — Node-Properties und AVAudioSession-Properties, letztere mit
-        // Weg zum Audio-Server. Die Latenz ändert sich nur beim Routenwechsel,
-        // eine halbe Sekunde Nachlauf ist am Playhead nicht zu sehen.
+        // würden — Node-Properties und Session- bzw. HAL-Properties, letztere
+        // mit Weg zum Audio-Server. Die Latenz ändert sich nur beim
+        // Routenwechsel, eine halbe Sekunde Nachlauf ist am Playhead nicht zu sehen.
         let now = ProcessInfo.processInfo.systemUptime
         if let cached = cachedOutputLatency, now - cached.measuredAt < 0.5 {
             return cached.value
         }
-        let session = AVAudioSession.sharedInstance()
         let pitchLatency = timePitch.bypass ? 0 : timePitch.latency
-        let sessionLatency = session.outputLatency + session.ioBufferDuration + pitchLatency
-        let value = max(playerNode.outputPresentationLatency, sessionLatency)
+        #if os(iOS)
+        let session = AVAudioSession.sharedInstance()
+        let routeLatency = session.outputLatency + session.ioBufferDuration + pitchLatency
+        #else
+        let routeLatency = (deviceOutputLatency() ?? 0) + pitchLatency
+        #endif
+        let value = max(playerNode.outputPresentationLatency, routeLatency)
         cachedOutputLatency = (value: value, measuredAt: now)
         return value
-        #else
-        return playerNode.outputPresentationLatency
-        #endif
     }
+
+    #if os(macOS)
+    /// Latenz des Ausgabegeräts, an dem die Engine hängt, in Sekunden —
+    /// das macOS-Gegenstück zu `AVAudioSession.outputLatency`.
+    ///
+    /// Der PlayerNode kennt die AirPlay-Strecke nicht; das Gerät meldet sie
+    /// dagegen über den HAL. Summe aus Geräte-Latenz, Safety-Offset,
+    /// IO-Buffer und Stream-Latenz — die Zerlegung, mit der CoreAudio selbst
+    /// die Zeit vom Schreiben bis zur Emission beschreibt.
+    private func deviceOutputLatency() -> TimeInterval? {
+        let deviceID = engine.outputNode.auAudioUnit.deviceID
+        guard deviceID != kAudioObjectUnknown else { return nil }
+
+        func uint32(_ selector: AudioObjectPropertySelector, of object: AudioObjectID) -> UInt32 {
+            var address = AudioObjectPropertyAddress(
+                mSelector: selector,
+                mScope: kAudioObjectPropertyScopeOutput,
+                mElement: kAudioObjectPropertyElementMain
+            )
+            var value: UInt32 = 0
+            var size = UInt32(MemoryLayout<UInt32>.size)
+            let status = AudioObjectGetPropertyData(object, &address, 0, nil, &size, &value)
+            return status == noErr ? value : 0
+        }
+
+        var rateAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyNominalSampleRate,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var sampleRate: Float64 = 0
+        var rateSize = UInt32(MemoryLayout<Float64>.size)
+        guard AudioObjectGetPropertyData(deviceID, &rateAddress, 0, nil, &rateSize, &sampleRate) == noErr,
+              sampleRate > 0
+        else { return nil }
+
+        var frames = uint32(kAudioDevicePropertyLatency, of: deviceID)
+            + uint32(kAudioDevicePropertySafetyOffset, of: deviceID)
+            + uint32(kAudioDevicePropertyBufferFrameSize, of: deviceID)
+
+        // Stream-Latenz des ersten Ausgabe-Streams.
+        var streamsAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreams,
+            mScope: kAudioObjectPropertyScopeOutput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var streamsSize: UInt32 = 0
+        if AudioObjectGetPropertyDataSize(deviceID, &streamsAddress, 0, nil, &streamsSize) == noErr,
+           streamsSize >= UInt32(MemoryLayout<AudioStreamID>.size) {
+            var streams = [AudioStreamID](
+                repeating: 0,
+                count: Int(streamsSize) / MemoryLayout<AudioStreamID>.size
+            )
+            if AudioObjectGetPropertyData(deviceID, &streamsAddress, 0, nil, &streamsSize, &streams) == noErr {
+                frames += uint32(kAudioStreamPropertyLatency, of: streams[0])
+            }
+        }
+
+        return TimeInterval(frames) / sampleRate
+    }
+    #endif
 
     // Stored properties, damit @Observable die Änderungen mitbekommt und
     // SwiftUI-Views (Chips, Slider, Anzeige) sich erneuern. didSet syncht
@@ -249,11 +311,9 @@ public final class AVAudioEnginePlayer: AudioEngine {
     private var seekFrame: AVAudioFramePosition = 0
     private var positionTimer: Timer?
 
-    #if os(iOS)
     /// Zuletzt gemessene Ausgabe-Latenz samt Zeitstempel (`systemUptime`, weil
     /// monoton). Siehe `outputLatency`.
     private var cachedOutputLatency: (value: TimeInterval, measuredAt: TimeInterval)?
-    #endif
 
     /// Jeder Aufruf von `scheduleFromSeekFrame()` erhöht den Zähler. Die
     /// Completion-Closure speichert ihren Generation-Wert und vergleicht ihn
@@ -595,10 +655,8 @@ public final class AVAudioEnginePlayer: AudioEngine {
         if !engine.isRunning {
             try startEngine()
         }
-        #if os(iOS)
         // Neues Format, womöglich andere Node-Latenz — Messung nicht wiederverwenden.
         cachedOutputLatency = nil
-        #endif
         scheduleFromSeekFrame()
     }
 
