@@ -104,6 +104,11 @@ final class PlayerViewModel {
     private func load(url: URL, allowRetry: Bool) {
         do {
             try player.load(url: url)
+            // Frisches Tempo pro Track — eine manuelle Anpassung gilt nur für
+            // den Track, an dem sie gemacht wurde. Ein aktives Master-Tempo
+            // zieht den neuen Track danach über `applyMasterToLoadedTrack()`
+            // wieder auf Set-Geschwindigkeit (wie `PlayerStore.load` auf iOS).
+            player.rate = 1.0
             lastError = nil
             originalBPM = nil
             originalKey = nil
