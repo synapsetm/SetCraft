@@ -4,15 +4,19 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-10-07 (Mac v1.3-21; iOS 1.3-38 in TestFlight).
+Letzte Aktualisierung: 2026-10-09 (Mac v1.3-22; iOS 1.3-38 in TestFlight).
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.3-21 (Build 21), notarisiert, Sparkle-Auto-Update live.
-  Bugfix-Release vom 2026-10-07, nach erfolgreichem Klick-Test: der Mac
+- **Mac-Release:** v1.3-22 (Build 22), notarisiert, Sparkle-Auto-Update live.
+  Bugfix-Release vom 2026-10-09, nach erfolgreichem Klick-Test: eine
+  manuelle Tempo-Anpassung gilt nur noch für ihren Track — beim Laden des
+  nächsten springt das Tempo auf 0 % zurück (wie auf iOS), ein aktives
+  Master-Tempo zieht den neuen Track danach wie gehabt auf Set-Tempo.
+  v1.3-21 war davor das Bugfix-Release vom 2026-10-07, nach erfolgreichem Klick-Test: der Mac
   lädt Tracks jetzt wie iOS über `prefetch` und den `PlaybackCache` statt
   die Quelle direkt auf dem MainActor zu öffnen, mit Ladeanzeige über der
   Waveform und in der Library-Zeile. Eine verschobene/gelöschte Datei
