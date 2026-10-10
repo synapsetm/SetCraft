@@ -972,9 +972,6 @@ Serialisierung, Active-Track-Guard).
 
 ### Unmittelbar
 
-- **Sparkle-Update von 18 auf 19 am installierten Mac gegenprüfen.** v1.3-19
-  ist der erste Release mit signiertem Feed; ob ein Client mit Build 18 das
-  Update tatsächlich findet und installiert, zeigt sich erst dort.
 - **Discogs-Token im Keychain** ist der verbliebene Punkt aus dem
   Security-Review vom 2026-10-02 (s. „Features und Altlasten").
 
