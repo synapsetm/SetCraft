@@ -972,8 +972,8 @@ Serialisierung, Active-Track-Guard).
 
 ### Unmittelbar
 
-- **Discogs-Token im Keychain** ist der verbliebene Punkt aus dem
-  Security-Review vom 2026-10-02 (s. „Features und Altlasten").
+- Nichts. Der Discogs-Token liegt seit 2026-10-10 im Keychain
+  (`DiscogsTokenStore`, migriert den alten `UserDefaults`-Wert beim ersten Lesen).
 
 ### Features und Altlasten
 
@@ -984,11 +984,6 @@ Serialisierung, Active-Track-Guard).
 - **Live-Activities** (iOS) für die Wiedergabe.
 - **Multi-Source-Aggregation** („Alle Tracks" über mehrere Ordner).
 - **Phase 5c / SFBAudioEngine** (Ogg Vorbis, schnelleres FLAC) — erst bei Bedarf.
-- **Discogs-Token im Klartext** in den App-Einstellungen (`UserDefaults`).
-  Für einen Read-only-Token auf einen offenen Katalog vertretbar, gehört aber
-  in den Keychain, sobald es eine Keychain-Schicht gibt. Migrationsweg:
-  aus `UserDefaults` lesen, in den Keychain schreiben, Schreibvorgang prüfen,
-  alten Wert löschen, danach nur noch aus dem Keychain lesen.
 - **iOS-Verteilung ist lizenzbedingt auf eigene Geräte begrenzt**
   (entschieden 2026-10-02, Option A). aubio und libKeyFinder sind GPLv3 und
   statisch gelinkt; das iOS-Target nutzt sie real (`LibraryStore.analyze`,

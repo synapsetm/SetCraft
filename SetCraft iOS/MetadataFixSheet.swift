@@ -19,7 +19,8 @@ struct MetadataFixSheet: View {
 
     @AppStorage("metadata.catalogPolicy") private var policyRaw = CatalogCheckPolicy.whenUncertain.rawValue
     @AppStorage("metadata.fields") private var fieldsRaw = MetadataField.allCases.map(\.rawValue).joined(separator: ",")
-    @AppStorage("discogs.token") private var discogsToken = ""
+    /// Liegt im Keychain, nicht in `@AppStorage` — siehe `DiscogsTokenStore`.
+    @State private var discogsToken = ""
 
     @State private var scope: MetadataFixStore.Scope = .missing
     @State private var showOptions = false
@@ -68,7 +69,9 @@ struct MetadataFixSheet: View {
         .onAppear {
             // Ohne vorherigen Lauf sind die Optionen das Erste, was interessiert.
             showOptions = !store.didRun
+            discogsToken = DiscogsTokenStore().load()
         }
+        .onChange(of: discogsToken) { _, token in DiscogsTokenStore().save(token) }
     }
 
     // MARK: - Steuerung
@@ -159,7 +162,7 @@ struct MetadataFixSheet: View {
             Text("Fields to complete")
         } footer: {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Reading works without an account. A token raises the limit from 25 to 60 requests per minute. It is stored in this app’s preferences in plain text.")
+                Text("Reading works without an account. A token raises the limit from 25 to 60 requests per minute. It is stored in the keychain.")
                 Text("Genre is deliberately left out — Discogs styles would overwrite your own curation.")
             }
         }

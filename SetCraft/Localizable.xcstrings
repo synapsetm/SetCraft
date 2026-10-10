@@ -1575,12 +1575,12 @@
         }
       }
     },
-    "Reading works without an account. A token raises the limit from 25 to 60 requests per minute. It is stored in this app’s preferences in plain text." : {
+    "Reading works without an account. A token raises the limit from 25 to 60 requests per minute. It is stored in the keychain." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lesen funktioniert auch ohne Account. Mit Token steigt das Limit von 25 auf 60 Anfragen pro Minute. Er liegt im Klartext in den Einstellungen dieser App."
+            "value" : "Lesen funktioniert auch ohne Account. Mit Token steigt das Limit von 25 auf 60 Anfragen pro Minute. Er liegt im Schlüsselbund."
           }
         }
       }
