@@ -4,15 +4,19 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-10-09 (Mac v1.3-24; iOS 1.3-38 in TestFlight).
+Letzte Aktualisierung: 2026-11-10 (Mac v1.4-25; iOS 1.3-38 in TestFlight).
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.3-24 (Build 24), notarisiert, Sparkle-Auto-Update live.
-  Bugfix-Release vom 2026-10-09, **ohne vorherigen AirPlay-Gerätetest**: der
+- **Mac-Release:** v1.4-25 (Build 25), notarisiert, Sparkle-Auto-Update live.
+  Feature-Release vom 2026-11-10, nach erfolgreichem Klick-Test: SetCraft
+  lässt sich über App-Menü → „Set as Default Player…“ pro Audioformat als
+  Standard-Player im Finder setzen (s. u. „Player“). Erste Mac-Version 1.4;
+  iOS bleibt auf 1.3.
+  v1.3-24 war davor das Bugfix-Release vom 2026-10-09, **ohne vorherigen AirPlay-Gerätetest**: der
   Waveform-Playhead zieht über AirPlay jetzt auch auf dem Mac die
   Ausgabe-Latenz ab — gelesen aus dem CoreAudio-Ausgabegerät, als
   Gegenstück zur `AVAudioSession` auf iOS.
