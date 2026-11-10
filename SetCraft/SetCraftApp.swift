@@ -54,6 +54,8 @@ struct SetCraftApp: App {
 
     @AppStorage("appearance") private var appearanceRaw: String = AppearancePreference.dark.rawValue
 
+    @State private var showingDefaultPlayer = false
+
     init() {
         // Appearance VOR der Fenstererzeugung setzen — sonst öffnet das erste
         // Window mit dem System-Schema, bevor unser Override greift.
@@ -119,6 +121,7 @@ struct SetCraftApp: App {
                 // explizites Setzen pro Window löst das robust.
                 .onAppear { applyAppearance(appearance) }
                 .onChange(of: appearanceRaw) { _, _ in applyAppearance(appearance) }
+                .sheet(isPresented: $showingDefaultPlayer) { DefaultPlayerSheet() }
         }
         .commands {
             CommandGroup(replacing: .appInfo) {
@@ -131,6 +134,10 @@ struct SetCraftApp: App {
                     updater.checkForUpdates()
                 }
                 .disabled(!updater.canCheckForUpdates)
+
+                Button("Set as Default Player…") {
+                    showingDefaultPlayer = true
+                }
             }
             CommandGroup(replacing: .newItem) {
                 Button("Open audio file…") {

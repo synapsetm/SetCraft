@@ -733,6 +733,96 @@
         }
       }
     },
+    "Choose which audio formats open in SetCraft when you double-click them in the Finder." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle, welche Audioformate sich per Doppelklick im Finder in SetCraft öffnen."
+          }
+        }
+      }
+    },
+    "Could not change the default app: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Standard-App konnte nicht geändert werden: %@"
+          }
+        }
+      }
+    },
+    "Default player" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard-Player"
+          }
+        }
+      }
+    },
+    "No default app" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Standard-App"
+          }
+        }
+      }
+    },
+    "Set as Default Player…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Als Standard-Player festlegen…"
+          }
+        }
+      }
+    },
+    "Several apps" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehrere Apps"
+          }
+        }
+      }
+    },
+    "To switch back, select a file in the Finder, choose File → Get Info and pick another app under “Open with”." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um zurückzuwechseln, wähle im Finder eine Datei aus, öffne Ablage → Informationen und stelle unter „Öffnen mit“ eine andere App ein."
+          }
+        }
+      }
+    },
+    "Use SetCraft" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SetCraft verwenden"
+          }
+        }
+      }
+    },
+    "Use SetCraft for All" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SetCraft für alle verwenden"
+          }
+        }
+      }
+    },
     "Check for Updates…" : {
       "localizations" : {
         "de" : {
