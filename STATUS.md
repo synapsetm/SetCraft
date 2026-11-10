@@ -311,6 +311,14 @@ Serialisierung, Active-Track-Guard).
   unangetastet).
 - Autoplay beim Laden, Prev/Next (Pfeiltasten, folgen der Sortierung),
   Waveform-Scrub, Sterne-Rating, Album-Cover.
+- macOS: **Standard-Player im Finder** setzen (seit 2026-11-10): App-Menü →
+  „Set as Default Player…" zeigt pro Format (MP3, AAC/ALAC, FLAC, WAV,
+  AIFF) die aktuelle Standard-App und setzt SetCraft über
+  `NSWorkspace.setDefaultApplication` (`DefaultPlayerAssociation`). Die
+  `Info.plist` meldet die App weiterhin nur als `Alternate` an — Standard
+  wird sie erst auf diesen Klick. Zurück nur über Finder → Informationen,
+  ein API-Reset existiert nicht. Ogg/Opus fehlen bewusst, solange
+  AVFoundation sie nicht abspielt.
 - iOS: Lock-Screen / Control-Center / AirPods über `MPRemoteCommandCenter` +
   `MPNowPlayingInfoCenter`; `AVAudioSession`-Interruption + Route-Change;
   Background-Audio; Player-Swipe für Track-Wechsel.
@@ -984,6 +992,7 @@ Serialisierung, Active-Track-Guard).
 - **Live-Activities** (iOS) für die Wiedergabe.
 - **Multi-Source-Aggregation** („Alle Tracks" über mehrere Ordner).
 - **Phase 5c / SFBAudioEngine** (Ogg Vorbis, schnelleres FLAC) — erst bei Bedarf.
+  Danach Ogg/Opus in `DefaultPlayerAssociation.formats` aufnehmen.
 - **iOS-Verteilung ist lizenzbedingt auf eigene Geräte begrenzt**
   (entschieden 2026-10-02, Option A). aubio und libKeyFinder sind GPLv3 und
   statisch gelinkt; das iOS-Target nutzt sie real (`LibraryStore.analyze`,
