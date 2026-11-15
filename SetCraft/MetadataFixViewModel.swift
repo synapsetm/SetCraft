@@ -59,7 +59,8 @@ final class MetadataFixViewModel {
         switch scope {
         case .selection: return library.selectedTracks
         case .missing:   return library.tracksMissingTags
-        case .all:       return library.tracks
+        // Bei aktivem Filter nur die sichtbaren Tracks.
+        case .all:       return library.visibleTracks
         }
     }
 

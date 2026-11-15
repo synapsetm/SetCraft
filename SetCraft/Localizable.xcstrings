@@ -150,6 +150,16 @@
         }
       }
     },
+    "Clear filter" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter leeren"
+          }
+        }
+      }
+    },
     "Clear selection" : {
       "localizations" : {
         "de" : {
@@ -486,6 +496,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld von %lld"
+          }
+        }
+      }
+    },
+    "%lld of %lld tracks" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld von %2$lld Tracks"
           }
         }
       }
@@ -1036,12 +1056,12 @@
         }
       }
     },
-    "File:" : {
+    "Filter %lld tracks" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Datei:"
+            "value" : "%lld Tracks filtern"
           }
         }
       }
@@ -1062,16 +1082,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Feinregelung"
-          }
-        }
-      }
-    },
-    "Folder:" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ordner:"
           }
         }
       }

@@ -41,12 +41,14 @@ struct LibraryView: View {
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-                .frame(width: 200)
-            Divider()
+                .frame(width: Theme.Metrics.sidebarWidth)
+            Rectangle()
+                .fill(Theme.Palette.border)
+                .frame(width: 1)
             VStack(spacing: 0) {
                 toolbar
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, Theme.Metrics.padding)
+                    .padding(.vertical, 10)
                 if library.soundingContext.isActive {
                     KeyShiftBanner()
                         .padding(.horizontal, 16)
@@ -61,7 +63,9 @@ struct LibraryView: View {
                     // Mitte stand aber nichts. Als Overlay, damit die Spalten
                     // sichtbar bleiben und das Layout nicht springt.
                     .overlay {
-                        if library.tracks.isEmpty, library.isScanning {
+                        if library.isFiltering, library.visibleTracks.isEmpty, !library.tracks.isEmpty {
+                            ContentUnavailableView.search(text: library.filterText)
+                        } else if library.tracks.isEmpty, library.isScanning {
                             ContentUnavailableView {
                                 Label {
                                     Text("Loading library…")
@@ -79,71 +83,131 @@ struct LibraryView: View {
         }
     }
 
+    /// Quellen-Liste im B6-Stil: nummeriert, aktive Quelle mit Amber-Kante.
+    /// Eigene Zeilen statt `List`, weil die System-Selektion (blaue Fläche)
+    /// sich nicht durch die B6-Markierung ersetzen lässt. Der volle Pfad
+    /// steht im Tooltip.
     private var sidebar: some View {
-        VStack(spacing: 0) {
-            List(selection: Binding(
-                get: { library.selectedFolderID },
-                set: { newID in
-                    Task { await library.selectFolder(id: newID) }
-                }
-            )) {
-                Section("Sources") {
-                    ForEach(library.folders) { folder in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(folder.name).font(.body)
-                            Text(folder.displayURL.path)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                        }
-                        .tag(folder.id)
-                        .contextMenu {
-                            Button("Remove source", role: .destructive) {
-                                library.removeFolder(id: folder.id)
-                            }
-                        }
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Sources")
+                .themeLabel()
+                .padding(.horizontal, 22)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(library.folders.enumerated()), id: \.element.id) { index, folder in
+                        sourceRow(folder, number: index + 1)
                     }
                 }
             }
-            .listStyle(.sidebar)
-
-            Divider()
 
             Button {
                 library.chooseFolder()
             } label: {
-                Label("Add folder…", systemImage: "plus.circle")
+                Label("Add folder…", systemImage: "plus")
+                    .font(Theme.Typo.button)
+                    .tracking(Theme.Typo.buttonTracking)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Theme.Palette.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 22)
             .frame(height: Self.bottomBarHeight)
         }
     }
 
-    private var toolbar: some View {
-        HStack(spacing: 12) {
-            if let source = library.sourceURL {
-                HStack(spacing: 4) {
-                    Text(library.folderURL != nil ? "Folder:" : "File:")
-                        .foregroundStyle(.secondary)
-                    Text(source.path)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+    private func sourceRow(_ folder: FolderRecord, number: Int) -> some View {
+        let isActive = folder.id == library.selectedFolderID
+        return Button {
+            Task { await library.selectFolder(id: folder.id) }
+        } label: {
+            HStack(spacing: 10) {
+                Text(String(format: "%02d", number))
+                    .font(Theme.Typo.bodyNumeric)
+                    .foregroundStyle(isActive ? Theme.Palette.accent : Theme.Palette.textMuted)
+                Text(folder.name)
+                    .font(isActive ? Theme.Typo.body.weight(.semibold) : Theme.Typo.body)
+                    .foregroundStyle(Theme.Palette.text)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 22)
+            .frame(height: 36)
+            .background(isActive ? Theme.Palette.selection : .clear)
+            .overlay(alignment: .leading) {
+                if isActive {
+                    Rectangle()
+                        .fill(Theme.Palette.accent)
+                        .frame(width: Theme.Metrics.selectionEdge)
                 }
             }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(folder.displayURL.path)
+        .contextMenu {
+            Button("Remove source", role: .destructive) {
+                library.removeFolder(id: folder.id)
+            }
+        }
+    }
 
-            Spacer()
+    /// Filterfeld im B6-Stil. Esc leert es.
+    private var filterField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(Theme.Palette.textMuted)
+            TextField("Filter \(library.tracks.count) tracks", text: $library.filterText)
+                .textFieldStyle(.plain)
+                .font(Theme.Typo.body)
+                .foregroundStyle(Theme.Palette.text)
+                .onExitCommand { library.filterText = "" }
+            if library.isFiltering {
+                Button {
+                    library.filterText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(Theme.Palette.textMuted)
+                }
+                .buttonStyle(.plain)
+                .help("Clear filter")
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(height: Theme.Metrics.toolbarHeight)
+        .background(Theme.Palette.surface,
+                    in: RoundedRectangle(cornerRadius: Theme.Metrics.radius))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Metrics.radius)
+            .strokeBorder(Theme.Palette.border, lineWidth: 1))
+        .frame(minWidth: 160, maxWidth: 320)
+    }
+
+    private var toolbarButton: ThemeButtonStyle {
+        ThemeButtonStyle(height: Theme.Metrics.toolbarHeight)
+    }
+
+    private var toolbar: some View {
+        HStack(spacing: 8) {
+            filterField
 
             Button {
-                library.refresh()
+                library.analyzeAllMissing()
             } label: {
-                Label("Refresh", systemImage: "arrow.triangle.2.circlepath")
+                // Bewusst nur der Befehl — was gerade läuft, steht in der
+                // Statuszeile. Ein Knopf, der unter dem Cursor vom Befehl zur
+                // Fortschrittsanzeige wird, wechselt seine Identität; und die
+                // laufende Analyse ist ordnerübergreifend, während die Toolbar
+                // sonst durchweg den aktuellen Ordner meint.
+                let missing = library.missingAnalysisCount
+                Text(missing > 0 ? "Analyze missing (\(missing))" : "Analyze")
             }
-            .disabled(!library.canRefresh)
-            .help("Re-scan the current source and re-apply the sort order")
+            .buttonStyle(ThemeButtonStyle(height: Theme.Metrics.toolbarHeight, kind: .accentOutline))
+            .disabled(library.missingAnalysisCount == 0)
 
             Menu {
                 ForEach(BPMRangePreset.allCases) { preset in
@@ -158,59 +222,61 @@ struct LibraryView: View {
                     }
                 }
             } label: {
-                Label("BPM: \(library.bpmPreset.displayName)", systemImage: "waveform")
+                Text("BPM: \(library.bpmPreset.displayName)")
             }
-            .menuStyle(.borderlessButton)
+            .menuStyle(.button)
+            .menuIndicator(.hidden)
+            .buttonStyle(toolbarButton)
             .fixedSize()
             .help("Expected BPM range for the octave correction")
 
-            Button {
-                library.analyzeAllMissing()
-            } label: {
-                // Bewusst nur der Befehl — was gerade läuft, steht in der
-                // Statuszeile. Ein Knopf, der unter dem Cursor vom Befehl zur
-                // Fortschrittsanzeige wird, wechselt seine Identität; und die
-                // laufende Analyse ist ordnerübergreifend, während die Toolbar
-                // sonst durchweg den aktuellen Ordner meint.
-                let missing = library.missingAnalysisCount
-                Label(
-                    missing > 0 ? "Analyze missing (\(missing))" : "Analyze",
-                    systemImage: "wand.and.stars"
-                )
-            }
-            .disabled(library.missingAnalysisCount == 0)
+            Spacer(minLength: 8)
 
+            // Tag-Ergänzung bleibt sichtbar: rot als Hinweis, solange Tags
+            // fehlen, sonst neutral.
+            let missingTags = library.tracksMissingTags.count
             Button {
-                // Ganze Selektion, nicht nur ein Track: `selectedTrack`
-                // liefert ein beliebiges Element aus dem Auswahl-Set — bei
-                // Mehrfachselektion wurde also eine zufällige Datei
-                // analysiert und die anderen fünf blieben liegen.
-                requestReanalyze(library.selectedTracks)
+                openFixSheet(scope: missingTags == 0 ? .all : .missing)
             } label: {
-                Label("Re-analyze", systemImage: "arrow.clockwise")
+                Text(missingTags > 0 ? "Complete tags (\(missingTags))" : "Complete tags")
             }
-            .disabled(library.selectedTracks.isEmpty)
-            .help("Force a fresh BPM/key analysis for the selected tracks")
-
-            Button {
-                openFixSheet(scope: library.tracksMissingTags.isEmpty ? .all : .missing)
-            } label: {
-                let missing = library.tracksMissingTags.count
-                Label(
-                    missing > 0 ? "Complete tags (\(missing))" : "Complete tags",
-                    systemImage: "text.badge.checkmark"
-                )
-            }
+            .buttonStyle(ThemeButtonStyle(height: Theme.Metrics.toolbarHeight,
+                                          kind: missingTags > 0 ? .issue : .standard))
             .disabled(library.tracks.isEmpty)
             .help("Derive artist and title from filenames, folder patterns and Discogs")
 
-            Button {
-                showResetConfirm = true
+            Menu {
+                Button("Refresh", systemImage: "arrow.triangle.2.circlepath") {
+                    library.refresh()
+                }
+                .disabled(!library.canRefresh)
+                .help("Re-scan the current source and re-apply the sort order")
+
+                Button("Re-analyze", systemImage: "arrow.clockwise") {
+                    // Ganze Selektion, nicht nur ein Track: `selectedTrack`
+                    // liefert ein beliebiges Element aus dem Auswahl-Set —
+                    // bei Mehrfachselektion wurde also eine zufällige Datei
+                    // analysiert und die anderen fünf blieben liegen.
+                    requestReanalyze(library.selectedTracks)
+                }
+                .disabled(library.selectedTracks.isEmpty)
+                .help("Force a fresh BPM/key analysis for the selected tracks")
+
+                Divider()
+
+                Button("Reset plays", systemImage: "arrow.counterclockwise.circle") {
+                    showResetConfirm = true
+                }
+                .disabled(library.folderURL == nil || library.tracks.isEmpty)
+                .help("Reset the play counter for every track in this source")
             } label: {
-                Label("Reset plays", systemImage: "arrow.counterclockwise.circle")
+                Label("More actions", systemImage: "ellipsis")
+                    .labelStyle(.iconOnly)
             }
-            .disabled(library.folderURL == nil || library.tracks.isEmpty)
-            .help("Reset the play counter for every track in this source")
+            .menuStyle(.button)
+            .menuIndicator(.hidden)
+            .buttonStyle(ThemeButtonStyle(width: 40, height: Theme.Metrics.toolbarHeight))
+            .help("More actions")
             .confirmationDialog(
                 "Reset play counts for this source?",
                 isPresented: $showResetConfirm,
@@ -240,6 +306,10 @@ struct LibraryView: View {
                 ProgressView()
                     .controlSize(.small)
                 Text("\(library.tracks.count) found")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if library.isFiltering {
+                Text("\(library.visibleTracks.count) of \(library.tracks.count) tracks")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else if !library.tracks.isEmpty {
@@ -312,7 +382,7 @@ struct LibraryView: View {
             // Writing), und echte Move-Semantik bräuchte eine AppKit-Tabelle
             // mit `beginDraggingSession`. Drop-IN behandelt den daraus
             // entstehenden „File exists"-Fall (siehe `importDroppedFiles`).
-            ForEach(library.tracks) { track in
+            ForEach(library.visibleTracks) { track in
                 TableRow(track)
                     .draggable(track.url)
             }

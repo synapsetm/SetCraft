@@ -132,9 +132,10 @@ final class LibraryViewModel {
     ///   Klick weiter dieselbe Zahl da, obwohl alles schon läuft, und der
     ///   Knopf lüde zum wirkungslosen Nachklicken ein. Wie viel gerade
     ///   gerechnet wird, sagt `pendingAnalysisCount` in der Statuszeile.
+    /// - Bezieht sich wie `analyzeAllMissing` auf die gefilterte Liste.
     var missingAnalysisCount: Int {
         let inFlight = analysesInFlight
-        return tracks.lazy.filter {
+        return visibleTracks.lazy.filter {
             !$0.isLikelyDJMix
                 && ($0.bpm == nil || $0.key == nil)
                 && !inFlight.contains($0.url)
@@ -243,7 +244,13 @@ final class LibraryViewModel {
             guard persistFileSource(file) else { return nil }
         }
 
-        return await trackAfterScan(url: file)
+        let track = await trackAfterScan(url: file)
+        // Ein aktiver Filter darf den Track nicht verstecken — der Aufrufer
+        // wählt ihn gleich aus, und eine unsichtbare Auswahl wäre gefährlich.
+        if let track, isFiltering, !visibleTracks.contains(where: { $0.id == track.id }) {
+            filterText = ""
+        }
+        return track
     }
 
     /// Erste Quelle, die `file` bereits abdeckt: entweder die Datei selbst als
@@ -535,9 +542,9 @@ final class LibraryViewModel {
     }
 
     /// Tracks, bei denen Artist oder Titel fehlt — die Kundschaft der
-    /// Metadaten-Ergaenzung.
+    /// Metadaten-Ergaenzung. Nur die sichtbaren, wenn ein Filter aktiv ist.
     var tracksMissingTags: [Track] {
-        tracks.filter { $0.title.isEmpty || $0.artist.isEmpty }
+        visibleTracks.filter { $0.title.isEmpty || $0.artist.isEmpty }
     }
 
     /// Der DB-Actor dient der Metadaten-Kette als Cache fuer Katalog-Antworten.
@@ -582,23 +589,63 @@ final class LibraryViewModel {
     /// auf den ersten Library-Track gesprungen, damit der Knopf trotzdem
     /// etwas Sinnvolles tut.
     func nextTrack(after url: URL?) -> Track? {
-        guard !tracks.isEmpty else { return nil }
-        guard let url, let idx = tracks.firstIndex(where: { $0.url == url }) else {
-            return tracks.first
+        let list = visibleTracks
+        guard !list.isEmpty else { return nil }
+        guard let url, let idx = list.firstIndex(where: { $0.url == url }) else {
+            return list.first
         }
         let next = idx + 1
-        return next < tracks.count ? tracks[next] : nil
+        return next < list.count ? list[next] : nil
     }
 
     /// Vorheriger Track in der aktuell angezeigten Sortierung. Bei nicht-in-
     /// der-Library-geladenen Tracks Fallback auf den ersten Track.
     func previousTrack(before url: URL?) -> Track? {
-        guard !tracks.isEmpty else { return nil }
-        guard let url, let idx = tracks.firstIndex(where: { $0.url == url }) else {
-            return tracks.first
+        let list = visibleTracks
+        guard !list.isEmpty else { return nil }
+        guard let url, let idx = list.firstIndex(where: { $0.url == url }) else {
+            return list.first
         }
         let prev = idx - 1
-        return prev >= 0 ? tracks[prev] : nil
+        return prev >= 0 ? list[prev] : nil
+    }
+
+    // MARK: - Filter
+
+    /// Suchtext aus dem Filterfeld. Wirkt auf die Tabelle **und** auf
+    /// Prev/Next/Auto-Advance — angezeigt und gespielt wird dieselbe Liste.
+    /// Ausgewählte Tracks, die der Filter ausblendet, fallen aus der
+    /// Selektion, damit Sammelaktionen (Tag-Write, Löschen) nie unsichtbare
+    /// Tracks treffen.
+    var filterText: String = "" {
+        didSet {
+            guard filterText != oldValue, !selectedTrackIDs.isEmpty else { return }
+            let visibleIDs = Set(visibleTracks.map(\.id))
+            selectedTrackIDs.formIntersection(visibleIDs)
+        }
+    }
+
+    var isFiltering: Bool {
+        !filterText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// `tracks` in aktueller Sortierung, eingeschränkt auf den Filter. Jedes
+    /// Wort muss irgendwo vorkommen (Titel, Artist, Album, Genre, Label, Key,
+    /// Dateiname), Gross-/Kleinschreibung und Akzente egal.
+    var visibleTracks: [Track] {
+        let terms = filterText
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
+        guard !terms.isEmpty else { return tracks }
+        return tracks.filter { track in
+            let haystack = [
+                track.title, track.artist, track.album, track.genre,
+                track.label, track.key?.description ?? "", track.fileName
+            ].joined(separator: " ")
+            return terms.allSatisfy {
+                haystack.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+            }
+        }
     }
 
     /// Re-scannt die aktuell ausgewählte Quelle. Frisst extern hinzugefügte/
@@ -895,9 +942,12 @@ final class LibraryViewModel {
 
         // Nur nachrücken, wenn die Selektion durch das Entfernen leer wurde.
         // Hat der Nutzer noch etwas anderes markiert, gehört ihm die Auswahl.
+        // Bei aktivem Filter nur, wenn der Nachrücker auch sichtbar ist.
         if selectedTrackIDs.isEmpty, !tracks.isEmpty {
-            let target = min(firstIndex, tracks.count - 1)
-            selectedTrackIDs = [tracks[target].id]
+            let target = tracks[min(firstIndex, tracks.count - 1)]
+            if !isFiltering || visibleTracks.contains(where: { $0.id == target.id }) {
+                selectedTrackIDs = [target.id]
+            }
         }
     }
 
@@ -1137,8 +1187,9 @@ final class LibraryViewModel {
     /// — falls BPM oder Key fehlen — zusätzlich die Audio-Analyse. Der
     /// nil-Guard in `analyzeIfNeeded` sorgt dafür, dass die teure aubio/
     /// KeyFinder-Pipeline nur dort läuft, wo wirklich etwas fehlt.
+    /// Bei aktivem Filter nur die sichtbaren Tracks.
     func analyzeAllMissing() {
-        for track in tracks {
+        for track in visibleTracks {
             analyzeIfNeeded(track)
         }
     }

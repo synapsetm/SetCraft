@@ -393,7 +393,7 @@ struct ContentView: View {
             } label: {
                 Label("Play/Pause", systemImage: player.player.isPlaying ? "pause.fill" : "play.fill")
             }
-            .buttonStyle(ThemeButtonStyle(width: Theme.Metrics.transportMain, prominent: true))
+            .buttonStyle(ThemeButtonStyle(width: Theme.Metrics.transportMain, kind: .prominent))
             .disabled(player.player.loadedURL == nil)
             .keyboardShortcut(.space, modifiers: [])
 

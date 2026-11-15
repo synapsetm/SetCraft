@@ -61,6 +61,7 @@ enum Theme {
         static let transportHeight: CGFloat   = 44
         static let transportSide: CGFloat     = 52    // Prev / Next
         static let transportMain: CGFloat     = 84    // Play / Pause
+        static let toolbarHeight: CGFloat     = 28    // Library-Toolbar (Filter, Buttons)
         static let sidebarWidth: CGFloat      = 220
         static let padding: CGFloat           = 16
     }
@@ -77,20 +78,33 @@ extension Color {
     }
 }
 
-/// Eckiger B6-Button: `surface` mit `borderStrong`-Rahmen, oder gefüllt in
-/// `accent` (Play/Pause). Höhe fest `transportHeight`, Breite optional.
+/// Eckiger B6-Button. Breite optional (sonst Inhalt + 16 seitlich), Höhe
+/// standardmässig `transportHeight`, in der Library-Toolbar `toolbarHeight`.
 struct ThemeButtonStyle: ButtonStyle {
+    enum Kind {
+        /// `surface` mit `borderStrong`-Rahmen.
+        case standard
+        /// Gefüllt in `accent` (Play/Pause).
+        case prominent
+        /// Rahmen und Text in `accent` (Analyze missing).
+        case accentOutline
+        /// Rahmen `issueBorder`, Text `issueText` (fehlende Tags).
+        case issue
+    }
+
     var width: CGFloat? = nil
-    var prominent = false
+    var height: CGFloat = Theme.Metrics.transportHeight
+    var kind: Kind = .standard
 
     func makeBody(configuration: Configuration) -> some View {
-        StyledLabel(configuration: configuration, width: width, prominent: prominent)
+        StyledLabel(configuration: configuration, width: width, height: height, kind: kind)
     }
 
     private struct StyledLabel: View {
         let configuration: Configuration
         let width: CGFloat?
-        let prominent: Bool
+        let height: CGFloat
+        let kind: Kind
         @Environment(\.isEnabled) private var isEnabled
 
         var body: some View {
@@ -99,13 +113,32 @@ struct ThemeButtonStyle: ButtonStyle {
                 .font(Theme.Typo.button)
                 .tracking(Theme.Typo.buttonTracking)
                 .textCase(.uppercase)
-                .foregroundStyle(prominent ? Theme.Palette.onAccent : Theme.Palette.text)
-                .padding(.horizontal, width == nil ? 16 : 0)
-                .frame(width: width, height: Theme.Metrics.transportHeight)
-                .background(prominent ? Theme.Palette.accent : Theme.Palette.surface, in: shape)
-                .overlay(shape.strokeBorder(prominent ? .clear : Theme.Palette.borderStrong, lineWidth: 1))
+                .lineLimit(1)
+                .foregroundStyle(foreground)
+                .padding(.horizontal, width == nil ? 14 : 0)
+                .frame(width: width, height: height)
+                .background(kind == .prominent ? Theme.Palette.accent : Theme.Palette.surface, in: shape)
+                .overlay(shape.strokeBorder(border, lineWidth: 1))
                 .contentShape(shape)
                 .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
+        }
+
+        private var foreground: Color {
+            switch kind {
+            case .standard:      Theme.Palette.text
+            case .prominent:     Theme.Palette.onAccent
+            case .accentOutline: Theme.Palette.accent
+            case .issue:         Theme.Palette.issueText
+            }
+        }
+
+        private var border: Color {
+            switch kind {
+            case .standard:      Theme.Palette.borderStrong
+            case .prominent:     .clear
+            case .accentOutline: Theme.Palette.accent
+            case .issue:         Theme.Palette.issueBorder
+            }
         }
     }
 }
