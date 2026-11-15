@@ -28,7 +28,7 @@ struct MasterTempoBar: View {
                     .foregroundStyle(isOn ? .orange : .secondary)
 
                 Text(isOn ? String(format: "%.1f", masterBPM ?? 0) : "—")
-                    .font(.system(size: 15, weight: .medium, design: .monospaced))
+                    .font(.system(size: 15, weight: .medium).monospacedDigit())
                     .foregroundStyle(isOn ? .primary : .secondary)
                     .frame(minWidth: 52, alignment: .leading)
 

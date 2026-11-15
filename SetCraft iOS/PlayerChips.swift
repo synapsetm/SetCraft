@@ -29,7 +29,7 @@ struct BPMChipView: View {
                     .tint(.secondary)
             } else {
                 Text(formattedBPM)
-                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+                    .font(.system(size: 16, weight: .medium).monospacedDigit())
             }
             Text("BPM")
                 .font(.system(size: 10))
@@ -116,10 +116,10 @@ struct KeyChipView: View {
                     Text(sounding.sounding.description)
                         .foregroundStyle(sounding.sounding.color)
                 }
-                .font(.system(size: 16, weight: .medium, design: .monospaced))
+                .font(.system(size: 16, weight: .medium).monospacedDigit())
             } else {
                 Text(key?.description ?? "—")
-                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+                    .font(.system(size: 16, weight: .medium).monospacedDigit())
                     .foregroundStyle(key?.color ?? .secondary)
             }
         }

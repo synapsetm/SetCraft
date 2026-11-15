@@ -85,7 +85,7 @@ struct TrackRowView: View {
                         Image(systemName: "play.circle.fill")
                             .font(.system(size: 9))
                         Text("\(track.playCount)")
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .font(.system(size: 10, weight: .medium).monospacedDigit())
                     }
                     .foregroundStyle(.secondary)
                 }
@@ -105,7 +105,7 @@ struct TrackRowView: View {
                     .frame(width: 14, height: 14)
             } else {
                 Text(formattedBPM)
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .font(.system(size: 13, weight: .medium).monospacedDigit())
                 if let sounding, sounding.isShifted {
                     HStack(spacing: 2) {
                         KeyBadgeView(key: sounding.original, dimmed: true)
@@ -114,7 +114,7 @@ struct TrackRowView: View {
                             .foregroundStyle(.secondary)
                         if sounding.isAmbiguous {
                             Text("~")
-                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .font(.system(size: 11, weight: .medium).monospacedDigit())
                                 .foregroundStyle(Color(red: 1.0, green: 0.624, blue: 0.271))
                         }
                         KeyBadgeView(key: sounding.sounding)
@@ -153,7 +153,7 @@ struct KeyBadgeView: View {
 
     var body: some View {
         Text(key?.description ?? "—")
-            .font(.system(size: 11, weight: .medium, design: .monospaced))
+            .font(.system(size: 11, weight: .medium).monospacedDigit())
             .foregroundStyle((key?.color ?? .secondary).opacity(dimmed ? 0.4 : 1.0))
             .padding(.horizontal, 5)
             .padding(.vertical, 2)

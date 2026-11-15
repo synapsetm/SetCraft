@@ -504,7 +504,7 @@ struct WaveformCanvasView: View {
 private struct WaveformTimeLabel: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .font(.system(size: 11, weight: .medium, design: .monospaced))
+            .font(.system(size: 11, weight: .medium).monospacedDigit())
             .foregroundStyle(Color(red: 0.81, green: 0.81, blue: 0.84))
             .padding(.horizontal, 5)
             .padding(.vertical, 1)

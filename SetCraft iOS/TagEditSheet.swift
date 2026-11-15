@@ -85,7 +85,7 @@ struct TagEditSheet: View {
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
                                 .frame(maxWidth: 120)
-                                .font(.system(.body, design: .monospaced))
+                                .font(.body.monospacedDigit())
                         }
                         HStack(spacing: 8) {
                             scaleButton(label: "÷2",   factor: 0.5)
@@ -153,7 +153,7 @@ struct TagEditSheet: View {
             bpmText = String(format: "%.1f", scaled)
         }
         .buttonStyle(.bordered)
-        .font(.system(size: 14, weight: .medium, design: .monospaced))
+        .font(.system(size: 14, weight: .medium).monospacedDigit())
         .disabled(parsedBPM == nil)
     }
 

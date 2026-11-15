@@ -40,7 +40,7 @@ struct TrackInfoSheet: View {
                     LabeledContent("BPM", value: track.bpm.map { String(format: "%.1f", $0) } ?? "—")
                     LabeledContent("Key") {
                         Text(track.key?.description ?? "—")
-                            .font(.system(.body, design: .monospaced).weight(.medium))
+                            .font(.body.weight(.medium).monospacedDigit())
                             .foregroundStyle(track.key?.color ?? .secondary)
                     }
                     LabeledContent("Rating") {

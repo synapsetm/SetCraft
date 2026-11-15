@@ -68,7 +68,7 @@ struct TempoSheet: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(maxWidth: 100)
-                            .font(.system(.body, design: .monospaced))
+                            .font(.body.monospacedDigit())
                             .onSubmit { commitBPMText() }
                             .disabled(originalBPM == nil)
                     }
@@ -101,7 +101,7 @@ struct TempoSheet: View {
                     if let masterBPM {
                         LabeledContent("Master BPM") {
                             Text(String(format: "%.1f", masterBPM))
-                                .font(.system(.body, design: .monospaced))
+                                .font(.body.monospacedDigit())
                                 .foregroundStyle(.orange)
                         }
                     }
@@ -133,7 +133,7 @@ struct TempoSheet: View {
                     Section {
                         LabeledContent("Original BPM") {
                             Text(String(format: "%.1f", original))
-                                .font(.system(.body, design: .monospaced))
+                                .font(.body.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
                     }
