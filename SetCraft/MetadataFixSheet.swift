@@ -27,12 +27,13 @@ struct MetadataFixSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider()
+            Rectangle().fill(Theme.Palette.border).frame(height: 1)
             content
-            Divider()
+            Rectangle().fill(Theme.Palette.border).frame(height: 1)
             footer
         }
         .frame(minWidth: 760, idealWidth: 900, minHeight: 520, idealHeight: 640)
+        .background(Theme.Palette.background)
         .onAppear {
             scope = initialScope
             discogsToken = DiscogsTokenStore().load()
@@ -45,7 +46,7 @@ struct MetadataFixSheet: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Complete missing tags")
-                .font(.headline)
+                .themeSheetTitle()
 
             HStack(spacing: 12) {
                 Picker("Tracks", selection: $scope) {
@@ -72,12 +73,14 @@ struct MetadataFixSheet: View {
                         .controlSize(.small)
                     Text("\(model.processed) of \(model.total)")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.Palette.textSecondary)
                     Button("Stop") { model.cancel() }
+                        .buttonStyle(ThemeButtonStyle(height: Theme.Metrics.toolbarHeight))
                 } else {
                     Button("Start") {
                         model.start(scope: scope, settings: settings)
                     }
+                    .buttonStyle(ThemeButtonStyle(height: Theme.Metrics.toolbarHeight, kind: .accentOutline))
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.tracks(for: scope).isEmpty)
                 }
@@ -86,7 +89,7 @@ struct MetadataFixSheet: View {
             if !model.isRunning, model.estimatedSeconds >= 30, model.proposals.isEmpty {
                 Text("Estimated runtime: \(durationText(model.estimatedSeconds))")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
             }
 
             DisclosureGroup("Discogs options", isExpanded: $showOptions) {
@@ -108,7 +111,7 @@ struct MetadataFixSheet: View {
             }
             Text("Reading works without an account. A token raises the limit from 25 to 60 requests per minute. It is stored in the keychain.")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.Palette.textSecondary)
 
             Divider()
 
@@ -120,7 +123,7 @@ struct MetadataFixSheet: View {
                 // Fehler aus — also sagen wir es hin.
                 Text(coreFieldNames)
                 Text("always included")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
                 Divider()
                     .frame(height: 12)
                 ForEach(optionalFields, id: \.rawValue) { field in
@@ -130,7 +133,7 @@ struct MetadataFixSheet: View {
             }
             Text("Genre is deliberately left out — Discogs styles would overwrite your own curation.")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.Palette.textSecondary)
         }
     }
 
@@ -158,22 +161,22 @@ struct MetadataFixSheet: View {
             if model.isRunning {
                 ProgressView()
                 Text("Looking for suggestions…")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
             } else if model.didRun {
                 Image(systemName: "checkmark.seal")
                     .font(.largeTitle)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
                 Text("No suggestions — nothing to complete here.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
             } else {
                 Image(systemName: "text.badge.plus")
                     .font(.largeTitle)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
                 Text("Pick a set of tracks and press Start.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
                 Text("\(model.tracks(for: scope).count) tracks in scope")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
             }
             Spacer()
         }
@@ -190,17 +193,19 @@ struct MetadataFixSheet: View {
                     Button("Only high confidence") { model.acceptHighConfidenceOnly() }
                     Button("Clear selection") { model.setAllAccepted(false, onlyMissingValues: false) }
                 }
+                .buttonStyle(ThemeButtonStyle(height: Theme.Metrics.toolbarHeight))
                 .disabled(model.proposals.isEmpty)
 
                 Spacer()
 
                 Button("Close", action: onClose)
+                    .buttonStyle(ThemeButtonStyle(height: Theme.Metrics.toolbarHeight))
                     .keyboardShortcut(.cancelAction)
 
                 Button("Apply") {
                     model.applyAccepted()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(ThemeButtonStyle(height: Theme.Metrics.toolbarHeight, kind: .prominent))
                 .disabled(model.acceptedFieldCount == 0)
             }
 
@@ -209,16 +214,17 @@ struct MetadataFixSheet: View {
             // betrifft den ganzen Lauf, nicht einzelne Zeilen.
             HStack(spacing: 8) {
                 Text("\(model.acceptedTrackCount) tracks · \(model.acceptedFieldCount) fields")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
 
                 if model.didRun {
                     // Senkrechter Strich wie in der Statuszeile der
                     // Hauptansicht (`LibraryView.statusSeparator`) — die beiden
                     // Leisten sollen gleich aussehen.
-                    Divider()
-                        .frame(height: 12)
+                    Rectangle()
+                        .fill(Theme.Palette.borderStrong)
+                        .frame(width: 1, height: 12)
                     Text("Library: \(model.libraryCandidateCount) tagged tracks · \(model.knownArtistCount) artists")
-                        .foregroundStyle(model.libraryCandidateCount == 0 ? .orange : .secondary)
+                        .foregroundStyle(model.libraryCandidateCount == 0 ? Theme.Palette.keyAmbiguous : Theme.Palette.textSecondary)
                         .help("Source for the duplicate match and for splitting concatenated artists. Scan the folders that hold your properly tagged files once, so they land in the library.")
                 }
 
@@ -226,7 +232,7 @@ struct MetadataFixSheet: View {
 
                 if let error = model.lastError {
                     Text(error)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.Palette.issueText)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
@@ -314,7 +320,7 @@ private struct ProposalCard: View {
             HStack(spacing: Self.markerSpacing) {
                 Image(systemName: "doc")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
                     .frame(width: Self.markerWidth, alignment: .leading)
                 Text(proposal.url.lastPathComponent)
                     .font(.system(.caption, design: .monospaced))
@@ -331,12 +337,14 @@ private struct ProposalCard: View {
             if !proposal.notes.isEmpty {
                 Text(proposal.notes.map(noteText).joined(separator: " · "))
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
                     .padding(.leading, Self.markerWidth + Self.markerSpacing)
             }
         }
         .padding(10)
-        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
+        .background(Theme.Palette.surface, in: RoundedRectangle(cornerRadius: Theme.Metrics.radius))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Metrics.radius)
+            .strokeBorder(Theme.Palette.border, lineWidth: 1))
     }
 
     private func noteText(_ note: ProposalNote) -> String {
@@ -374,18 +382,18 @@ private struct FieldRow: View {
 
             Text(fieldName(field.field))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.Palette.textSecondary)
                 .frame(width: 48, alignment: .leading)
 
             Text(field.currentValue.isEmpty ? "—" : field.currentValue)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.Palette.textSecondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(width: 130, alignment: .leading)
 
             Image(systemName: "arrow.right")
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Theme.Palette.textMuted)
 
             // Direkt editierbar: keine Stufe hat immer recht, und manchmal
             // weiss nur der Besitzer der Datei, wie der Track heisst.
@@ -414,15 +422,15 @@ private struct FieldRow: View {
             if field.isOverwrite {
                 Text("overwrites")
                     .font(.caption2)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.Palette.keyAmbiguous)
             }
 
             Text(sourceName(field.source))
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.Palette.textSecondary)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 1)
-                .background(.quaternary, in: Capsule())
+                .background(Theme.Palette.border, in: RoundedRectangle(cornerRadius: Theme.Metrics.radius))
 
             ConfidenceDot(confidence: field.confidence)
         }
@@ -454,8 +462,8 @@ private struct ConfidenceDot: View {
     private var color: Color {
         switch SuggestionConfidence.level(confidence) {
         case .high:   return .green
-        case .medium: return .orange
-        case .low:    return .red
+        case .medium: return Theme.Palette.keyAmbiguous
+        case .low:    return Theme.Palette.issueText
         }
     }
 

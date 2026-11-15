@@ -12,8 +12,8 @@ struct ArtworkView: View {
     @State private var image: NSImage?
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 4)
-            .fill(Color.secondary.opacity(0.12))
+        RoundedRectangle(cornerRadius: Theme.Metrics.radius)
+            .fill(Theme.Palette.surface)
             .frame(width: size, height: size)
             .overlay {
                 if let image {
@@ -21,12 +21,12 @@ struct ArtworkView: View {
                         .resizable()
                         .scaledToFill()
                         .frame(width: size, height: size)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Metrics.radius))
                 }
             }
             .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(Color.secondary.opacity(0.25), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: Theme.Metrics.radius)
+                    .strokeBorder(Theme.Palette.border, lineWidth: 1)
             )
             .task(id: url) {
                 await loadArtwork()

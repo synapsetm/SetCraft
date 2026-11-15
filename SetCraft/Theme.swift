@@ -152,6 +152,14 @@ extension View {
             .foregroundStyle(Theme.Palette.textMuted)
     }
 
+    /// Überschrift eines Sheets: wie die Marke im Header, Amber und gesperrt.
+    func themeSheetTitle() -> some View {
+        self.font(Theme.Typo.brand)
+            .tracking(Theme.Typo.brandTracking)
+            .textCase(.uppercase)
+            .foregroundStyle(Theme.Palette.accent)
+    }
+
     /// Zelle im Now-Playing-Raster: Innenabstand 16 vertikal, 22 seitlich,
     /// füllt die Rasterhöhe, damit Trennlinien und Hover-Fläche durchgehen.
     func nowPlayingCell() -> some View {

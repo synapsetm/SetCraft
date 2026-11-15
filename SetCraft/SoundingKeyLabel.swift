@@ -36,7 +36,7 @@ struct SoundingKeyLabel: View {
             .help(helpText(for: sounding))
         } else {
             Text(track.key?.description ?? "—")
-                .foregroundStyle(tint ?? track.key?.color ?? Color.secondary)
+                .foregroundStyle(tint ?? track.key?.color ?? Theme.Palette.textMuted)
                 .monospacedDigit()
         }
     }

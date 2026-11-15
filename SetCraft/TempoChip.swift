@@ -79,7 +79,7 @@ struct TempoChip: View {
     private var popover: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Tempo").font(.headline)
+                Text("Tempo").themeLabel()
                 Spacer()
                 Toggle("global", isOn: Binding(
                     get: { transport.isGlobalBPM },
@@ -96,7 +96,7 @@ struct TempoChip: View {
                     .monospacedDigit()
                     .frame(width: 80)
                     .onSubmit { commitBPMText() }
-                Text("BPM").font(.caption).foregroundStyle(.secondary)
+                Text("BPM").font(.caption).foregroundStyle(Theme.Palette.textSecondary)
                 Spacer()
                 Button("Reset") {
                     transport.setRate(1.0)
@@ -109,11 +109,11 @@ struct TempoChip: View {
                 HStack {
                     Text("Fine adjust")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.Palette.textSecondary)
                     Spacer()
                     Text(percentLabel)
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.Palette.textSecondary)
                 }
                 Slider(
                     value: Binding(
@@ -128,7 +128,7 @@ struct TempoChip: View {
             if let original = bpmOriginalLabel {
                 Text(original)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
             }
         }
     }

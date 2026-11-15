@@ -274,14 +274,13 @@ struct ContentView: View {
                         ProgressView().controlSize(.small)
                     }
                     Text("Analyzing waveform…")
-                        .font(.caption)
-                        .foregroundStyle(.primary.opacity(0.85))
+                        .themeLabel()
                 }
                 .padding(8)
             } else if player.loadingURL == nil, let error = waveform.lastError {
                 Text(error)
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.Palette.keyAmbiguous)
                     .lineLimit(1)
                     .padding(8)
             }
@@ -296,18 +295,18 @@ struct ContentView: View {
         VStack(spacing: 8) {
             if let fraction = player.loadProgress {
                 ProgressView(value: fraction)
-                    .tint(.orange)
+                    .tint(Theme.Palette.accent)
                     .frame(width: 220)
                 Text(verbatim: "\(Int(fraction * 100)) %")
                     .font(.caption.monospacedDigit().weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
             } else {
                 ProgressView()
                     .controlSize(.small)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.black.opacity(0.6))
+        .background(Theme.Palette.waveformBG.opacity(0.75))
         .allowsHitTesting(false)
     }
 

@@ -12,9 +12,9 @@ struct DefaultPlayerSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Default player")
-                    .font(.headline)
+                    .themeSheetTitle()
                 Text("Choose which audio formats open in SetCraft when you double-click them in the Finder.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -23,15 +23,17 @@ struct DefaultPlayerSheet: View {
                     GridRow {
                         Text(verbatim: row.format.id)
                             .fontWeight(.medium)
+                            .foregroundStyle(Theme.Palette.text)
                         handlerLabel(row)
                         Group {
                             if row.isSetCraft {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(Theme.Palette.accent)
                             } else {
                                 Button("Use SetCraft") {
                                     Task { await model.makeDefault(for: [row.format]) }
                                 }
+                                .buttonStyle(ThemeButtonStyle(height: Theme.Metrics.toolbarHeight))
                                 .disabled(model.isWorking)
                             }
                         }
@@ -42,19 +44,20 @@ struct DefaultPlayerSheet: View {
 
             if let error = model.errorMessage {
                 Text("Could not change the default app: \(error)")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Theme.Palette.issueText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Text("To switch back, select a file in the Finder, choose File → Get Info and pick another app under “Open with”.")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.Palette.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack {
                 Button("Use SetCraft for All") {
                     Task { await model.makeDefault(for: DefaultPlayerAssociation.formats) }
                 }
+                .buttonStyle(ThemeButtonStyle(height: Theme.Metrics.toolbarHeight, kind: .accentOutline))
                 .disabled(model.isWorking || model.allSetCraft)
 
                 if model.isWorking {
@@ -64,11 +67,15 @@ struct DefaultPlayerSheet: View {
                 Spacer()
 
                 Button("Close") { dismiss() }
+                    .buttonStyle(ThemeButtonStyle(height: Theme.Metrics.toolbarHeight, kind: .prominent))
                     .keyboardShortcut(.defaultAction)
             }
         }
+        .font(Theme.Typo.body)
+        .foregroundStyle(Theme.Palette.text)
         .padding(20)
         .frame(width: 480)
+        .background(Theme.Palette.background)
         .onAppear { model.refresh() }
     }
 
@@ -76,10 +83,10 @@ struct DefaultPlayerSheet: View {
     private func handlerLabel(_ row: DefaultPlayerAssociation.Row) -> some View {
         if row.handlers.isEmpty {
             Text("No default app")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.Palette.textSecondary)
         } else if row.handlers.count > 1 {
             Text("Several apps")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.Palette.textSecondary)
         } else if let app = row.handlers.first {
             HStack(spacing: 6) {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: app.path))

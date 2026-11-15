@@ -5,6 +5,8 @@ https://claude.ai/artifact/KvZzLZi2Bk2uMz13jfcjDz
 
 Tokens: `SetCraft/Theme.swift` (Farben, Schrift, Masse). Keine Hex-Werte direkt in Views.
 
+Umgesetzter Stand (2026-11-15): `docs/screenshots/mac/b6-main.png`
+
 ## Spielregeln
 - **Nur Darstellung.** Keine Änderungen an ViewModels, Analyse, Tag-Schreiben, DB oder SetCraftCore-Logik.
   Ausnahme: reine Anzeige-Helper (z. B. formatierte Strings) dürfen in die View-Schicht.
