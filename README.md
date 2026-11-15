@@ -4,9 +4,17 @@ A DJ-oriented music player for **macOS** and **iOS** (iPhone), written in
 Swift / SwiftUI. Native, no streaming — your files, your library, your
 beat-matched chops.
 
-|  macOS  | iOS — Library  | iOS — Player  |
-|:---:|:---:|:---:|
-| ![Mac](docs/screenshots/mac/library.png) | ![iOS Library](docs/screenshots/ios/library.png) | ![iOS Player](docs/screenshots/ios/player.png) |
+### macOS
+
+| Player & Library | Complete missing tags |
+|:---:|:---:|
+| ![macOS — Player & Library](docs/screenshots/mac/main.png) | ![macOS — Complete missing tags](docs/screenshots/mac/complete-tags.png) |
+
+### iOS
+
+| Library | Player |
+|:---:|:---:|
+| ![iOS — Library](docs/screenshots/ios/library.png) | ![iOS — Player](docs/screenshots/ios/player.png) |
 
 ---
 
