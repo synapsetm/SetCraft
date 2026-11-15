@@ -12,29 +12,31 @@ import SetCraftCore
 struct SoundingKeyLabel: View {
     let track: Track
     let context: SoundingContext
+    /// Ersetzt alle Farben, z. B. `onAccent` in einer markierten Zeile.
+    var tint: Color? = nil
 
     var body: some View {
         if let sounding = track.playingKey(in: context), sounding.isShifted {
             HStack(spacing: 3) {
                 Text(sounding.original.description)
-                    .foregroundStyle(sounding.original.color.opacity(0.4))
+                    .foregroundStyle((tint ?? sounding.original.color).opacity(0.4))
                     .monospacedDigit()
                 Image(systemName: "arrow.right")
                     .imageScale(.small)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(tint.map { AnyShapeStyle($0.opacity(0.6)) } ?? AnyShapeStyle(.tertiary))
                 if sounding.isAmbiguous {
                     Text("~")
-                        .foregroundStyle(Theme.Palette.keyAmbiguous)
+                        .foregroundStyle(tint ?? Theme.Palette.keyAmbiguous)
                         .monospacedDigit()
                 }
                 Text(sounding.sounding.description)
-                    .foregroundStyle(sounding.sounding.color)
+                    .foregroundStyle(tint ?? sounding.sounding.color)
                     .monospacedDigit()
             }
             .help(helpText(for: sounding))
         } else {
             Text(track.key?.description ?? "—")
-                .foregroundStyle(track.key?.color ?? Color.secondary)
+                .foregroundStyle(tint ?? track.key?.color ?? Color.secondary)
                 .monospacedDigit()
         }
     }
@@ -58,15 +60,15 @@ struct KeyShiftBanner: View {
                 .font(.caption)
             Spacer()
         }
-        .foregroundStyle(Color(red: 1.0, green: 0.624, blue: 0.271))
+        .foregroundStyle(Theme.Palette.keyAmbiguous)
         .padding(.horizontal, 11)
         .padding(.vertical, 7)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(red: 1.0, green: 0.624, blue: 0.271).opacity(0.13))
+            RoundedRectangle(cornerRadius: Theme.Metrics.radius)
+                .fill(Theme.Palette.keyAmbiguous.opacity(0.13))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color(red: 1.0, green: 0.624, blue: 0.271).opacity(0.32))
+                    RoundedRectangle(cornerRadius: Theme.Metrics.radius)
+                        .strokeBorder(Theme.Palette.keyAmbiguous.opacity(0.32))
                 )
         )
     }

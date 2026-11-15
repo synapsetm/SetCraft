@@ -28,8 +28,11 @@ struct ContentView: View {
             }
         }
         // 960 statt 760: das Now-Playing-Raster braucht für vier Readouts
-        // plus eine lesbare TRACK-Spalte etwa diese Breite.
-        .frame(minWidth: 960, minHeight: 520)
+        // plus eine lesbare TRACK-Spalte etwa diese Breite. 640 hoch: Player
+        // (Raster, 148er-Waveform, Transport) plus Toolbar und Footer belegen
+        // gut 450 pt — darunter blieb kaum Tabelle, und der Footer wurde
+        // unten abgeschnitten.
+        .frame(minWidth: 960, minHeight: 640)
         .background(Theme.Palette.background)
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }

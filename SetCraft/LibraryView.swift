@@ -37,6 +37,10 @@ struct LibraryView: View {
     /// Oeffnen nicht die Vorschlaege des letzten Laufs zeigt.
     @State private var fixModel: MetadataFixViewModel?
     @State private var fixScope: MetadataFixViewModel.Scope = .missing
+    /// Fokus und Fensterzustand entscheiden, ob macOS die Auswahl in Amber
+    /// (betont) oder grau zeichnet — siehe `ink(_:_:)`.
+    @FocusState private var tableFocused: Bool
+    @Environment(\.controlActiveState) private var controlActiveState
 
     var body: some View {
         HStack(spacing: 0) {
@@ -54,7 +58,7 @@ struct LibraryView: View {
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
                 }
-                Divider()
+                hairline
                 table
                     .frame(maxHeight: .infinity)
                     // Bis der erste Track eintrifft, zeigte die Tabelle nur
@@ -77,7 +81,7 @@ struct LibraryView: View {
                             }
                         }
                     }
-                Divider()
+                hairline
                 statusBar
             }
         }
@@ -294,28 +298,38 @@ struct LibraryView: View {
         }
     }
 
-    /// Statuszeile unter der Tabelle: Track-Counter links, Fehler-Chips
-    /// rechts. Padding + minHeight gespiegelt zum „Add folder…"-Balken
-    /// in der Sidebar; die fixe Mindesthöhe verhindert, dass die Bar nach
-    /// Scan-Ende von ~32pt auf ~27pt zusammenschrumpft (caption-Text ist
-    /// kleiner als die scan-zeitige ProgressView).
+    /// Statuszeile unter der Tabelle im B6-Label-Stil, z. B.
+    /// «53 TRACKS · 16 WITHOUT BPM · RANGE 75–185»; Fehler-Chips rechts.
+    /// Die fixe Höhe ist gespiegelt zum „Add folder…"-Balken in der Sidebar,
+    /// damit beide auf einer Linie liegen und die Bar nach Scan-Ende nicht
+    /// schrumpft.
     private var statusBar: some View {
         let hasTrackCount = library.isScanning || !library.tracks.isEmpty
         return HStack(spacing: 8) {
+            HStack(spacing: 0) {
+                if library.isScanning {
+                    Text("\(library.tracks.count) found")
+                } else if library.isFiltering {
+                    Text("\(library.visibleTracks.count) of \(library.tracks.count) tracks")
+                } else if !library.tracks.isEmpty {
+                    Text("\(library.tracks.count) tracks")
+                }
+                if !library.isScanning, !library.tracks.isEmpty {
+                    let withoutBPM = library.visibleTracks.lazy.filter { $0.bpm == nil }.count
+                    if withoutBPM > 0 {
+                        Text(verbatim: " · ")
+                        Text("\(withoutBPM) without BPM")
+                    }
+                    let range = library.bpmPreset.range
+                    Text(verbatim: " · ")
+                    Text("Range \(Int(range.lowerBound))–\(Int(range.upperBound))")
+                }
+            }
+            .themeLabel()
+            .lineLimit(1)
             if library.isScanning {
                 ProgressView()
                     .controlSize(.small)
-                Text("\(library.tracks.count) found")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if library.isFiltering {
-                Text("\(library.visibleTracks.count) of \(library.tracks.count) tracks")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if !library.tracks.isEmpty {
-                Text("\(library.tracks.count) tracks")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             // Laufende Analysen — bewusst über alle Quellen hinweg gezählt:
@@ -327,31 +341,37 @@ struct LibraryView: View {
                 ProgressView()
                     .controlSize(.small)
                 Text("in analysis: \(library.pendingAnalysisCount)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .themeLabel()
             }
 
             Spacer()
 
             if let error = library.lastWriteError {
-                ErrorChip(text: error, tint: .red)
+                ErrorChip(text: error, tint: Theme.Palette.issueText)
             }
             if let error = library.lastAnalysisError {
-                ErrorChip(text: error, tint: .orange)
+                ErrorChip(text: error, tint: Theme.Palette.keyAmbiguous)
             }
             if let error = library.lastLibraryError {
-                ErrorChip(text: error, tint: .red)
+                ErrorChip(text: error, tint: Theme.Palette.issueText)
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, Theme.Metrics.padding)
         .frame(height: Self.bottomBarHeight)
     }
 
     /// Senkrechter Trenner zwischen zwei Angaben der Statuszeile. Kurz
     /// gehalten, damit er die Zeile gliedert, ohne sie zu zerschneiden.
     private var statusSeparator: some View {
-        Divider()
-            .frame(height: 12)
+        Rectangle()
+            .fill(Theme.Palette.borderStrong)
+            .frame(width: 1, height: 12)
+    }
+
+    private var hairline: some View {
+        Rectangle()
+            .fill(Theme.Palette.border)
+            .frame(height: 1)
     }
 
     /// Gemeinsame Höhe für die beiden unteren Bars: „Add folder…" links
@@ -403,6 +423,14 @@ struct LibraryView: View {
         // ohne den Sort anzuwerfen — der editierte Eintrag bleibt damit dort
         // stehen, wo der User ihn gerade angefasst hat.
         .onChange(of: library.sortOrder) { _, _ in library.applySortOrder() }
+        // B6: ruhiger dunkler Grund ohne Zebrastreifen, Zeilen 32 pt. Die
+        // Auswahlfarbe bestimmt weiterhin das System (siehe B6-Spec, 6b).
+        .focused($tableFocused)
+        .font(Theme.Typo.body)
+        .alternatingRowBackgrounds(.disabled)
+        .scrollContentBackground(.hidden)
+        .background(Theme.Palette.background)
+        .environment(\.defaultMinListRowHeight, Theme.Metrics.rowHeight)
         .contextMenu(forSelectionType: Track.ID.self) { ids in
             Button("Load in player") {
                 loadFirst(ids)
@@ -538,6 +566,31 @@ struct LibraryView: View {
 
     // MARK: - Spaltengruppen
 
+    /// Schriftfarbe einer Zelle. In einer aktiv markierten Zeile (Amber-
+    /// Fläche des App-Akzents) einheitlich `onAccent` — feste Farben wie
+    /// Amber-Titel, Key-Farben oder Grau passt macOS dort nicht an, sie
+    /// wären auf Amber unlesbar. Bei grauer Auswahl (Fenster oder Tabelle
+    /// ohne Fokus) bleiben die normalen Farben.
+    private func ink(_ track: Track, _ color: Color) -> Color {
+        inkOverride(track) ?? color
+    }
+
+    private func inkOverride(_ track: Track) -> Color? {
+        let emphasized = tableFocused && controlActiveState != .inactive
+        return emphasized && library.selectedTrackIDs.contains(track.id)
+            ? Theme.Palette.onAccent : nil
+    }
+
+    /// Spaltenkopf im B6-Stil: klein, gesperrt, in Grossbuchstaben. Als
+    /// `Text`, weil `TableColumn` nur einen `Text` als Kopf annimmt —
+    /// `.textCase` ist dort nicht verfügbar, deshalb `localizedUppercase`.
+    private func header(_ title: LocalizedStringResource) -> Text {
+        Text(String(localized: title).localizedUppercase)
+            .font(Theme.Typo.label)
+            .tracking(Theme.Typo.labelTracking)
+            .foregroundStyle(Theme.Palette.textMuted)
+    }
+
     @TableColumnBuilder<Track, KeyPathComparator<Track>>
     private var primaryColumns: some TableColumnContent<Track, KeyPathComparator<Track>> {
         TableColumn("●") { track in
@@ -551,11 +604,11 @@ struct LibraryView: View {
                 let unsaved = library.unsavedTrackIDs.contains(track.id)
                 Image(systemName: isPlaying ? "play.fill" : "pause.fill")
                     .font(.system(size: 10))
-                    .foregroundStyle(unsaved ? Color.red : Color.orange)
+                    .foregroundStyle(ink(track, unsaved ? Theme.Palette.issueText : Theme.Palette.accent))
                     .help(unsaved ? "Unsaved changes" : (isPlaying ? "Playing" : "Paused"))
             } else {
                 Circle()
-                    .fill(library.unsavedTrackIDs.contains(track.id) ? Color.red : Color.clear)
+                    .fill(library.unsavedTrackIDs.contains(track.id) ? Theme.Palette.issueText : Color.clear)
                     .frame(width: 8, height: 8)
                     .help(library.unsavedTrackIDs.contains(track.id) ? "Unsaved changes" : "")
             }
@@ -564,31 +617,34 @@ struct LibraryView: View {
         .customizationID("status")
         .disabledCustomizationBehavior([.visibility, .reorder])
 
-        TableColumn("Plays", value: \.playCount) { track in
+        TableColumn(header("Plays"), value: \.playCount) { track in
             Text(track.playCount == 0 ? "—" : String(track.playCount))
                 .monospacedDigit()
-                .foregroundStyle(track.playCount == 0 ? .secondary : .primary)
+                .foregroundStyle(ink(track, track.playCount == 0 ? Theme.Palette.textMuted : Theme.Palette.text))
         }
         .width(min: 45, ideal: 55, max: 70)
         .customizationID("plays")
 
-        TableColumn("Title", value: \.title) { track in
+        TableColumn(header("Title"), value: \.title) { track in
             TextField("Title", text: binding(track, \.title))
                 .textFieldStyle(.plain)
+                .foregroundStyle(ink(track, track.url == currentURL ? Theme.Palette.accent : Theme.Palette.text))
         }
         .customizationID("title")
         .disabledCustomizationBehavior(.visibility)
 
-        TableColumn("Artist", value: \.artist) { track in
+        TableColumn(header("Artist"), value: \.artist) { track in
             TextField("Artist", text: binding(track, \.artist))
                 .textFieldStyle(.plain)
+                .foregroundStyle(ink(track, Theme.Palette.textSecondary))
         }
         .customizationID("artist")
 
-        TableColumn("BPM", value: \.bpmSortable) { track in
+        TableColumn(header("BPM"), value: \.bpmSortable) { track in
             HStack(spacing: 4) {
                 TextField("BPM", text: bpmBinding(for: track))
                     .textFieldStyle(.plain)
+                    .foregroundStyle(ink(track, Theme.Palette.text))
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
                 // Spinner solange die Analyse läuft — auch bei Re-Analyze,
@@ -601,7 +657,7 @@ struct LibraryView: View {
                     // analysiert, es hängt nichts.
                     Text("Mix")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ink(track, Theme.Palette.textSecondary))
                         .help(djMixHint)
                 }
             }
@@ -609,9 +665,11 @@ struct LibraryView: View {
         .width(min: 60, ideal: 75, max: 100)
         .customizationID("bpm")
 
-        TableColumn("Key", value: \.keySortable) { track in
+        TableColumn(header("Key"), value: \.keySortable) { track in
             HStack(spacing: 4) {
-                SoundingKeyLabel(track: track, context: library.soundingContext)
+                SoundingKeyLabel(track: track, context: library.soundingContext,
+                                 tint: inkOverride(track))
+                    .fontWeight(.semibold)
                 if library.isAnalyzing(track) {
                     ProgressView().controlSize(.mini)
                 }
@@ -620,8 +678,8 @@ struct LibraryView: View {
         .width(min: 50, ideal: 65, max: 80)
         .customizationID("key")
 
-        TableColumn("Rating", value: \.rating.stars) { track in
-            StarRatingView(rating: track.rating) { newRating in
+        TableColumn(header("Rating"), value: \.rating.stars) { track in
+            StarRatingView(rating: track.rating, onAccent: inkOverride(track) != nil) { newRating in
                 update(track) { $0.rating = newRating }
             }
         }
@@ -631,31 +689,34 @@ struct LibraryView: View {
 
     @TableColumnBuilder<Track, KeyPathComparator<Track>>
     private var metadataColumns: some TableColumnContent<Track, KeyPathComparator<Track>> {
-        TableColumn("Genre", value: \.genre) { track in
+        TableColumn(header("Genre"), value: \.genre) { track in
             TextField("Genre", text: binding(track, \.genre))
                 .textFieldStyle(.plain)
+                .foregroundStyle(ink(track, Theme.Palette.text))
         }
         .width(min: 80, ideal: 120)
         .customizationID("genre")
 
-        TableColumn("Album", value: \.album) { track in
+        TableColumn(header("Album"), value: \.album) { track in
             TextField("Album", text: binding(track, \.album))
                 .textFieldStyle(.plain)
+                .foregroundStyle(ink(track, Theme.Palette.text))
         }
         .width(min: 80, ideal: 140)
         .customizationID("album")
 
-        TableColumn("Label", value: \.label) { track in
+        TableColumn(header("Label"), value: \.label) { track in
             TextField("Label", text: binding(track, \.label))
                 .textFieldStyle(.plain)
+                .foregroundStyle(ink(track, Theme.Palette.text))
         }
         .width(min: 80, ideal: 120)
         .customizationID("label")
 
-        TableColumn("Year", value: \.yearSortable) { track in
+        TableColumn(header("Year"), value: \.yearSortable) { track in
             Text(track.year.map(String.init) ?? "—")
                 .monospacedDigit()
-                .foregroundStyle(track.year != nil ? .primary : .secondary)
+                .foregroundStyle(ink(track, track.year != nil ? Theme.Palette.text : Theme.Palette.textMuted))
         }
         .width(min: 45, ideal: 55, max: 70)
         .customizationID("year")
@@ -663,9 +724,9 @@ struct LibraryView: View {
 
     @TableColumnBuilder<Track, KeyPathComparator<Track>>
     private var fileInfoColumns: some TableColumnContent<Track, KeyPathComparator<Track>> {
-        TableColumn("Filename", value: \.fileName) { track in
+        TableColumn(header("Filename"), value: \.fileName) { track in
             Text(track.fileName)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ink(track, Theme.Palette.textSecondary))
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .help(track.fileName)
@@ -673,33 +734,33 @@ struct LibraryView: View {
         .width(min: 120, ideal: 200)
         .customizationID("filename")
 
-        TableColumn("Type", value: \.fileType) { track in
+        TableColumn(header("Type"), value: \.fileType) { track in
             Text(track.fileType.isEmpty ? "—" : track.fileType)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ink(track, Theme.Palette.textSecondary))
         }
         .width(min: 40, ideal: 50, max: 70)
         .customizationID("filetype")
 
-        TableColumn("Bitrate", value: \.bitrateSortable) { track in
+        TableColumn(header("Bitrate"), value: \.bitrateSortable) { track in
             Text(track.bitrate.map { "\($0) kbps" } ?? "—")
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ink(track, Theme.Palette.textSecondary))
         }
         .width(min: 60, ideal: 75, max: 100)
         .customizationID("bitrate")
 
-        TableColumn("Size", value: \.fileSizeSortable) { track in
+        TableColumn(header("Size"), value: \.fileSizeSortable) { track in
             Text(formatSize(track.fileSize))
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ink(track, Theme.Palette.textSecondary))
         }
         .width(min: 55, ideal: 70, max: 90)
         .customizationID("size")
 
-        TableColumn("Modified", value: \.modifiedDateSortable) { track in
+        TableColumn(header("Modified"), value: \.modifiedDateSortable) { track in
             Text(formatModifiedDate(track.modifiedDate))
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ink(track, Theme.Palette.textSecondary))
         }
         .width(min: 110, ideal: 140, max: 180)
         .customizationID("modified")
@@ -707,17 +768,18 @@ struct LibraryView: View {
 
     @TableColumnBuilder<Track, KeyPathComparator<Track>>
     private var tailColumns: some TableColumnContent<Track, KeyPathComparator<Track>> {
-        TableColumn("Comment", value: \.comment) { track in
+        TableColumn(header("Comment"), value: \.comment) { track in
             TextField("Comment", text: binding(track, \.comment))
                 .textFieldStyle(.plain)
+                .foregroundStyle(ink(track, Theme.Palette.text))
         }
         .width(min: 100, ideal: 180)
         .customizationID("comment")
 
-        TableColumn("Time", value: \.durationSeconds) { track in
+        TableColumn(header("Time"), value: \.durationSeconds) { track in
             Text(formatTime(track.durationSeconds))
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ink(track, Theme.Palette.textSecondary))
         }
         .width(min: 50, ideal: 55, max: 70)
         .customizationID("time")

@@ -3,9 +3,12 @@ import SetCraftCore
 
 /// Fünf Sterne, alle gefüllt; gesetzte in `star`, offene in `starDim` (B6).
 /// `size` nil = Bibliotheksgrösse, sonst Punktgrösse (Transport-Zeile: 17).
+/// `onAccent`: in einer markierten (Amber-)Zeile dunkle Sterne, sonst
+/// verschwänden die Amber-Sterne auf der Amber-Fläche.
 struct StarRatingView: View {
     let rating: Rating
     var size: CGFloat? = nil
+    var onAccent = false
     let onChange: (Rating) -> Void
 
     var body: some View {
@@ -13,7 +16,7 @@ struct StarRatingView: View {
             ForEach(1...5, id: \.self) { star in
                 let filled = star <= rating.stars
                 starImage
-                    .foregroundStyle(filled ? Theme.Palette.star : Theme.Palette.starDim)
+                    .foregroundStyle(color(filled: filled))
                     .contentShape(Rectangle())
                     .onTapGesture {
                         let next = rating.stars == star ? 0 : star
@@ -21,6 +24,13 @@ struct StarRatingView: View {
                     }
             }
         }
+    }
+
+    private func color(filled: Bool) -> Color {
+        if onAccent {
+            return filled ? Theme.Palette.onAccent : Theme.Palette.onAccent.opacity(0.3)
+        }
+        return filled ? Theme.Palette.star : Theme.Palette.starDim
     }
 
     @ViewBuilder

@@ -510,6 +510,16 @@
         }
       }
     },
+    "%lld without BPM" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ohne BPM"
+          }
+        }
+      }
+    },
     "%lld tracks are DJ mixes — analyze anyway?" : {
       "localizations" : {
         "de" : {
@@ -1668,6 +1678,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lesen funktioniert auch ohne Account. Mit Token steigt das Limit von 25 auf 60 Anfragen pro Minute. Er liegt im Schlüsselbund."
+          }
+        }
+      }
+    },
+    "Range %lld–%lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereich %1$lld–%2$lld"
           }
         }
       }
