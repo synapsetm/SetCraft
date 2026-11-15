@@ -13,9 +13,6 @@ struct SoundingKeyLabel: View {
     let track: Track
     let context: SoundingContext
 
-    /// Warnfarbe für die Tilde, wie im Mockup (`#FF9F45`).
-    private static let ambiguousColor = Color(red: 1.0, green: 0.624, blue: 0.271)
-
     var body: some View {
         if let sounding = track.playingKey(in: context), sounding.isShifted {
             HStack(spacing: 3) {
@@ -27,7 +24,7 @@ struct SoundingKeyLabel: View {
                     .foregroundStyle(.tertiary)
                 if sounding.isAmbiguous {
                     Text("~")
-                        .foregroundStyle(Self.ambiguousColor)
+                        .foregroundStyle(Theme.Palette.keyAmbiguous)
                         .monospacedDigit()
                 }
                 Text(sounding.sounding.description)

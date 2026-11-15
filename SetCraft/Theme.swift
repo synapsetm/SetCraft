@@ -77,6 +77,39 @@ extension Color {
     }
 }
 
+/// Eckiger B6-Button: `surface` mit `borderStrong`-Rahmen, oder gefüllt in
+/// `accent` (Play/Pause). Höhe fest `transportHeight`, Breite optional.
+struct ThemeButtonStyle: ButtonStyle {
+    var width: CGFloat? = nil
+    var prominent = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        StyledLabel(configuration: configuration, width: width, prominent: prominent)
+    }
+
+    private struct StyledLabel: View {
+        let configuration: Configuration
+        let width: CGFloat?
+        let prominent: Bool
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            let shape = RoundedRectangle(cornerRadius: Theme.Metrics.radius)
+            configuration.label
+                .font(Theme.Typo.button)
+                .tracking(Theme.Typo.buttonTracking)
+                .textCase(.uppercase)
+                .foregroundStyle(prominent ? Theme.Palette.onAccent : Theme.Palette.text)
+                .padding(.horizontal, width == nil ? 16 : 0)
+                .frame(width: width, height: Theme.Metrics.transportHeight)
+                .background(prominent ? Theme.Palette.accent : Theme.Palette.surface, in: shape)
+                .overlay(shape.strokeBorder(prominent ? .clear : Theme.Palette.borderStrong, lineWidth: 1))
+                .contentShape(shape)
+                .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
+        }
+    }
+}
+
 extension View {
     /// Kleines Label im B6-Stil (z. B. «BPM», «KEY», Spaltenköpfe).
     func themeLabel() -> some View {
@@ -84,5 +117,12 @@ extension View {
             .tracking(Theme.Typo.labelTracking)
             .textCase(.uppercase)
             .foregroundStyle(Theme.Palette.textMuted)
+    }
+
+    /// Zelle im Now-Playing-Raster: Innenabstand 16 vertikal, 22 seitlich,
+    /// füllt die Rasterhöhe, damit Trennlinien und Hover-Fläche durchgehen.
+    func nowPlayingCell() -> some View {
+        self.padding(.vertical, 16).padding(.horizontal, 22)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }

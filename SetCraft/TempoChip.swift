@@ -7,37 +7,44 @@ struct TempoChip: View {
 
     @State private var showPopover = false
     @State private var bpmText: String = ""
+    @State private var isHovering = false
 
     var body: some View {
         Button {
             showPopover.toggle()
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "metronome")
-                    .imageScale(.small)
-                Text(displayBPM)
-                    .font(.body.monospacedDigit().weight(.medium))
-                Text("BPM")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if transport.isGlobalBPM {
-                    Text("global")
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(.orange.opacity(0.25), in: Capsule())
-                        .foregroundStyle(.orange)
+            // B6-Readout im Now-Playing-Raster: Label oben, gespielte BPM gross
+            // in Amber. Die ganze Zelle ist Klickfläche für das Popover —
+            // erkennbar am Pfeil im Label und an der Amber-Fläche bei Hover
+            // bzw. offenem Popover (anders als die reine Anzeige KEY).
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    HStack(spacing: 4) {
+                        Text("BPM")
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .bold))
+                    }
+                    .themeLabel()
+                    if transport.isGlobalBPM {
+                        Text("global")
+                            .font(Theme.Typo.label)
+                            .tracking(Theme.Typo.labelTracking)
+                            .textCase(.uppercase)
+                            .padding(.horizontal, 4)
+                            .background(Theme.Palette.selection,
+                                        in: RoundedRectangle(cornerRadius: Theme.Metrics.radius))
+                            .foregroundStyle(Theme.Palette.accent)
+                    }
                 }
-                // Chevron als sichtbarer Hinweis: hier öffnet sich ein Popover.
-                Image(systemName: "chevron.down")
-                    .imageScale(.small)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                Text(displayBPM)
+                    .font(Theme.Typo.readout)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+                    .foregroundStyle(hasLoadedTrack ? Theme.Palette.accent : Theme.Palette.textMuted)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(.thinMaterial, in: Capsule())
-            .overlay(Capsule().strokeBorder(.separator, lineWidth: 0.5))
+            .nowPlayingCell()
+            .background(isHighlighted ? Theme.Palette.selection : .clear)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!hasLoadedTrack)
@@ -48,6 +55,7 @@ struct TempoChip: View {
             } else {
                 NSCursor.pop()
             }
+            isHovering = hovering
         }
         .popover(isPresented: $showPopover, arrowEdge: .bottom) {
             popover
@@ -55,6 +63,10 @@ struct TempoChip: View {
                 .frame(width: 260)
                 .onAppear { bpmText = displayBPM }
         }
+    }
+
+    private var isHighlighted: Bool {
+        hasLoadedTrack && (isHovering || showPopover)
     }
 
     private var displayBPM: String {

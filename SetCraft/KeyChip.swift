@@ -1,23 +1,39 @@
 import SwiftUI
 import SetCraftCore
 
-/// Reine Anzeige der gerade gespielten Tonart — bewusst ohne Capsule/Border,
-/// damit sie sich visuell vom editierbaren `TempoChip` abgrenzt: ein Label
-/// signalisiert "Information", ein Pill-Button signalisiert "antippbar".
+/// Reine Anzeige der gerade gespielten Tonart im Now-Playing-Raster — ohne
+/// Klickfläche, anders als der `TempoChip`: Key-Änderungen laufen über das
+/// Tempo, einen eigenen Key-Regler gibt es nicht.
+///
+/// Weicht der klingende Key vom Original ab, steht wie in der Bibliothek
+/// `8A → 9A`: links klein und gedimmt das Original, rechts gross der Key,
+/// der tatsächlich klingt. Beides reine Anzeige (SPEC §5b).
 struct KeyChip: View {
     @Bindable var transport: TransportViewModel
     let hasLoadedTrack: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "music.note")
-                .imageScale(.small)
-                .foregroundStyle(.secondary)
-            Text(displayKey)
-                .font(.body.monospacedDigit().weight(.medium))
-                .foregroundStyle(keyColor)
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Key").themeLabel()
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                if let original = transport.originalKey,
+                   let effective = transport.effectiveKey,
+                   original != effective {
+                    Text(original.description)
+                        .font(Theme.Typo.title.monospacedDigit())
+                        .foregroundStyle(original.color.opacity(0.4))
+                    Image(systemName: "arrow.right")
+                        .font(Theme.Typo.artist)
+                        .foregroundStyle(Theme.Palette.textMuted)
+                }
+                Text(displayKey)
+                    .font(Theme.Typo.readout)
+                    .foregroundStyle(keyColor)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
         }
-        .opacity(hasLoadedTrack ? 1.0 : 0.55)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .help("Key")
     }
 
@@ -26,6 +42,6 @@ struct KeyChip: View {
     }
 
     private var keyColor: Color {
-        transport.effectiveKey?.color ?? Color.secondary
+        transport.effectiveKey?.color ?? Theme.Palette.textMuted
     }
 }

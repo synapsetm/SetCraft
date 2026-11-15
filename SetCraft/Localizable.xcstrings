@@ -110,9 +110,6 @@
         }
       }
     },
-    "%@ / -%@" : {
-      "shouldTranslate" : false
-    },
     "always included" : {
       "localizations" : {
         "de" : {
@@ -1019,6 +1016,16 @@
         }
       }
     },
+    "Elapsed" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gespielt"
+          }
+        }
+      }
+    },
     "Expected BPM range for the octave correction" : {
       "localizations" : {
         "de" : {
@@ -1291,6 +1298,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Geändert"
+          }
+        }
+      }
+    },
+    "More actions" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weitere Aktionen"
           }
         }
       }
@@ -1675,6 +1692,16 @@
         }
       }
     },
+    "Remain" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbleibend"
+          }
+        }
+      }
+    },
     "Remove source" : {
       "localizations" : {
         "de" : {
@@ -1960,6 +1987,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Titel"
+          }
+        }
+      }
+    },
+    "Track" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Track"
           }
         }
       }

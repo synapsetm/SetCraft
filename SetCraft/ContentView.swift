@@ -10,9 +10,14 @@ struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            playerPane
-                .padding(16)
-            Divider()
+            appHeader
+            hairline
+            nowPlaying
+            hairline
+            waveformRow
+            hairline
+            transportBar
+            hairline
             LibraryView(library: library,
                         loadingURL: player.loadingURL,
                         currentURL: player.player.loadedURL,
@@ -22,7 +27,9 @@ struct ContentView: View {
                 library.notePlay(forURL: track.url)
             }
         }
-        .frame(minWidth: 760, minHeight: 520)
+        // 960 statt 760: das Now-Playing-Raster braucht für vier Readouts
+        // plus eine lesbare TRACK-Spalte etwa diese Breite.
+        .frame(minWidth: 960, minHeight: 520)
         .background(Theme.Palette.background)
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
@@ -92,22 +99,127 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Player
+    // MARK: - Header + Now Playing
 
-    private var playerPane: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header
-            transportControls
-            timeRow
-            waveformRow
-            chipsBar
-            if let error = player.lastError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
+    private var hairline: some View {
+        Rectangle()
+            .fill(Theme.Palette.border)
+            .frame(height: 1)
+    }
+
+    private var columnDivider: some View {
+        Rectangle()
+            .fill(Theme.Palette.border)
+            .frame(width: 1)
+    }
+
+    /// Kopfzeile: Marke links, aktive Quelle und Anzahl Tracks rechts.
+    private var appHeader: some View {
+        HStack(spacing: 0) {
+            Text(verbatim: "SETCRAFT")
+                .font(Theme.Typo.brand)
+                .tracking(Theme.Typo.brandTracking)
+                .foregroundStyle(Theme.Palette.accent)
+            Spacer()
+            if let sourceName {
+                HStack(spacing: 0) {
+                    Text(verbatim: "\(sourceName) · ")
+                    Text("\(library.tracks.count) tracks")
+                }
+                .themeLabel()
+                .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 22)
+        .frame(height: 40)
+    }
+
+    /// Name der aktiven Quelle — wie in der Quellen-Liste, sonst der Pfad.
+    private var sourceName: String? {
+        if let id = library.selectedFolderID,
+           let folder = library.folders.first(where: { $0.id == id }) {
+            return folder.name
+        }
+        return library.sourceURL?.lastPathComponent
+    }
+
+    /// Raster unter der Kopfzeile, sechs gleich breite Spalten wie im
+    /// Mockup: TRACK (mit Artwork, zwei Spalten) · BPM · KEY · ELAPSED · REMAIN.
+    private var nowPlaying: some View {
+        WeightedColumns {
+            trackCell
+                .nowPlayingCell()
+                .layoutWeight(2)
+            // Zellen-Innenabstand setzt der Chip selbst — die Hover-Fläche
+            // soll die ganze Zelle füllen, nicht nur den Inhalt.
+            TempoChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
+                .overlay(alignment: .leading) { columnDivider }
+            KeyChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
+                .nowPlayingCell()
+                .overlay(alignment: .leading) { columnDivider }
+            timeCell("Elapsed") { elapsed, _ in
+                (formatTime(TimeInterval(elapsed)), Theme.Palette.text)
+            }
+            timeCell("Remain") { elapsed, total in
+                ("-" + formatTime(TimeInterval(max(0, total - elapsed))), Theme.Palette.textSecondary)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var trackCell: some View {
+        HStack(spacing: 14) {
+            ArtworkView(url: player.player.loadedURL, size: 56)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Track").themeLabel()
+                Text(titleLine)
+                    .font(Theme.Typo.title)
+                    .foregroundStyle(Theme.Palette.text)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Text(artistLine)
+                    .font(Theme.Typo.artist)
+                    .foregroundStyle(Theme.Palette.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
     }
+
+    /// ELAPSED/REMAIN. Beide rechnen mit derselben ganzen Sekunde
+    /// (`elapsed`, abgerundet) und REMAIN = Gesamtlänge − ELAPSED — so
+    /// springen sie immer im selben Moment um. Einzeln gerundet lagen die
+    /// Wechsel um den Nachkommaanteil der Tracklänge auseinander.
+    ///
+    /// Der 0,1-s-Takt hält den Sprung nah an der echten Sekundengrenze; neu
+    /// gezeichnet wird der Text nur, wenn sich der Wert ändert. Gelesen wird
+    /// `livePosition` (frisch aus `lastRenderTime`), nicht die
+    /// @Observable-`position`.
+    private func timeCell(
+        _ label: LocalizedStringKey,
+        value: @escaping (_ elapsed: Int, _ total: Int) -> (String, Color)
+    ) -> some View {
+        TimelineView(.periodic(from: .now, by: 0.1)) { _ in
+            let dur = player.player.duration
+            let total = dur.isFinite && dur > 0 ? Int(dur.rounded()) : 0
+            let pos = player.player.livePosition
+            let elapsed = pos.isFinite ? min(total, max(0, Int(pos))) : 0
+            let (text, color) = value(elapsed, total)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(label).themeLabel()
+                Text(verbatim: text)
+                    .font(Theme.Typo.readout)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+                    .foregroundStyle(player.player.loadedURL == nil ? Theme.Palette.textMuted : color)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .nowPlayingCell()
+        .overlay(alignment: .leading) { columnDivider }
+    }
+
+    // MARK: - Player
 
     private var waveformRow: some View {
         ZStack(alignment: .topLeading) {
@@ -219,51 +331,19 @@ struct ContentView: View {
         return w.totalSeconds
     }
 
-    private var chipsBar: some View {
-        HStack(spacing: 12) {
-            TempoChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
-            KeyChip(transport: transport, hasLoadedTrack: transport.hasLoadedTrack)
-            ratingChip
-            Spacer()
-        }
-    }
-
-    /// Sterne-Rating für den aktuell geladenen Track. Capsule-Rahmen wie der
-    /// TempoChip signalisiert „antippbar"; gedimmt + Tap deaktiviert, sobald
-    /// der Track nicht in der Library steht (ohne `Track`-Eintrag fehlt das
-    /// Persistenz-Ziel).
+    /// Sterne-Rating für den aktuell geladenen Track. Gedimmt + Tap
+    /// deaktiviert, sobald der Track nicht in der Library steht (ohne
+    /// `Track`-Eintrag fehlt das Persistenz-Ziel).
     @ViewBuilder
-    private var ratingChip: some View {
+    private var ratingStars: some View {
         let editable = loadedTrack != nil
-        StarRatingView(rating: loadedTrack?.rating ?? .none) { newRating in
+        StarRatingView(rating: loadedTrack?.rating ?? .none, size: 17) { newRating in
             guard let url = player.player.loadedURL else { return }
             library.setRating(forURL: url, newRating)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(.thinMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(.separator, lineWidth: 0.5))
         .disabled(!editable)
         .opacity(editable ? 1.0 : 0.45)
         .help(editable ? "Rating" : "Track is not in the library — rating can't be saved")
-    }
-
-    private var header: some View {
-        HStack(alignment: .center, spacing: 12) {
-            ArtworkView(url: player.player.loadedURL, size: 48)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(titleLine)
-                    .font(.headline)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Text(artistLine)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            Spacer()
-        }
     }
 
     /// Track gerade im Player — falls in der Library bekannt, holen wir
@@ -293,29 +373,17 @@ struct ContentView: View {
         return String(localized: "Unknown artist")
     }
 
-    private var transportControls: some View {
-        HStack(spacing: 12) {
-            Button {
-                player.openFile()
-            } label: {
-                Label("Open file…", systemImage: "folder.badge.plus")
-            }
-            .keyboardShortcut("o", modifiers: .command)
-            .help("Load an audio file")
-
-            Button {
-                loadSelectedFromLibrary()
-            } label: {
-                Label("Load", systemImage: "tray.and.arrow.down.fill")
-            }
-            .disabled(library.selectedTrack == nil)
-            .help("Load the selected track from the library")
-
+    /// Transport-Zeile unter der Waveform: Prev · Play/Pause · Next · Sterne,
+    /// rechts «•••» mit Open/Load/Unload. ⌘O liegt im Datei-Menü
+    /// (`SetCraftApp`), Leertaste und Pfeiltasten hängen an den Buttons.
+    private var transportBar: some View {
+        HStack(spacing: 8) {
             Button {
                 loadPreviousFromLibrary()
             } label: {
-                Label("Previous", systemImage: "backward.fill")
+                Label("Previous", systemImage: "backward.end.fill")
             }
+            .buttonStyle(ThemeButtonStyle(width: Theme.Metrics.transportSide))
             .disabled(library.previousTrack(before: player.player.loadedURL) == nil)
             .keyboardShortcut(.leftArrow, modifiers: [])
             .help("Previous track in the library (←)")
@@ -323,28 +391,63 @@ struct ContentView: View {
             Button {
                 player.togglePlay()
             } label: {
-                Label("Play/Pause", systemImage: "playpause.fill")
+                Label("Play/Pause", systemImage: player.player.isPlaying ? "pause.fill" : "play.fill")
             }
+            .buttonStyle(ThemeButtonStyle(width: Theme.Metrics.transportMain, prominent: true))
             .disabled(player.player.loadedURL == nil)
             .keyboardShortcut(.space, modifiers: [])
 
             Button {
                 loadNextFromLibrary()
             } label: {
-                Label("Next", systemImage: "forward.fill")
+                Label("Next", systemImage: "forward.end.fill")
             }
+            .buttonStyle(ThemeButtonStyle(width: Theme.Metrics.transportSide))
             .disabled(library.nextTrack(after: player.player.loadedURL) == nil)
             .keyboardShortcut(.rightArrow, modifiers: [])
             .help("Next track in the library (→)")
 
-            Button {
-                player.unload()
-            } label: {
-                Label("Unload", systemImage: "eject.fill")
+            ratingStars
+                .padding(.leading, 12)
+
+            if let error = player.lastError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(Theme.Palette.issueText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.leading, 12)
             }
-            .disabled(player.player.loadedURL == nil)
-            .help("Remove the track from the player")
+
+            Spacer(minLength: 8)
+
+            Menu {
+                Button("Open file…", systemImage: "folder.badge.plus") {
+                    player.openFile()
+                }
+                .help("Load an audio file")
+                Button("Load", systemImage: "tray.and.arrow.down.fill") {
+                    loadSelectedFromLibrary()
+                }
+                .disabled(library.selectedTrack == nil)
+                .help("Load the selected track from the library")
+                Button("Unload", systemImage: "eject.fill") {
+                    player.unload()
+                }
+                .disabled(player.player.loadedURL == nil)
+                .help("Remove the track from the player")
+                // Menüeinträge mit Text, auch wenn die Zeile `.iconOnly` setzt.
+                .labelStyle(.titleAndIcon)
+            } label: {
+                Label("More actions", systemImage: "ellipsis")
+            }
+            .menuStyle(.button)
+            .menuIndicator(.hidden)
+            .buttonStyle(ThemeButtonStyle(width: Theme.Metrics.transportSide))
+            .help("More actions")
         }
+        .labelStyle(.iconOnly)
+        .padding(Theme.Metrics.padding)
     }
 
     private func loadSelectedFromLibrary() {
@@ -419,32 +522,51 @@ struct ContentView: View {
         }
     }
 
-    /// Nur noch die Zeitanzeige — gesucht wird ab Phase 4 ausschliesslich
-    /// über die Waveform. Format: gespielte Zeit / -verbleibend.
-    ///
-    /// Per `TimelineView(.periodic)` 1 × pro Sekunde aktualisiert; gelesen
-    /// wird `livePosition` (frisch aus `lastRenderTime`) statt der
-    /// @Observable-`position`, sodass die Zeile auch dann tickt, wenn das
-    /// Observation-Update zwischen TimelineView-Ticks aus irgendeinem
-    /// Grund (z. B. Tab-Wechsel) ausbleibt.
-    private var timeRow: some View {
-        TimelineView(.periodic(from: .now, by: 1.0)) { _ in
-            let pos = player.player.livePosition
-            let dur = player.player.duration
-            HStack {
-                Text("\(formatTime(pos)) / -\(formatTime(max(0, dur - pos)))")
-                Spacer()
-                Text(formatTime(dur))
-            }
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.secondary)
-        }
-    }
-
     private func formatTime(_ secs: TimeInterval) -> String {
         guard secs.isFinite, secs >= 0 else { return "0:00" }
         let total = Int(secs.rounded())
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+private extension View {
+    /// Anteil an der Breite in `WeightedColumns` (Standard 1).
+    func layoutWeight(_ weight: Double) -> some View {
+        layoutValue(key: ColumnWeight.self, value: weight)
+    }
+}
+
+nonisolated private struct ColumnWeight: LayoutValueKey {
+    static let defaultValue: Double = 1
+}
+
+/// Verteilt die Breite strikt nach Gewicht, unabhängig vom Inhalt — ein
+/// `HStack` gibt Kindern mit breitem Inhalt mehr Platz, das Mockup verlangt
+/// aber ein festes Raster. Höhe = höchstes Kind, alle Zellen gleich hoch.
+private struct WeightedColumns: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 960
+        let widths = columnWidths(total: width, subviews: subviews)
+        let height = zip(subviews, widths)
+            .map { $0.sizeThatFits(ProposedViewSize(width: $1, height: nil)).height }
+            .max() ?? 0
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        for (subview, width) in zip(subviews, columnWidths(total: bounds.width, subviews: subviews)) {
+            subview.place(at: CGPoint(x: x, y: bounds.minY),
+                          proposal: ProposedViewSize(width: width, height: bounds.height))
+            x += width
+        }
+    }
+
+    private func columnWidths(total: CGFloat, subviews: Subviews) -> [CGFloat] {
+        let weights = subviews.map { $0[ColumnWeight.self] }
+        let sum = weights.reduce(0, +)
+        guard sum > 0 else { return weights.map { _ in 0 } }
+        return weights.map { total * $0 / sum }
     }
 }
 

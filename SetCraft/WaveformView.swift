@@ -15,12 +15,10 @@ struct WaveformView: View {
     let onSeek: (Double) -> Void          // absolute Position als fraction 0…1
     let onScrub: (Double) -> Void         // relatives Scrubbing in fraction-Einheiten
 
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
         GeometryReader { proxy in
             Canvas { ctx, size in
-                draw(in: ctx, size: size, isDark: colorScheme == .dark)
+                draw(in: ctx, size: size)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
@@ -47,25 +45,17 @@ struct WaveformView: View {
                 }
             )
         }
-        .frame(height: 80)
-        .background(backgroundColor, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
-        )
+        // B6: randlos über die volle Fensterbreite, App ist fest dunkel.
+        .frame(height: Theme.Metrics.waveformHeight)
+        .background(Theme.Palette.waveformBG)
     }
 
-    private var backgroundColor: Color {
-        colorScheme == .dark ? .black : .white
-    }
-
-    private func draw(in ctx: GraphicsContext, size: CGSize, isDark: Bool) {
+    private func draw(in ctx: GraphicsContext, size: CGSize) {
         let width = size.width
         let height = size.height
         guard width > 0, height > 0 else { return }
 
-        let skeletonColor: Color = isDark ? .white.opacity(0.18) : .black.opacity(0.2)
-        let playheadColor: Color = isDark ? .white.opacity(0.85) : .black.opacity(0.8)
+        let skeletonColor: Color = .white.opacity(0.18)
 
         // Skeleton-Linie in der Mitte, solange wir noch keine Daten haben.
         guard let data, !data.bins.isEmpty else {
@@ -148,9 +138,7 @@ struct WaveformView: View {
             )
 
             let played = CGFloat(x) < progressX
-            let color: Color = played
-                ? baseColor.opacity(isDark ? 0.45 : 0.55)
-                : baseColor
+            let color: Color = played ? baseColor.opacity(0.45) : baseColor
 
             var path = Path()
             path.move(to: CGPoint(x: x, y: midY - amp))
@@ -158,11 +146,18 @@ struct WaveformView: View {
             ctx.stroke(path, with: .color(color), lineWidth: 1.0)
         }
 
-        // Playhead als vertikale Linie.
+        // Playhead: 2 px Amber mit kleinem Dreieck am oberen Rand.
         var playhead = Path()
         playhead.move(to: CGPoint(x: progressX, y: 0))
         playhead.addLine(to: CGPoint(x: progressX, y: height))
-        ctx.stroke(playhead, with: .color(playheadColor), lineWidth: 1.5)
+        ctx.stroke(playhead, with: .color(Theme.Palette.accent), lineWidth: 2)
+
+        var marker = Path()
+        marker.move(to: CGPoint(x: progressX - 6, y: 0))
+        marker.addLine(to: CGPoint(x: progressX + 6, y: 0))
+        marker.addLine(to: CGPoint(x: progressX, y: 8))
+        marker.closeSubpath()
+        ctx.fill(marker, with: .color(Theme.Palette.accent))
     }
 }
 
