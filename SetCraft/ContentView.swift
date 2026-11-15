@@ -23,6 +23,7 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 760, minHeight: 520)
+        .background(Theme.Palette.background)
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
             // Gleicher Weg wie beim Öffnen aus dem Finder: abspielen und den

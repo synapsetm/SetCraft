@@ -650,16 +650,6 @@
         }
       }
     },
-    "Appearance" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erscheinungsbild"
-          }
-        }
-      }
-    },
     "Artist" : {
       "localizations" : {
         "de" : {
@@ -949,16 +939,6 @@
         }
       }
     },
-    "Dark" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dunkel"
-          }
-        }
-      }
-    },
     "Delete" : {
       "localizations" : {
         "de" : {
@@ -1171,16 +1151,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Label"
-          }
-        }
-      }
-    },
-    "Light" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hell"
           }
         }
       }
@@ -1934,16 +1904,6 @@
         }
       }
     },
-    "System" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "System"
-          }
-        }
-      }
-    },
     "Tags from a duplicate in your library" : {
       "localizations" : {
         "de" : {
@@ -2080,16 +2040,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Einen der anderen Vorschläge verwenden"
-          }
-        }
-      }
-    },
-    "View" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ansicht"
           }
         }
       }
