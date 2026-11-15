@@ -4,15 +4,22 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-11-10 (Mac v1.4-25; iOS 1.3-38 in TestFlight).
+Letzte Aktualisierung: 2026-11-15 (Mac v1.5-26; iOS 1.3-38 in TestFlight).
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.4-25 (Build 25), notarisiert, Sparkle-Auto-Update live.
-  Feature-Release vom 2026-11-10, nach erfolgreichem Klick-Test: SetCraft
+- **Mac-Release:** v1.5-26 (Build 26), notarisiert, Sparkle-Auto-Update live.
+  Design-Release vom 2026-11-15, nach erfolgreichem Klick-Test: Hauptfenster
+  im Redesign „B6 · Deck / Amber" (fest dunkel, Tokens in `SetCraft/Theme.swift`,
+  Spec `docs/design/B6-spec.md`), Library-Filter (wirkt auf Prev/Next, Analyze
+  missing und Complete tags), Amber-Akzent für die Tabellenauswahl, neues
+  macOS-App-Icon (Quellen `docs/icon/macos/`). iOS bleibt auf 1.3.
+  Offen aus dem Redesign: CUE/KEY LOCK (braucht Engine-Funktion), Waveform
+  zeichnet mit 60 Hz auch ohne Wiedergabe (~45 % Main-Thread im Debug-Build).
+  v1.4-25 war davor das Feature-Release vom 2026-11-10: SetCraft
   lässt sich über App-Menü → „Set as Default Player…“ pro Audioformat als
   Standard-Player im Finder setzen (s. u. „Player“). Erste Mac-Version 1.4;
   iOS bleibt auf 1.3.
