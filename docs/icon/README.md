@@ -2,6 +2,15 @@
 
 Frequenzbasierte RGB-Waveform mit zentraler, überragender Playhead auf dunklem Squircle.
 
+> **Seit v1.5 (2026-11-15) getrennt nach Plattform.**
+> - **macOS:** `macos/` — unregelmässige Waveform mit 22 Balken, Bass (Rot) links bis Höhen
+>   (Violett) rechts, nach macOS-Vorlage (1024er Canvas, Körper 824 × 824 mit 100 px Rand,
+>   Radius 185, Schlagschatten). Für 16/32 px die reduzierte Variante mit 6 Balken.
+>   `macos/render_macos_icon.py` (Pillow) erzeugt SVGs, Vorschauen und ein `AppIcon.appiconset`
+>   in `macos/` — danach von Hand nach `SetCraft/Assets.xcassets/AppIcon.appiconset/` kopieren.
+> - **iOS:** die Dateien in diesem Ordner (unten) — das bisherige symmetrische Motiv, randlos
+>   im iOS-Stil. Der Abschnitt „In Xcode einsetzen" unten betrifft nur noch iOS.
+
 ## Dateien
 
 - `setcraft-icon-1024.svg` — Vektor-Master des vollen Motivs (9 Balken + Playhead, symmetrisch).
