@@ -622,7 +622,7 @@ struct LibraryView: View {
                 .monospacedDigit()
                 .foregroundStyle(ink(track, track.playCount == 0 ? Theme.Palette.textMuted : Theme.Palette.text))
         }
-        .width(min: 45, ideal: 55, max: 70)
+        .width(min: 45, ideal: 45, max: 70)
         .customizationID("plays")
 
         TableColumn(header("Title"), value: \.title) { track in
@@ -662,7 +662,7 @@ struct LibraryView: View {
                 }
             }
         }
-        .width(min: 60, ideal: 75, max: 100)
+        .width(min: 60, ideal: 60, max: 100)
         .customizationID("bpm")
 
         TableColumn(header("Key"), value: \.keySortable) { track in
@@ -675,7 +675,7 @@ struct LibraryView: View {
                 }
             }
         }
-        .width(min: 50, ideal: 65, max: 80)
+        .width(min: 50, ideal: 50, max: 80)
         .customizationID("key")
 
         TableColumn(header("Rating"), value: \.rating.stars) { track in
@@ -683,7 +683,7 @@ struct LibraryView: View {
                 update(track) { $0.rating = newRating }
             }
         }
-        .width(min: 90, ideal: 100, max: 120)
+        .width(min: 90, ideal: 90, max: 120)
         .customizationID("rating")
     }
 
@@ -718,7 +718,7 @@ struct LibraryView: View {
                 .monospacedDigit()
                 .foregroundStyle(ink(track, track.year != nil ? Theme.Palette.text : Theme.Palette.textMuted))
         }
-        .width(min: 45, ideal: 55, max: 70)
+        .width(min: 45, ideal: 45, max: 70)
         .customizationID("year")
     }
 
@@ -738,7 +738,7 @@ struct LibraryView: View {
             Text(track.fileType.isEmpty ? "—" : track.fileType)
                 .foregroundStyle(ink(track, Theme.Palette.textSecondary))
         }
-        .width(min: 40, ideal: 50, max: 70)
+        .width(min: 40, ideal: 40, max: 70)
         .customizationID("filetype")
 
         TableColumn(header("Bitrate"), value: \.bitrateSortable) { track in
@@ -746,7 +746,7 @@ struct LibraryView: View {
                 .monospacedDigit()
                 .foregroundStyle(ink(track, Theme.Palette.textSecondary))
         }
-        .width(min: 60, ideal: 75, max: 100)
+        .width(min: 60, ideal: 60, max: 100)
         .customizationID("bitrate")
 
         TableColumn(header("Size"), value: \.fileSizeSortable) { track in
@@ -781,7 +781,7 @@ struct LibraryView: View {
                 .monospacedDigit()
                 .foregroundStyle(ink(track, Theme.Palette.textSecondary))
         }
-        .width(min: 50, ideal: 55, max: 70)
+        .width(min: 50, ideal: 50, max: 70)
         .customizationID("time")
     }
 
