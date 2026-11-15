@@ -4,15 +4,15 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>SetCraft</title>
         <item>
-            <title>1.4</title>
-            <pubDate>Tue, 10 Nov 2026 21:55:34 +0100</pubDate>
-            <sparkle:version>25</sparkle:version>
-            <sparkle:shortVersionString>1.4</sparkle:shortVersionString>
+            <title>1.5</title>
+            <pubDate>Sun, 15 Nov 2026 15:02:48 +0100</pubDate>
+            <sparkle:version>26</sparkle:version>
+            <sparkle:shortVersionString>1.5</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/synapsetm/SetCraft/releases/download/v1.4-25/SetCraft-1.4-25.dmg" length="6855583" type="application/octet-stream" sparkle:edSignature="AwDlF5n9EsBiO0ltuFnICyu7fHWWhCwX1XDhkW9plbSQjcS7rYSoR3VF1dGIz0WhYOAWbC0VmmWvJMxilKKhBQ=="></enclosure>
+            <enclosure url="https://github.com/synapsetm/SetCraft/releases/download/v1.5-26/SetCraft-1.5-26.dmg" length="7019292" type="application/octet-stream" sparkle:edSignature="ULs2wXr4wG5bgxkzCzMSLs6t0LA34CB2329XWodZoxwvJ/BMgrQIwn9B1t3d3sEyJxowcMDQuAOnAbG04UBoCw=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: MR2w8H/izFKN2eq3fIZ53ud0A/A7kWRrcIdPiFB3AFMoBIDBJ5GN9z93Hdk7hEhlblA+zrhmKAIuGGfQlgi+CQ==
+edSignature: kaQtXCa3t2JpFPb7YkWbGLWwlpSpLmEW2mISKRnyqy/AhG5QemMkAIU34LLURxucfams7oAazGa+4oKM1De9Ag==
 length: 1041
 -->
