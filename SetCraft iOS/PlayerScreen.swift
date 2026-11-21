@@ -16,6 +16,7 @@ struct PlayerScreen: View {
     let store: PlayerStore
 
     @State private var showTagEditSheet = false
+    @State private var showInfoSheet = false
     @State private var showTempoSheet = false
     @Environment(\.verticalSizeClass) private var vSizeClass
 
@@ -27,12 +28,17 @@ struct PlayerScreen: View {
                 portraitBody
             }
         }
-        .background(Color(red: 0.08, green: 0.08, blue: 0.09))
+        .background(Theme.Palette.background)
         .sheet(isPresented: $showTagEditSheet) {
             if let track = store.currentTrack {
                 TagEditSheet(track: track) { updated in
                     store.applyEdit(updated)
                 }
+            }
+        }
+        .sheet(isPresented: $showInfoSheet) {
+            if let track = store.currentTrack {
+                TrackInfoSheet(track: track)
             }
         }
         .sheet(isPresented: $showTempoSheet) {
@@ -48,32 +54,31 @@ struct PlayerScreen: View {
         }
     }
 
-
-
+    /// Hochformat nach I1-Spec: Kopfzeile, Waveform, BPM/KEY-Kacheln,
+    /// Transport, Sterne. Track-Swipe liegt auf allem ausser der Waveform.
     @ViewBuilder
     private var portraitBody: some View {
         VStack(spacing: 0) {
+            header
+                .contentShape(Rectangle())
+                .gesture(trackSwipeGesture)
+
+            Theme.Palette.border.frame(height: 1)
             waveform
-                .frame(height: 208)
+                .frame(height: Theme.MetricsIOS.waveformHeight)
+            Theme.Palette.border.frame(height: 1)
 
             VStack(spacing: 0) {
-                Spacer(minLength: 0)
-                headerCard
-                Spacer(minLength: 0)
-                controlsCard
-                Spacer(minLength: 0)
-                if let error = store.lastError {
-                    Text(error)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 18)
-                        .padding(.bottom, 8)
-                }
+                tiles
+                Theme.Palette.border.frame(height: 1)
+                Spacer(minLength: 12)
+                transport
+                Spacer(minLength: 12)
+                stars
+                errorLine
+                Spacer(minLength: 12)
             }
-            .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(red: 0.10, green: 0.10, blue: 0.13))
             .contentShape(Rectangle())
             .gesture(trackSwipeGesture)
         }
@@ -81,43 +86,38 @@ struct PlayerScreen: View {
 
     /// Landscape-Layout: vertikale Waveform links, Track-Header mittig,
     /// Steuerelemente rechts. Mini-Player + TabView bleiben unangetastet.
+    /// Feinschliff nach I1-Spec folgt in Schritt 7.
     @ViewBuilder
     private var landscapeBody: some View {
         HStack(spacing: 0) {
             verticalWaveform
                 .frame(width: 140)
+            Theme.Palette.border.frame(width: 1)
 
             VStack(spacing: 0) {
                 Spacer(minLength: 0)
-                headerCard
+                header
                 Spacer(minLength: 0)
-                if let error = store.lastError {
-                    Text(error)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 8)
-                }
+                errorLine
             }
-            .padding(.horizontal, 12)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
             .gesture(trackSwipeGesture)
 
-            VStack {
+            Theme.Palette.border.frame(width: 1)
+            VStack(spacing: 16) {
                 Spacer(minLength: 0)
-                controlsCard
+                tiles
+                transport
+                stars
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 12)
             .frame(width: 360)
             .contentShape(Rectangle())
             .gesture(trackSwipeGesture)
         }
-        .background(Color(red: 0.10, green: 0.10, blue: 0.13))
     }
 
     /// Horizontaler Swipe wechselt den Track: nach links → next, nach rechts
@@ -156,54 +156,72 @@ struct PlayerScreen: View {
         }
     }
 
+    /// Kopfzeile: Cover, Label TRACK, Titel, Artist; rechts Edit/Info.
     @ViewBuilder
-    private var headerCard: some View {
-        VStack(spacing: 12) {
-            ArtworkView(url: store.currentTrack?.url, size: 160, cornerRadius: 14)
-            VStack(spacing: 3) {
+    private var header: some View {
+        HStack(spacing: 12) {
+            ArtworkView(url: store.currentTrack?.url,
+                        size: Theme.MetricsIOS.coverSize,
+                        cornerRadius: Theme.MetricsIOS.coverRadius)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Track")
+                    .themeLabel()
                 Text(displayTitle)
-                    .font(.system(size: 17, weight: .medium))
+                    .font(Theme.TypoIOS.title)
+                    .foregroundStyle(Theme.Palette.text)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Text(displayArtist)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .font(Theme.TypoIOS.artist)
+                    .foregroundStyle(Theme.Palette.textSecondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
-            .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .playerCardStyle()
-    }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-    @ViewBuilder
-    private var controlsCard: some View {
-        VStack(spacing: 16) {
-            transport
-            HStack(spacing: 10) {
-                BPMChipView(
-                    bpm: store.effectiveBPM,
-                    isAnalyzing: store.isAnalyzingCurrentTrack,
-                    isEnabled: hasTrack
-                ) {
-                    showTempoSheet = true
+            Menu {
+                Button {
+                    showTagEditSheet = true
+                } label: {
+                    Label("Edit", systemImage: "pencil")
                 }
-                KeyChipView(key: store.currentTrack?.key,
-                            isAnalyzing: store.isAnalyzingCurrentTrack,
-                            sounding: store.soundingKey)
-                Spacer(minLength: 4)
-                PlayerEditButton { showTagEditSheet = true }
-                    .disabled(!hasTrack)
-                    .opacity(hasTrack ? 1 : 0.4)
-            }
-            BigStarsView(value: store.currentTrack?.rating.stars ?? 0) { newValue in
-                store.setRating(newValue)
+                Button {
+                    showInfoSheet = true
+                } label: {
+                    Label("Info", systemImage: "info.circle")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Theme.Palette.text)
+                    .frame(width: Theme.MetricsIOS.minTouch, height: Theme.MetricsIOS.minTouch)
+                    .contentShape(Rectangle())
             }
             .disabled(!hasTrack)
-            .frame(maxWidth: .infinity, alignment: .center)
+            .opacity(hasTrack ? 1 : 0.4)
         }
-        .playerCardStyle()
+        .padding(.leading, Theme.MetricsIOS.padding)
+        .padding(.trailing, 4)
+        .padding(.vertical, 10)
+    }
+
+    /// BPM- und KEY-Kachel nebeneinander, Trennlinie dazwischen.
+    @ViewBuilder
+    private var tiles: some View {
+        HStack(spacing: 0) {
+            BPMChipView(
+                bpm: store.effectiveBPM,
+                isAnalyzing: store.isAnalyzingCurrentTrack,
+                isEnabled: hasTrack
+            ) {
+                showTempoSheet = true
+            }
+            Theme.Palette.border.frame(width: 1)
+            KeyChipView(key: store.currentTrack?.key,
+                        isAnalyzing: store.isAnalyzingCurrentTrack,
+                        sounding: store.soundingKey)
+        }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder
@@ -222,46 +240,64 @@ struct PlayerScreen: View {
         }
     }
 
+    /// Prev / Next als Quadrate mit Rahmen, Play/Pause als breiter Amber-Block.
     @ViewBuilder
     private var transport: some View {
-        HStack(spacing: 36) {
+        HStack(spacing: 10) {
             Button {
                 store.previous()
             } label: {
                 Image(systemName: "backward.fill")
-                    .font(.system(size: 26))
-                    .foregroundStyle(transportTint)
+                    .font(.system(size: 18))
             }
-            .disabled(!hasTrack)
+            .buttonStyle(ThemeButtonStyle(width: Theme.MetricsIOS.transportSide,
+                                          height: Theme.MetricsIOS.transportHeight))
 
             Button {
                 store.togglePlayPause()
             } label: {
                 Image(systemName: store.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(Color(red: 0.08, green: 0.08, blue: 0.10))
-                    .frame(width: 62, height: 62)
-                    .background(Circle().fill(.orange))
+                    .font(.system(size: 22))
             }
-            .disabled(!hasTrack)
+            .buttonStyle(ThemeButtonStyle(width: Theme.MetricsIOS.transportMain,
+                                          height: Theme.MetricsIOS.transportHeight,
+                                          kind: .prominent))
 
             Button {
                 store.next()
             } label: {
                 Image(systemName: "forward.fill")
-                    .font(.system(size: 26))
-                    .foregroundStyle(transportTint)
+                    .font(.system(size: 18))
             }
-            .disabled(!hasTrack)
+            .buttonStyle(ThemeButtonStyle(width: Theme.MetricsIOS.transportSide,
+                                          height: Theme.MetricsIOS.transportHeight))
         }
-        .buttonStyle(.plain)
+        .disabled(!hasTrack)
+    }
+
+    @ViewBuilder
+    private var stars: some View {
+        BigStarsView(value: store.currentTrack?.rating.stars ?? 0) { newValue in
+            store.setRating(newValue)
+        }
+        .disabled(!hasTrack)
+        .opacity(hasTrack ? 1 : 0.4)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    @ViewBuilder
+    private var errorLine: some View {
+        if let error = store.lastError {
+            Text(error)
+                .font(.footnote)
+                .foregroundStyle(Theme.Palette.issueText)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 18)
+                .padding(.top, 8)
+        }
     }
 
     private var hasTrack: Bool { store.currentTrack != nil }
-
-    private var transportTint: Color {
-        hasTrack ? .primary : .secondary
-    }
 
     private var displayTitle: String {
         store.currentTrack?.displayTitle ?? String(localized: "No track loaded")
@@ -320,8 +356,9 @@ private struct WaveformTicker<Content: View>: View {
     }
 }
 
-/// Vinyl-/Cover-Platzhalter im Mockup-Stil (lila Gradient). Wird gezeigt,
-/// solange echte Artwork noch nicht geladen ist oder der Track keine hat.
+/// Cover-Platzhalter: dunkle Fläche mit Rahmen und Notensymbol. Wird
+/// gezeigt, solange echte Artwork noch nicht geladen ist oder der Track
+/// keine hat.
 struct CoverPlaceholderView: View {
     let size: CGFloat
     let cornerRadius: CGFloat
@@ -329,37 +366,16 @@ struct CoverPlaceholderView: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius)
-            .fill(LinearGradient(
-                colors: [
-                    Color(red: 0.23, green: 0.13, blue: 0.32),
-                    Color(red: 0.35, green: 0.20, blue: 0.48)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            ))
+            .fill(Theme.Palette.surface)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .strokeBorder(Theme.Palette.borderStrong, lineWidth: 1)
+            )
             .frame(width: size, height: size)
             .overlay(
                 Image(systemName: "music.note")
-                    .foregroundStyle(.white.opacity(0.72))
+                    .foregroundStyle(Theme.Palette.textMuted)
                     .font(.system(size: iconSize))
-            )
-    }
-}
-
-private extension View {
-    /// Karten-Hintergrund für die Portrait-Sektionen — dunkler Block mit
-    /// dünnem hellem Border, abgerundete Ecken.
-    func playerCardStyle() -> some View {
-        self
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(red: 0.13, green: 0.13, blue: 0.16))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
-                    )
             )
     }
 }

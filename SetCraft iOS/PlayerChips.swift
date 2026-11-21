@@ -8,10 +8,9 @@
 import SwiftUI
 import SetCraftCore
 
-/// BPM-Chip ohne Border — zeigt das **effektive** BPM (Original × Rate).
-/// Tap öffnet das Tempo-Sheet zur Geschwindigkeits-Anpassung. Kleines
-/// Chevron als Hinweis aufs Interaktive, sonst optisch genauso plain wie
-/// der read-only Key-Chip.
+/// BPM-Kachel — zeigt das **effektive** BPM (Original × Rate) in `accent`.
+/// Antippen öffnet das Tempo-Sheet; das Chevron neben dem Label zeigt an,
+/// dass die Kachel interaktiv ist.
 struct BPMChipView: View {
     let bpm: Double?
     let isAnalyzing: Bool
@@ -19,30 +18,36 @@ struct BPMChipView: View {
     let onTap: () -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "metronome")
-                .foregroundStyle(.orange)
-                .font(.system(size: 16))
-            if isAnalyzing {
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(.secondary)
-            } else {
-                Text(formattedBPM)
-                    .font(.system(size: 16, weight: .medium).monospacedDigit())
+        Button {
+            onTap()
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Text("BPM")
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                }
+                .themeLabel()
+                if isAnalyzing {
+                    ProgressView()
+                        .tint(Theme.Palette.accent)
+                        .frame(height: 36)
+                } else {
+                    Text(formattedBPM)
+                        .font(Theme.TypoIOS.readout)
+                        .foregroundStyle(bpm == nil ? Theme.Palette.textMuted : Theme.Palette.accent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
             }
-            Text("BPM")
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-            Image(systemName: "chevron.down")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+            .padding(.horizontal, Theme.MetricsIOS.padding)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 13)
-        .padding(.vertical, 9)
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.4)
-        .contentShape(Rectangle())
-        .onTapGesture { if isEnabled { onTap() } }
     }
 
     private var formattedBPM: String {
@@ -51,104 +56,78 @@ struct BPMChipView: View {
     }
 }
 
-/// Edit-Button im Chip-Look — eigene Tap-Affordance neben den read-only
-/// BPM- und Key-Chips. Öffnet das `TagEditSheet`.
-struct PlayerEditButton: View {
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 6) {
-                Image(systemName: "pencil")
-                    .foregroundStyle(.orange)
-                    .font(.system(size: 14))
-                Text("Edit")
-                    .font(.system(size: 14, weight: .medium))
-            }
-            .padding(.horizontal, 13)
-            .padding(.vertical, 9)
-            .background(
-                RoundedRectangle(cornerRadius: 9)
-                    .fill(Color(red: 0.13, green: 0.13, blue: 0.15))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 9)
-                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-/// Key-Chip — auf iOS bewusst OHNE Umrandung, weil im Player-Window selbst
-/// nicht editierbar (das Edit fließt über den BPM-Chip → `TagEditSheet`,
-/// dort wird der Key trotzdem gesetzt). Damit hat der Chip rein
-/// informationellen Charakter.
+/// KEY-Kachel — gespielter Key in Camelot-Farbe. Nicht interaktiv; der Key
+/// wird im `TagEditSheet` gesetzt (Player-Kopfzeile → ••• → Edit).
 struct KeyChipView: View {
     let key: CamelotKey?
     let isAnalyzing: Bool
     /// Bei ausgeschaltetem Key-Lock die tatsächlich klingende Tonart —
-    /// dann zeigt der Chip `8A → 9A`. Reiner Anzeigewert.
+    /// dann zeigt die Kachel `8A → 9A`. Reiner Anzeigewert.
     var sounding: SoundingKey? = nil
 
-    /// Warnfarbe für Grenzfälle, wie im Mockup (`#FF9F45`).
-    private static let ambiguousColor = Color(red: 1.0, green: 0.624, blue: 0.271)
-
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "music.note")
-                .foregroundStyle(.secondary)
-                .font(.system(size: 15))
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Key")
+                .themeLabel()
             if isAnalyzing {
                 ProgressView()
-                    .controlSize(.small)
-                    .tint(.secondary)
+                    .tint(Theme.Palette.accent)
+                    .frame(height: 36)
             } else if let sounding, sounding.isShifted {
-                HStack(spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(sounding.original.description)
+                        .font(.system(size: 18, weight: .semibold).monospacedDigit())
                         .foregroundStyle(sounding.original.color.opacity(0.4))
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    if sounding.isAmbiguous {
-                        Text("~").foregroundStyle(Self.ambiguousColor)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.Palette.textMuted)
+                    HStack(alignment: .firstTextBaseline, spacing: 1) {
+                        if sounding.isAmbiguous {
+                            Text(verbatim: "~")
+                                .foregroundStyle(Theme.Palette.keyAmbiguous)
+                        }
+                        Text(sounding.sounding.description)
+                            .foregroundStyle(sounding.sounding.color)
                     }
-                    Text(sounding.sounding.description)
-                        .foregroundStyle(sounding.sounding.color)
+                    .font(Theme.TypoIOS.readout)
                 }
-                .font(.system(size: 16, weight: .medium).monospacedDigit())
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
             } else {
                 Text(key?.description ?? "—")
-                    .font(.system(size: 16, weight: .medium).monospacedDigit())
-                    .foregroundStyle(key?.color ?? .secondary)
+                    .font(Theme.TypoIOS.readout)
+                    .foregroundStyle(key?.color ?? Theme.Palette.textMuted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
         }
-        .padding(.horizontal, 13)
-        .padding(.vertical, 9)
+        .padding(.horizontal, Theme.MetricsIOS.padding)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-/// Fünf große, antippbare Sterne im Mockup-Stil. Tap auf einen bereits
-/// gesetzten Stern setzt das Rating auf 0 zurück (Toggle-Off), damit der
-/// Nutzer ohne extra UI ein Rating wieder entfernen kann.
+/// Fünf große, antippbare Sterne. Tap auf einen bereits gesetzten Stern
+/// setzt das Rating auf 0 zurück (Toggle-Off), damit der Nutzer ohne extra
+/// UI ein Rating wieder entfernen kann.
 struct BigStarsView: View {
     let value: Int
     let onChange: (Int) -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 6) {
             ForEach(1...5, id: \.self) { i in
                 Button {
                     onChange(i == value ? 0 : i)
                 } label: {
                     Image(systemName: i <= value ? "star.fill" : "star")
-                        .font(.system(size: 32))
-                        .foregroundStyle(i <= value ? Color.yellow : Color.secondary.opacity(0.35))
+                        .font(.system(size: Theme.MetricsIOS.bigStar))
+                        .foregroundStyle(i <= value ? Theme.Palette.star : Theme.Palette.starDim)
+                        .frame(width: 48, height: 48)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
         }
     }
 }
-
-
