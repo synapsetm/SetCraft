@@ -1255,12 +1255,12 @@
         }
       }
     },
-    "Tap the menu button in the top right, then “Open folder…”. NAS/SMB shares mounted via the Files app are transparently supported." : {
+    "Tap “Open folder…” to add a music folder. NAS/SMB shares mounted via the Files app are transparently supported." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tippe oben rechts auf das Menü, dann „Ordner öffnen…“. NAS/SMB-Shares aus der Files-App werden transparent unterstützt."
+            "value" : "Tippe auf „Ordner öffnen…“, um einen Musikordner hinzuzufügen. NAS/SMB-Shares aus der Files-App werden transparent unterstützt."
           }
         }
       }

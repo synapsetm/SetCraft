@@ -28,13 +28,16 @@ struct ContentView: View {
                 Label("Library", systemImage: "list.bullet")
             }
             .tag(AppTab.library)
+            .themeTabBar()
 
             PlayerScreen(store: playerStore)
                 .tabItem {
                     Label("Player", systemImage: "waveform")
                 }
                 .tag(AppTab.player)
+                .themeTabBar()
         }
+        .tint(Theme.Palette.accent)
     }
 }
 
@@ -80,27 +83,25 @@ private struct LibraryScreen: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle(libraryStore.selectedFolder?.name ?? "Library")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    sourceMenu
-                    ToolbarItem(placement: .principal) {
-                        if let folder = libraryStore.selectedFolder {
-                            VStack(spacing: 0) {
-                                Text(folder.name)
-                                    .font(.system(size: 14, weight: .medium))
-                                Text(statusLine(for: folder))
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
+                // Eigene Kopfzeile statt Navigationsleiste: iOS 26 legt
+                // Toolbar-Items sonst in Glas-Kapseln, die nicht zum eckigen
+                // Amber-Stil passen.
+                .toolbar(.hidden, for: .navigationBar)
                 .safeAreaInset(edge: .top, spacing: 0) {
-                    MasterTempoBar(masterBPM: Binding(
-                        get: { playerStore.masterBPM },
-                        set: { playerStore.masterBPM = $0 }
-                    ))
+                    VStack(spacing: 0) {
+                        header
+                        Theme.Palette.border.frame(height: 1)
+                        if !libraryStore.folders.isEmpty {
+                            sourceRow
+                            Theme.Palette.border.frame(height: 1)
+                        }
+                        MasterTempoBar(masterBPM: Binding(
+                            get: { playerStore.masterBPM },
+                            set: { playerStore.masterBPM = $0 }
+                        ))
+                        Theme.Palette.border.frame(height: 1)
+                    }
+                    .background(Theme.Palette.background)
                 }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     if playerStore.currentTrack != nil {
@@ -170,7 +171,7 @@ private struct LibraryScreen: View {
         if let folder = libraryStore.selectedFolder {
             trackList(for: folder)
         } else {
-            let baseDesc = String(localized: "Tap the menu button in the top right, then “Open folder…”. NAS/SMB shares mounted via the Files app are transparently supported.")
+            let baseDesc = String(localized: "Tap “Open folder…” to add a music folder. NAS/SMB shares mounted via the Files app are transparently supported.")
             let errorTail = libraryStore.lastError.map { "\n\n⚠️ \($0)" } ?? ""
             ContentUnavailableView {
                 Label("No source selected", systemImage: "folder.badge.plus")
@@ -364,9 +365,95 @@ private struct LibraryScreen: View {
         return libraryStore.isScanning ? "\(count) · scanning…" : count
     }
 
-    @ToolbarContentBuilder
-    private var sourceMenu: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
+    /// Quellenzeile unter dem Kopf: Nummer, Name, Anzahl. Antippen öffnet das
+    /// Quellen-Menü — Auswahl, Entfernen und «Open folder…», die früher im
+    /// Toolbar-Menü lagen (I1-Spec, Funktionsinventar Library).
+    private var sourceRow: some View {
+        Menu {
+            Section("Sources") {
+                ForEach(Array(libraryStore.folders.enumerated()), id: \.element.id) { index, folder in
+                    Button {
+                        Task { await libraryStore.selectFolder(id: folder.id) }
+                    } label: {
+                        let title = "\(Self.sourceNumber(index))  \(folder.name)"
+                        if folder.id == libraryStore.selectedFolderID {
+                            Label { Text(verbatim: title) } icon: { Image(systemName: "checkmark") }
+                        } else {
+                            Text(verbatim: title)
+                        }
+                    }
+                }
+            }
+            Section("Remove") {
+                ForEach(libraryStore.folders) { folder in
+                    Button(role: .destructive) {
+                        Task { await libraryStore.removeFolder(id: folder.id) }
+                    } label: {
+                        Label(folder.name, systemImage: "trash")
+                    }
+                }
+            }
+            Divider()
+            Button {
+                showFolderImporter = true
+            } label: {
+                Label("Open folder…", systemImage: "folder.badge.plus")
+            }
+        } label: {
+            HStack(spacing: 10) {
+                if let folder = libraryStore.selectedFolder {
+                    let index = libraryStore.folders.firstIndex(where: { $0.id == folder.id }) ?? 0
+                    Text(verbatim: Self.sourceNumber(index))
+                        .font(Theme.TypoIOS.bodyNumeric.weight(.semibold))
+                        .foregroundStyle(Theme.Palette.accent)
+                    Text(folder.name)
+                        .font(Theme.TypoIOS.body.weight(.medium))
+                        .foregroundStyle(Theme.Palette.text)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                } else {
+                    Text("No source selected")
+                        .font(Theme.TypoIOS.body)
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                }
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.Palette.textMuted)
+                Spacer(minLength: 8)
+                if let folder = libraryStore.selectedFolder {
+                    Text(statusLine(for: folder))
+                        .themeLabel()
+                        .monospacedDigit()
+                        .lineLimit(1)
+                }
+            }
+            .padding(.horizontal, Theme.MetricsIOS.padding)
+            .frame(minHeight: Theme.MetricsIOS.minTouch)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// «01», «02», … wie die Sidebar der Mac-App.
+    private static func sourceNumber(_ index: Int) -> String {
+        String(format: "%02d", index + 1)
+    }
+
+    /// Kopfzeile: Marke links, Aktionen-Menü rechts.
+    private var header: some View {
+        HStack {
+            Text(verbatim: "SETCRAFT")
+                .font(Theme.TypoIOS.brand)
+                .tracking(Theme.Typo.brandTracking)
+                .foregroundStyle(Theme.Palette.accent)
+            Spacer()
+            actionsMenu
+        }
+        .padding(.leading, Theme.MetricsIOS.padding)
+        .padding(.trailing, 4)
+    }
+
+    private var actionsMenu: some View {
             Menu {
                 Section("Sort by") {
                     ForEach(LibraryStore.SortField.allCases) { field in
@@ -383,32 +470,6 @@ private struct LibraryScreen: View {
                             }
                         }
                     }
-                }
-
-                if !libraryStore.folders.isEmpty {
-                    Section("Sources") {
-                        ForEach(libraryStore.folders) { folder in
-                            Button {
-                                Task { await libraryStore.selectFolder(id: folder.id) }
-                            } label: {
-                                if folder.id == libraryStore.selectedFolderID {
-                                    Label(folder.name, systemImage: "checkmark")
-                                } else {
-                                    Text(folder.name)
-                                }
-                            }
-                        }
-                    }
-                    Section("Remove") {
-                        ForEach(libraryStore.folders) { folder in
-                            Button(role: .destructive) {
-                                Task { await libraryStore.removeFolder(id: folder.id) }
-                            } label: {
-                                Label(folder.name, systemImage: "trash")
-                            }
-                        }
-                    }
-                    Divider()
                 }
 
                 if !libraryStore.tracks.isEmpty {
@@ -432,15 +493,20 @@ private struct LibraryScreen: View {
                         Label("Reset play counts", systemImage: "arrow.counterclockwise.circle")
                     }
                 }
-
-                Button {
-                    showFolderImporter = true
-                } label: {
-                    Label("Open folder…", systemImage: "folder.badge.plus")
-                }
             } label: {
-                Image(systemName: "ellipsis.circle")
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Theme.Palette.text)
+                    .frame(width: Theme.MetricsIOS.minTouch, height: Theme.MetricsIOS.minTouch)
+                    .contentShape(Rectangle())
             }
-        }
+    }
+}
+
+private extension View {
+    /// Tab-Leiste im Theme: Hintergrund wie die App, aktiver Tab über `.tint`.
+    func themeTabBar() -> some View {
+        self.toolbarBackground(Theme.Palette.background, for: .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
     }
 }

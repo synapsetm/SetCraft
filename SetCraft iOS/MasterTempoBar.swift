@@ -25,25 +25,23 @@ struct MasterTempoBar: View {
             HStack(spacing: 10) {
                 Image(systemName: "metronome")
                     .font(.system(size: 14))
-                    .foregroundStyle(isOn ? .orange : .secondary)
-
-                Text(isOn ? String(format: "%.1f", masterBPM ?? 0) : "—")
-                    .font(.system(size: 15, weight: .medium).monospacedDigit())
-                    .foregroundStyle(isOn ? .primary : .secondary)
-                    .frame(minWidth: 52, alignment: .leading)
+                    .foregroundStyle(isOn ? Theme.Palette.accent : Theme.Palette.textMuted)
 
                 Text("Master BPM")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .themeLabel()
+
+                Text(isOn ? String(format: "%.1f", masterBPM ?? 0) : "—")
+                    .font(Theme.TypoIOS.bodyNumeric.weight(.semibold))
+                    .foregroundStyle(isOn ? Theme.Palette.accent : Theme.Palette.textMuted)
+                    .frame(minWidth: 52, alignment: .leading)
 
                 Spacer()
 
                 Button(isOn ? "Off" : "On") {
                     masterBPM = isOn ? nil : Self.defaultBPM
                 }
-                .font(.system(size: 12, weight: .medium))
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .buttonStyle(ThemeButtonStyle(width: 64, height: Self.controlHeight,
+                                              kind: isOn ? .standard : .accentOutline))
             }
 
             if isOn {
@@ -53,8 +51,7 @@ struct MasterTempoBar: View {
                     } label: {
                         Image(systemName: "minus")
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .buttonStyle(ThemeButtonStyle(width: Self.controlHeight, height: Self.controlHeight))
 
                     Slider(
                         value: Binding(
@@ -64,27 +61,29 @@ struct MasterTempoBar: View {
                         in: Self.range,
                         step: 0.5
                     )
-                    .tint(.orange)
+                    .tint(Theme.Palette.accent)
 
                     Button {
                         adjust(by: 0.5)
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .buttonStyle(ThemeButtonStyle(width: Self.controlHeight, height: Self.controlHeight))
                 }
 
                 Text("Every track opens at this tempo — keys shift with it.")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                    .font(Theme.TypoIOS.rowDetail)
+                    .foregroundStyle(Theme.Palette.textMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(.bar)
+        .padding(.horizontal, Theme.MetricsIOS.padding)
+        .padding(.vertical, 6)
+        .background(Theme.Palette.background)
     }
+
+    /// Touch-Ziel nach I1-Spec: mindestens 44 pt.
+    private static let controlHeight: CGFloat = Theme.MetricsIOS.minTouch
 
     private func adjust(by delta: Double) {
         let current = masterBPM ?? Self.defaultBPM
