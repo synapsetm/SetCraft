@@ -271,7 +271,7 @@ TestFlight.
 | TagLib | 2.3.2 | LGPLv2.1 / MPL | static | LGPL: relinking rights, satisfied by the published build script + sources | `Vendor/TagLib/build-taglib.sh` |
 | utfcpp | 4.1.1 | Boost SL 1.0 | header-only, inside TagLib | permissive, attribution only | About panel |
 | GRDB.swift | 7.x | MIT | SwiftPM | permissive, attribution only | About panel |
-| Sparkle | 2.9.x | MIT | SwiftPM (macOS only) | permissive, attribution only | About panel |
+| Sparkle | 2.10.x | MIT | SwiftPM (macOS only) | permissive, attribution only | About panel |
 | AVFoundation, Accelerate, Metal | — | Apple system frameworks | dynamic | system libraries, no obligation | — |
 
 Source availability (GPL §6): the repository is public, and the vendor build
