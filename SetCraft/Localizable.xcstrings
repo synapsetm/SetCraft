@@ -1013,12 +1013,12 @@
         }
       }
     },
-    "Choose which audio formats open in SetCraft when you double-click them in the Finder." : {
+    "Choose which audio formats and playlists open in SetCraft when you double-click them in the Finder." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wähle, welche Audioformate sich per Doppelklick im Finder in SetCraft öffnen."
+            "value" : "Wähle, welche Audioformate und Playlists sich per Doppelklick im Finder in SetCraft öffnen."
           }
         }
       }

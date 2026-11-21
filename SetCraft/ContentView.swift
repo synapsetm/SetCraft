@@ -504,6 +504,11 @@ struct ContentView: View {
     /// die Original-Werte der Chips nachgereicht (`player.load(url:)` allein
     /// kennt die Tags nicht).
     private func openExternalFile(_ url: URL) {
+        // Eine Playlist wird Quelle, nicht Track — nichts in den Player laden.
+        if UTType(filenameExtension: url.pathExtension)?.conforms(to: .m3uPlaylist) == true {
+            Task { await library.handleExternallyOpenedPlaylist(url) }
+            return
+        }
         let loading = player.load(url: url)
         Task {
             guard let track = await library.handleExternallyOpenedFile(url) else { return }

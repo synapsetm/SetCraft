@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Sheet „Standard-Player": zeigt pro Audioformat die aktuelle Standard-App
+/// Sheet „Standard-Player": zeigt pro Audioformat (und für M3U) die aktuelle Standard-App
 /// im Finder und setzt auf Wunsch SetCraft. Logik in `DefaultPlayerAssociation`.
 struct DefaultPlayerSheet: View {
 
@@ -13,7 +13,7 @@ struct DefaultPlayerSheet: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Default player")
                     .themeSheetTitle()
-                Text("Choose which audio formats open in SetCraft when you double-click them in the Finder.")
+                Text("Choose which audio formats and playlists open in SetCraft when you double-click them in the Finder.")
                     .foregroundStyle(Theme.Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

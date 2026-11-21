@@ -354,6 +354,15 @@ final class LibraryViewModel {
         }
     }
 
+    /// Doppelklick auf eine M3U im Finder (SetCraft als Standard-App).
+    /// Wie bei Audiodateien erst die gespeicherten Quellen laden — sonst
+    /// legte der Kaltstart eine schon bekannte Playlist doppelt an.
+    func handleExternallyOpenedPlaylist(_ url: URL) async {
+        restoreSavedFolders()
+        await restoreTask?.value
+        importPlaylist(url.standardizedFileURL)
+    }
+
     /// Nimmt die M3U als Quelle auf. Ist sie schon da, wird nur umgeschaltet.
     /// Das Bookmark auf die Datei reicht, um sie nach einem Neustart wieder zu
     /// lesen; die Musik selbst kommt über die Ordnerquellen.

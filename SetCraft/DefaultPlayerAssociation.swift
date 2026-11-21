@@ -2,7 +2,8 @@ import AppKit
 import Observation
 import UniformTypeIdentifiers
 
-/// Verknüpft die abspielbaren Audioformate im Finder mit SetCraft.
+/// Verknüpft die abspielbaren Audioformate und M3U-Playlists im Finder mit
+/// SetCraft.
 ///
 /// Die `Info.plist` meldet SetCraft nur als `Alternate`-Handler an — damit
 /// steht die App unter „Öffnen mit", wird aber nie von selbst Standard. Das
@@ -20,12 +21,25 @@ final class DefaultPlayerAssociation {
         /// Anzeigename, z. B. „MP3" — in allen Sprachen gleich.
         let id: String
         let extensions: [String]
+        /// Obertyp für die Auflösung der Endungen. Eine M3U ist kein
+        /// `public.audio` — gegen `.audio` aufgelöst käme ein dynamischer
+        /// Typ heraus, den LaunchServices nie nachschlägt.
+        var conformingTo: UTType = .audio
 
         /// Der UTType, den LaunchServices pro Endung tatsächlich nachschlägt
         /// (`.m4a` → `com.apple.m4a-audio`, nicht das allgemeinere
         /// `public.mpeg-4-audio`).
+        /// `.m3u` und `.m3u8` landen beide bei `public.m3u-playlist` —
+        /// deshalb ohne Duplikate.
         var types: [UTType] {
-            extensions.compactMap { UTType(filenameExtension: $0, conformingTo: .audio) }
+            var result: [UTType] = []
+            for ext in extensions {
+                if let type = UTType(filenameExtension: ext, conformingTo: conformingTo),
+                   !result.contains(type) {
+                    result.append(type)
+                }
+            }
+            return result
         }
     }
 
@@ -43,7 +57,8 @@ final class DefaultPlayerAssociation {
         Format(id: "AAC / ALAC", extensions: ["m4a", "aac"]),
         Format(id: "FLAC", extensions: ["flac"]),
         Format(id: "WAV", extensions: ["wav"]),
-        Format(id: "AIFF", extensions: ["aif", "aiff", "aifc"])
+        Format(id: "AIFF", extensions: ["aif", "aiff", "aifc"]),
+        Format(id: "M3U / M3U8", extensions: ["m3u", "m3u8"], conformingTo: .m3uPlaylist)
     ]
 
     private(set) var rows: [Row] = []
