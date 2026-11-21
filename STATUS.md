@@ -116,10 +116,10 @@ Letzte Aktualisierung: 2026-11-21 (Mac v1.5-26; iOS 1.3-40 in TestFlight).
   `SetCraftCore` (`.macOS(.v14)` / `.iOS(.v17)`), die deutlich unter dem
   Deployment-Target der Apps (26.5) liegt und dort moderne APIs nur mit
   `#available` zugänglich macht.
-- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 233 Tests
+- **Tests:** `swift test` im `SetCraftCore`-Paket grün — 306 Tests
   (BPM/Key/Rating/Waveform/Waveform-Streaming/Ordner-Scan/Security-Scope/
   Mix-Heuristik/Dateinamen-Parser/Ordner-Schema/Zwillings-Abgleich/
-  Vorschlagskette/Discogs).
+  Vorschlagskette/Discogs/M3U-Parser und -Writer/Playlist-Auflösung/Relink).
 - **Build (Mac):** `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
   xcodebuild -project SetCraft.xcodeproj -scheme SetCraft -destination
   'platform=macOS' build` — sauber.
@@ -178,6 +178,43 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
   Möglich, weil sich auf eine von aussen gereichte Datei ein Security-Scoped
   Bookmark erzeugen lässt — auf ihr *Verzeichnis* dagegen nicht, das bräuchte
   eine explizite Freigabe per Picker.
+
+### M3U-Playlists (Mac, seit 2026-11-21, noch unreleased)
+
+Spec: `docs/design/M3U-spec.md`, Stufe 1 (nur lesen + Export).
+
+- **Import als Quelle:** Sidebar-Symbol neben „Add folder…" bzw. Datei-Menü.
+  Bookmark auf die M3U, die nie verändert wird. Spalte „#" nach der
+  Status-Spalte, nur bei Playlists; Standard-Sortierung Playlist-Reihenfolge.
+  Parser: UTF-8/BOM, Windows-1252 für `.m3u`, CR/LF/CRLF, `#EXTINF`, relative,
+  absolute, `file://`-, Windows- und http-Pfade.
+- **Zugriff:** `temporary-exception.files.absolute-path.read-write` für
+  `/Volumes/` — Tracks auf NAS/USB laden ohne Ordner-Dialog, macOS fragt einmal
+  per TCC nach Netzwerk-Volumes. Für Pfade auf der internen Platte bleibt der
+  Freigabe-Dialog (einmal pro Sitzung, danach Knopf „Zugriff erlauben…" in der
+  Statuszeile); nur die betroffenen Zeilen werden neu aufgelöst. Die Sandbox
+  meldet für Pfade ausserhalb der Freigaben `EPERM` (geprüft), daran
+  unterscheidet der Resolver „kein Zugriff" von „fehlt".
+- **Fehlende Einträge** bleiben ausgegraut in der Liste (Symbol + Pfad im
+  Tooltip), ohne Save, Analyse, Player und Sammelaktionen. Statuszeile
+  „63 TRACKS · 2 FEHLEND · 1 OHNE ZUGRIFF". Relink im Core vorhanden
+  (Pfad-Schwanz, Dateiname, NFC/case-normalisiert; automatisch bei genau einem
+  Treffer), die Relink-Oberfläche (Auswahl, „Locate…", Hinweis) ist **3b,
+  zurückgestellt**.
+- **Duplikate** in einer Playlist sind eigene Zeilen; ein Edit wird auf alle
+  Zeilen derselben Datei gespiegelt.
+- **Export als M3U8** (••• → „Als M3U8 exportieren…", jede Quelle): sichtbare
+  Liste in aktueller Sortierung bzw. Auswahl, Pfade absolut oder relativ zur
+  Playlist, Abschlussdialog mit übersprungenen Einträgen und absoluten
+  Fallbacks. Dauer gerundet (Rekordbox schneidet ab, 1 s Unterschied).
+- **Abnahme 2026-11-21:** Rekordbox-Export (M3U8, „DnB 2026", 63 Tracks)
+  importiert; Export sortiert und als Auswahl geprüft (kein BOM, LF);
+  Re-Import in SetCraft mit gleicher Reihenfolge; **Serato-Import ok**.
+  **Offen:** Import in Rekordbox — dort war der Import-Menüpunkt beim Test
+  deaktiviert (Bedienung, nicht SetCraft). Traktor-Export nur als
+  nachgebaute Fixture getestet. Erst nach dem Rekordbox-Import im README als
+  kompatibel bezeichnen.
+- **iOS:** noch nicht umgesetzt (dort immer über Relink, Spec §2).
 
 ### Tag-Ergänzung aus Dateinamen (beide Plattformen)
 Für Tracks ohne saubere Artist/Title-Tags. Vier Stufen, jede darf die vorige
@@ -1013,7 +1050,9 @@ Serialisierung, Active-Track-Guard).
 
 - **iCloud-Sync der Library** zwischen Mac und iPhone (App Group + CloudKit).
 - **WAV-Tagging** tiefer lösen (aktuell nur UI-Warnung).
-- **Crates / Playlists / Suche / History** (SQLite-Basis steht).
+- **Crates / Playlists / Suche / History** (SQLite-Basis steht). M3U Stufe 1
+  auf dem Mac steht (s. o.); offen: Relink-Oberfläche (3b), iOS, Stufe 2
+  (Playlists bearbeiten und zurückschreiben).
 - **Metal-Renderer** für die Waveform (Canvas reicht aktuell).
 - **Live-Activities** (iOS) für die Wiedergabe.
 - **Multi-Source-Aggregation** („Alle Tracks" über mehrere Ordner).

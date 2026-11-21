@@ -290,6 +290,14 @@ struct LibraryView: View {
                 }
                 .disabled(library.folderURL == nil || library.tracks.isEmpty)
                 .help("Reset the play counter for every track in this source")
+
+                Divider()
+
+                Button("Export as M3U8…", systemImage: "square.and.arrow.up") {
+                    library.exportPlaylist()
+                }
+                .disabled(library.tracks.isEmpty || library.isScanning)
+                .help("Save the visible list, or the selection, as an M3U8 playlist")
             } label: {
                 Label("More actions", systemImage: "ellipsis")
                     .labelStyle(.iconOnly)

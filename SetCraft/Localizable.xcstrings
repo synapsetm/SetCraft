@@ -714,6 +714,126 @@
         }
       }
     },
+    "Export as M3U8…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Als M3U8 exportieren…"
+          }
+        }
+      }
+    },
+    "Save the visible list, or the selection, as an M3U8 playlist" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sichtbare Liste oder Auswahl als M3U8-Playlist sichern"
+          }
+        }
+      }
+    },
+    "Export playlist" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist exportieren"
+          }
+        }
+      }
+    },
+    "Paths:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pfade:"
+          }
+        }
+      }
+    },
+    "Absolute" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Absolut"
+          }
+        }
+      }
+    },
+    "Relative to playlist" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relativ zur Playlist"
+          }
+        }
+      }
+    },
+    "Nothing to export" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nichts zu exportieren"
+          }
+        }
+      }
+    },
+    "The list contains no tracks with a file." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Liste enthält keine Tracks mit Datei."
+          }
+        }
+      }
+    },
+    "Could not save the playlist: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist konnte nicht gesichert werden: %@"
+          }
+        }
+      }
+    },
+    "Exported %lld tracks to “%@”." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld Tracks nach „%2$@“ exportiert."
+          }
+        }
+      }
+    },
+    "%lld entries without a file were skipped." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Einträge ohne Datei wurden übersprungen."
+          }
+        }
+      }
+    },
+    "%lld tracks are on another volume and were written with absolute paths." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Tracks liegen auf einem anderen Volume und wurden mit absolutem Pfad geschrieben."
+          }
+        }
+      }
+    },
     "About SetCraft" : {
       "localizations" : {
         "de" : {

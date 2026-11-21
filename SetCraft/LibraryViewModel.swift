@@ -620,6 +620,108 @@ final class LibraryViewModel {
         }
     }
 
+    // MARK: - Export als M3U8
+
+    /// Exportiert die angezeigte Liste in der aktuellen Sortierung als M3U8;
+    /// ist eine Auswahl aktiv, nur die Auswahl. Einträge ohne Datei werden
+    /// übersprungen und im Abschlussdialog gezählt. Geschrieben werden die
+    /// Werte aus dem Tag (Artist, Titel, Dauer) — nie Wiedergabewerte.
+    func exportPlaylist() {
+        let visible = visibleTracks
+        let chosen = selectedTrackIDs.isEmpty
+            ? visible
+            : visible.filter { selectedTrackIDs.contains($0.id) }
+        let items = chosen.map { track in
+            var item = M3UWriter.Item(track: track)
+            if isUnavailable(track) { item.url = nil }
+            return item
+        }
+        guard items.contains(where: { $0.url != nil }) else {
+            let alert = NSAlert()
+            alert.messageText = String(localized: "Nothing to export")
+            alert.informativeText = String(localized: "The list contains no tracks with a file.")
+            alert.runModal()
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.title = String(localized: "Export playlist")
+        let baseName = folders.first(where: { $0.id == selectedFolderID })?.name ?? "Playlist"
+        panel.nameFieldStringValue = baseName + ".m3u8"
+        panel.canCreateDirectories = true
+
+        let relativeKey = "m3uExport.relativePaths"
+        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
+        popup.addItems(withTitles: [
+            String(localized: "Absolute"),
+            String(localized: "Relative to playlist")
+        ])
+        popup.selectItem(at: UserDefaults.standard.bool(forKey: relativeKey) ? 1 : 0)
+        let label = NSTextField(labelWithString: String(localized: "Paths:"))
+        let row = NSStackView(views: [label, popup])
+        row.orientation = .horizontal
+        row.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        panel.accessoryView = row
+
+        guard panel.runModal() == .OK, var target = panel.url else { return }
+        if !["m3u8", "m3u"].contains(target.pathExtension.lowercased()) {
+            target.appendPathExtension("m3u8")
+        }
+        let relative = popup.indexOfSelectedItem == 1
+        UserDefaults.standard.set(relative, forKey: relativeKey)
+
+        let result = M3UWriter.write(items, pathStyle: relative ? .relative(toPlaylistAt: target) : .absolute)
+        Task { [weak self, target, result] in
+            let error = await Self.writeExport(result.data, to: target)
+            self?.showExportSummary(result, target: target, error: error)
+        }
+    }
+
+    /// Eigene Queue fürs Schreiben: das Ziel kann auf dem NAS liegen.
+    private nonisolated static let exportQueue = DispatchQueue(label: "ch.buehler.beat.SetCraft.m3u-export", qos: .userInitiated)
+
+    /// Atomar, wenn möglich. Die Sandbox gibt bei einem Save-Panel nur die
+    /// Zieldatei frei; scheitert die Temp-Datei daneben, wird direkt
+    /// geschrieben. Die M3U ist eine neue bzw. vom Nutzer zum Überschreiben
+    /// bestätigte Datei, keine Musikdatei.
+    private nonisolated static func writeExport(_ data: Data, to url: URL) async -> Error? {
+        await withCheckedContinuation { continuation in
+            exportQueue.async {
+                do {
+                    try data.write(to: url, options: .atomic)
+                    continuation.resume(returning: nil)
+                } catch {
+                    do {
+                        try data.write(to: url)
+                        continuation.resume(returning: nil)
+                    } catch {
+                        continuation.resume(returning: error)
+                    }
+                }
+            }
+        }
+    }
+
+    private func showExportSummary(_ result: M3UWriter.Result, target: URL, error: Error?) {
+        let alert = NSAlert()
+        if let error {
+            alert.alertStyle = .warning
+            alert.messageText = String(localized: "Could not save the playlist: \(error.localizedDescription)")
+            alert.runModal()
+            return
+        }
+        alert.messageText = String(localized: "Exported \(result.writtenCount) tracks to “\(target.lastPathComponent)”.")
+        var notes: [String] = []
+        if result.skippedMissingCount > 0 {
+            notes.append(String(localized: "\(result.skippedMissingCount) entries without a file were skipped."))
+        }
+        if result.absoluteFallbackCount > 0 {
+            notes.append(String(localized: "\(result.absoluteFallbackCount) tracks are on another volume and were written with absolute paths."))
+        }
+        alert.informativeText = notes.joined(separator: "\n")
+        alert.runModal()
+    }
+
     // MARK: - Externes Öffnen (Finder / Standard-Player / Drop)
 
     /// Verarbeitet eine Datei, die von aussen hereingereicht wurde (Finder-
