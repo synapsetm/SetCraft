@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SetCraft iOS — Library</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#1a1916;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif}
+.frame{background:#000;border:1px solid #2c2c2e;border-radius:44px;padding:8px}
+.scr{background:#0d0c0a;border-radius:36px;overflow:hidden;height:620px;width:300px;position:relative;display:flex;flex-direction:column;color:#ECE6DA}
+.sb{display:flex;justify-content:space-between;align-items:center;padding:10px 22px 4px;font-size:12px;font-weight:500}
+.sb span:last-child{display:flex;gap:5px;font-size:13px}
+.lab{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#8A8478}
+.amb{color:#F0AE3C}
+.ob{border:1px solid rgba(255,255,255,0.16);border-radius:3px;padding:6px 9px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer}
+.ob.pri{border-color:#F0AE3C;color:#F0AE3C}
+.ob.fill{background:#F0AE3C;border-color:#F0AE3C;color:#141210;font-weight:500}
+.tabs{display:flex;border-top:1px solid rgba(255,255,255,0.08);padding:8px 0 2px}
+.tab{flex:1;text-align:center;font-size:9.5px;letter-spacing:.14em;color:#6E685E;display:flex;flex-direction:column;align-items:center;gap:4px}
+.tab.on{color:#F0AE3C}
+.home{height:5px;width:118px;background:#3a3631;border-radius:3px;margin:6px auto 9px}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cap{color:#8a8478;font-size:13px;margin-top:14px;text-align:center;max-width:340px;line-height:1.5}
+</style>
+<style>
+.row{position:relative;overflow:hidden;border-bottom:1px solid rgba(255,255,255,0.05)}
+.act{position:absolute;top:0;right:0;bottom:0;width:86px;background:#F0AE3C;color:#141210;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9.5px;letter-spacing:.12em;font-weight:500;cursor:pointer}
+.fg{position:relative;background:#0d0c0a;display:flex;align-items:center;gap:9px;padding:8px 14px;transition:transform .18s;touch-action:none;cursor:grab}
+.menu{position:absolute;top:96px;z-index:30;width:212px;background:#1c1a17;border:1px solid rgba(255,255,255,0.14);border-radius:4px;padding:4px 0;display:none}
+.mi{display:flex;align-items:center;gap:10px;padding:9px 13px;font-size:12.5px;cursor:pointer}
+.mi:hover{background:rgba(255,255,255,0.05)}
+.mi i{font-size:16px;color:#8A8478}
+</style></head><body>
+<div class="frame"><div class="scr">
+  <div class="sb"><span>9:41</span><span><i class="ti ti-antenna-bars-5"></i><i class="ti ti-wifi"></i><i class="ti ti-battery-3"></i></span></div>
+  <div style="padding:4px 16px 0;display:flex;align-items:center;justify-content:space-between">
+    <span class="amb" style="font-size:11px;letter-spacing:.22em;font-weight:500">SETCRAFT</span>
+    <i id="dots" class="ti ti-dots" style="font-size:19px;color:#8A8478;cursor:pointer"></i>
+  </div>
+  <div id="srcBtn" style="padding:8px 16px 10px;display:flex;align-items:baseline;gap:7px;cursor:pointer">
+    <span class="amb" style="font-size:13px;font-variant-numeric:tabular-nums">01</span>
+    <span style="font-size:17px;font-weight:500" class="ell">_INCOMING Traxx</span>
+    <i class="ti ti-chevron-down" style="font-size:14px;color:#8A8478"></i>
+    <span class="lab" style="margin-left:auto">105 tracks</span>
+  </div>
+  <div id="srcMenu" class="menu" style="left:14px;top:84px">
+    <div class="lab" style="padding:7px 13px 4px">Sources</div>
+    <div class="mi" style="justify-content:space-between;box-shadow:inset 2px 0 0 #F0AE3C"><span><span class="amb">01</span>&nbsp; _INCOMING Traxx</span><i class="ti ti-trash"></i></div>
+    <div class="mi" style="justify-content:space-between"><span><span style="color:#8A8478">02</span>&nbsp; Life Memories, Vol. 1</span><i class="ti ti-trash"></i></div>
+    <div class="mi" style="justify-content:space-between"><span><span style="color:#8A8478">03</span>&nbsp; Eli Brown - Panic Att…</span><i class="ti ti-trash"></i></div>
+    <div style="height:1px;background:rgba(255,255,255,0.08);margin:4px 0"></div>
+    <div class="mi"><i class="ti ti-plus" style="color:#F0AE3C"></i>Add folder…</div>
+  </div>
+  <div id="menu" class="menu" style="right:14px;top:30px">
+    <div class="mi"><i class="ti ti-file-music"></i>Open file…</div>
+    <div style="height:1px;background:rgba(255,255,255,0.08);margin:4px 0"></div>
+    <div class="mi"><i class="ti ti-reload"></i>Re-analyze all</div>
+    <div class="mi"><i class="ti ti-tags"></i>Complete tags</div>
+    <div class="mi"><i class="ti ti-chart-bar"></i>BPM range: 75–185</div>
+    <div class="mi"><i class="ti ti-rotate"></i>Reset plays</div>
+  </div>
+  <div style="padding:0 16px 10px;display:flex;gap:7px">
+    <div style="flex:1;display:flex;align-items:center;gap:7px;background:#171512;border:1px solid rgba(255,255,255,0.08);border-radius:3px;padding:7px 9px;font-size:12px;color:#6E685E"><i class="ti ti-search" style="font-size:14px"></i>Filter tracks</div>
+    <div class="ob pri"><i class="ti ti-wand" style="font-size:12px"></i>Analyze 8</div>
+  </div>
+  <div style="display:flex;justify-content:space-between;padding:6px 14px;border-top:1px solid rgba(255,255,255,0.07);border-bottom:1px solid rgba(255,255,255,0.07)">
+    <span class="lab">Artist <i class="ti ti-arrow-up" style="font-size:9px"></i></span><span class="lab">BPM · Key</span>
+  </div>
+  <div id="lib" style="flex:1;overflow:hidden"></div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#171512;border-top:1px solid rgba(255,255,255,0.08)">
+    <div style="width:34px;height:34px;border-radius:3px;background:#22301f;display:flex;align-items:center;justify-content:center;color:#7DC850;flex:none"><i class="ti ti-vinyl"></i></div>
+    <div style="min-width:0;flex:1"><div class="ell" style="font-size:12px;font-weight:500">Ajna (IKØN Remix)</div><div style="font-size:10px;color:#8A8478">One Function · <span class="amb">145.5</span> · <span style="color:#4CD964">1A</span></div></div>
+    <div style="width:34px;height:30px;background:#F0AE3C;color:#141210;border-radius:3px;display:flex;align-items:center;justify-content:center"><i class="ti ti-player-pause"></i></div>
+  </div>
+  <div class="tabs"><div class="tab on"><i class="ti ti-list-details" style="font-size:19px"></i>LIBRARY</div><div class="tab"><i class="ti ti-wave-sine" style="font-size:19px"></i>PLAYER</div></div>
+  <div class="home"></div>
+</div></div>
+<div class="cap">Library — tap the source name and ••• · swipe a track left for ANALYZE</div>
+<script>
+(function(){
+  var KC={"1A":"#4CD964","4A":"#4A8DF0","5A":"#4D5BF0","7A":"#C75BE0","10B":"#F0AE3C","11A":"#C9D24A","12A":"#7DC850","3A":"#2BC4C4"};
+  var rows=[
+    {a:"One Function",t:"Back to My Roots (Original Mix)",b:"143.9",k:"4A",r:4},
+    {a:"One Function",t:"Ajna (IKØN Remix)",b:"145.5",k:"1A",r:4,p:1},
+    {a:"Oneliner",t:"Beyond Resonance (Original Mix)",b:"148.9",k:"1A",r:4},
+    {a:"Outsiders & Volcano On Mars",t:"Conversations (Original Mix)",b:"148.4",k:"1A",r:3},
+    {a:"P Money x Whiney",t:"Photo Finish",b:"178.9",k:"7A",r:3},
+    {a:"Pablo Say",t:"Recognize",b:"130.7",k:"12A",r:3},
+    {a:"Pan-Pot",t:"Kaltstrom",b:"141.6",k:"5A",r:4},
+    {a:"Paul van Dyk",t:"For An Angel (Phaxe Remix)",b:"147.6",k:"10B",r:5},
+    {a:"Paula van Klar",t:"The Finest (Original Mix)",b:"142.8",k:"3A",r:5}
+  ];
+  var h='';
+  rows.forEach(function(x){
+    var st='';for(var i=1;i<=5;i++)st+='<i class="ti ti-star" style="font-size:9px;color:'+(i<=x.r?'#F0AE3C':'#3a3631')+'"></i>';
+    h+='<div class="row"><div class="act"><i class="ti ti-wand" style="font-size:17px"></i>ANALYZE</div>'
+      +'<div class="fg"><div style="width:10px;color:#F0AE3C;font-size:10px">'+(x.p?'▶':'')+'</div>'
+      +'<div style="min-width:0;flex:1"><div class="ell" style="font-size:12.5px;font-weight:500;'+(x.p?'color:#F0AE3C':'')+'">'+x.t+'</div>'
+      +'<div class="ell" style="font-size:11px;color:#8A8478;margin-top:1px">'+x.a+'</div><div style="margin-top:3px">'+st+'</div></div>'
+      +'<div style="text-align:right;flex:none"><div style="font-size:13px;font-variant-numeric:tabular-nums">'+x.b+'</div>'
+      +'<div style="font-size:12px;font-weight:500;margin-top:2px;color:'+(KC[x.k]||'#B8B0A2')+'">'+x.k+'</div></div></div></div>';
+  });
+  var lib=document.getElementById('lib');lib.innerHTML=h;
+  [].forEach.call(lib.querySelectorAll('.row'),function(w,idx){
+    var fg=w.querySelector('.fg'),act=w.querySelector('.act');fg._o=0;var d=false,sx=0,so=0,mv=false;
+    fg.addEventListener('pointerdown',function(e){d=true;mv=false;sx=e.clientX;so=fg._o;fg.style.transition='none';fg.setPointerCapture(e.pointerId);});
+    fg.addEventListener('pointermove',function(e){if(!d)return;var dx=e.clientX-sx;if(Math.abs(dx)>4)mv=true;fg._o=Math.max(-86,Math.min(0,so+dx));fg.style.transform='translateX('+fg._o+'px)';});
+    fg.addEventListener('pointerup',function(){d=false;fg.style.transition='transform .18s';if(mv){fg._o=fg._o<-43?-86:0;fg.style.transform='translateX('+fg._o+'px)';}});
+    act.addEventListener('click',function(){fg._o=0;fg.style.transform='translateX(0)';});
+    if(idx===4){fg._o=-86;fg.style.transform='translateX(-86px)';}
+  });
+  var sm=document.getElementById('srcMenu'),m=document.getElementById('menu');
+  function hide(){sm.style.display='none';m.style.display='none';}
+  document.getElementById('srcBtn').addEventListener('click',function(e){e.stopPropagation();var o=sm.style.display==='block';hide();if(!o)sm.style.display='block';});
+  document.getElementById('dots').addEventListener('click',function(e){e.stopPropagation();var o=m.style.display==='block';hide();if(!o)m.style.display='block';});
+  [sm,m].forEach(function(x){x.addEventListener('click',function(e){e.stopPropagation();});});
+  document.addEventListener('click',hide);
+})();
+</script></body></html>

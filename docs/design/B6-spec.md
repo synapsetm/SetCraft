@@ -18,7 +18,7 @@ Umgesetzter Stand (2026-11-15): `docs/screenshots/mac/main.png`
   (Ausnahme: Dateinamen/Pfade in MetadataFixSheet).
 - Camelot-Farben: bestehendes `CamelotKey.color` (SetCraftCore) unverändert lassen.
   Grenzfall-Farbe (Tilde) aus `Theme.Palette.keyAmbiguous` statt Inline-Wert in `SoundingKeyLabel`.
-- iOS-Target bleibt vorerst unverändert.
+- iOS-Target: eigenes Redesign I1, siehe `docs/design/I1-spec.md`.
 
 ## Layout (oben → unten)
 1. **Header** (Höhe ~40): links «SETCRAFT» (`Typo.brand`, Tracking 2.1, Farbe `accent`);

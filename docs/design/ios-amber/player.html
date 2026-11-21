@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SetCraft iOS — Player</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#1a1916;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif}
+.frame{background:#000;border:1px solid #2c2c2e;border-radius:44px;padding:8px}
+.scr{background:#0d0c0a;border-radius:36px;overflow:hidden;height:620px;width:300px;position:relative;display:flex;flex-direction:column;color:#ECE6DA}
+.sb{display:flex;justify-content:space-between;align-items:center;padding:10px 22px 4px;font-size:12px;font-weight:500}
+.sb span:last-child{display:flex;gap:5px;font-size:13px}
+.lab{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#8A8478}
+.amb{color:#F0AE3C}
+.ob{border:1px solid rgba(255,255,255,0.16);border-radius:3px;padding:6px 9px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer}
+.ob.pri{border-color:#F0AE3C;color:#F0AE3C}
+.ob.fill{background:#F0AE3C;border-color:#F0AE3C;color:#141210;font-weight:500}
+.tabs{display:flex;border-top:1px solid rgba(255,255,255,0.08);padding:8px 0 2px}
+.tab{flex:1;text-align:center;font-size:9.5px;letter-spacing:.14em;color:#6E685E;display:flex;flex-direction:column;align-items:center;gap:4px}
+.tab.on{color:#F0AE3C}
+.home{height:5px;width:118px;background:#3a3631;border-radius:3px;margin:6px auto 9px}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cap{color:#8a8478;font-size:13px;margin-top:14px;text-align:center;max-width:340px;line-height:1.5}
+</style>
+<style>
+.tile{padding:9px 14px 10px;display:flex;align-items:baseline;justify-content:space-between}
+.tv{font-size:30px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.sq{width:56px;height:46px;border:1px solid rgba(255,255,255,0.16);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:19px}
+.tl{position:absolute;font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;background:rgba(8,7,6,0.72);padding:2px 6px;border-radius:3px;pointer-events:none}
+.zb{width:28px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#ECE6DA;cursor:pointer;user-select:none}
+.zb:hover{color:#F0AE3C}
+</style></head><body>
+<div class="frame"><div class="scr">
+  <div class="sb"><span>9:41</span><span><i class="ti ti-antenna-bars-5"></i><i class="ti ti-wifi"></i><i class="ti ti-battery-3"></i></span></div>
+  <div style="padding:4px 16px 10px;display:flex;align-items:center;gap:11px">
+    <div style="width:46px;height:46px;border-radius:3px;background:#22301f;display:flex;align-items:center;justify-content:center;color:#7DC850;font-size:20px;flex:none"><i class="ti ti-vinyl"></i></div>
+    <div style="min-width:0;flex:1"><div class="lab">Track</div><div class="ell" style="font-size:16px;font-weight:500">Ajna (IKØN Remix)</div><div style="font-size:12.5px;color:#8A8478">One Function</div></div>
+    <i class="ti ti-dots" style="font-size:19px;color:#8A8478"></i>
+  </div>
+  <div id="wrap" style="height:220px;position:relative;background:#080706;border-top:1px solid rgba(255,255,255,0.07);border-bottom:1px solid rgba(255,255,255,0.07);cursor:grab;touch-action:none;overflow:hidden">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#1f1c18;z-index:2"><div id="prog" style="height:100%;background:#F0AE3C;width:0"></div></div>
+    <canvas id="wf" style="width:100%;height:100%;display:block"></canvas>
+    <span id="el" class="tl" style="top:9px;left:8px">1:15</span>
+    <span id="rm" class="tl" style="top:9px;right:8px;color:#B8B0A2">-6:12</span>
+    <div style="position:absolute;bottom:8px;right:8px;display:flex;align-items:center;background:rgba(8,7,6,0.8);border:1px solid rgba(255,255,255,0.14);border-radius:3px;z-index:3">
+      <div class="zb" id="zo"><i class="ti ti-minus"></i></div>
+      <span id="zl" class="lab" style="min-width:52px;text-align:center;color:#ECE6DA;font-size:9px">8 bars</span>
+      <div class="zb" id="zi"><i class="ti ti-plus"></i></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid rgba(255,255,255,0.07)">
+    <div class="tile" style="border-right:1px solid rgba(255,255,255,0.07)"><span class="lab">BPM <i class="ti ti-chevron-down" style="font-size:9px"></i></span><span class="tv amb">145.5</span></div>
+    <div class="tile"><span class="lab">Key</span><span class="tv" style="color:#4CD964">1A</span></div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:space-evenly;padding:0 16px">
+    <div style="display:flex;justify-content:center;gap:10px">
+      <div class="sq"><i class="ti ti-player-skip-back"></i></div>
+      <div class="sq" style="width:104px;background:#F0AE3C;border-color:#F0AE3C;color:#141210;font-size:22px"><i class="ti ti-player-pause"></i></div>
+      <div class="sq"><i class="ti ti-player-skip-forward"></i></div>
+    </div>
+    <div id="stars" style="display:flex;justify-content:center;gap:12px"></div>
+  </div>
+  <div class="tabs"><div class="tab"><i class="ti ti-list-details" style="font-size:19px"></i>LIBRARY</div><div class="tab on"><i class="ti ti-wave-sine" style="font-size:19px"></i>PLAYER</div></div>
+  <div class="home"></div>
+</div></div>
+<div class="cap">Player — drag the waveform to scrub · pinch or −/+ to zoom (Ctrl+wheel in browser) · tap stars</div>
+<script>
+(function(){
+  var sc=document.getElementById('stars'),s='';
+  for(var i=1;i<=5;i++)s+='<i class="ti ti-star" data-v="'+i+'" style="cursor:pointer;font-size:32px;color:'+(i<=4?'#F0AE3C':'#3a3631')+'"></i>';
+  sc.innerHTML=s;
+  sc.addEventListener('click',function(e){var t=e.target.closest('[data-v]');if(!t)return;var v=+t.getAttribute('data-v');[].forEach.call(sc.children,function(c){c.style.color=+c.getAttribute('data-v')<=v?'#F0AE3C':'#3a3631';});});
+  var cv=document.getElementById('wf'),wrap=document.getElementById('wrap'),el=document.getElementById('el'),rm=document.getElementById('rm'),zl=document.getElementById('zl'),prog=document.getElementById('prog');
+  var len=447,pt=75,beat=60/145.5,LEVELS=[1,2,4,8,16,32,64],zi=3;
+  function pps(){return cv.clientWidth/(LEVELS[zi]*4*beat);}
+  function hs(i){var x=Math.sin(i*127.1)*43758.5453;return x-Math.floor(x);}
+  function nz(x){var i=Math.floor(x),f=x-i;return hs(i)+(hs(i+1)-hs(i))*(f*f*(3-2*f));}
+  function fmt(x){x=Math.max(0,Math.round(x));return Math.floor(x/60)+':'+('0'+x%60).slice(-2);}
+  function draw(){
+    var dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;
+    var c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
+    var p=pps(),mid=H/2+6,half=H*0.38,cx=W/2,left=pt-cx/p;
+    var gs=beat*(LEVELS[zi]<=4?1:LEVELS[zi]<=16?4:16);
+    for(var tb=Math.ceil(left/gs)*gs;;tb+=gs){var bx=cx+(tb-pt)*p;if(bx>W)break;if(bx>=0){var bar=Math.abs(Math.round(tb/beat)%4)===0;c.strokeStyle=bar?'rgba(255,255,255,0.09)':'rgba(255,255,255,0.04)';c.beginPath();c.moveTo(bx,24);c.lineTo(bx,H);c.stroke();}}
+    for(var x=0;x<W;x++){var t=left+x/p;if(t<0||t>len)continue;
+      var drop=Math.sin(t*0.11)>-0.35;
+      var low=drop?0.8+0.2*nz(t*3):0.25+0.2*nz(t*2),mids=0.35+0.3*nz(t*1.7+40),high=0.2+0.35*nz(t*2.3+90);
+      var ph=(t%beat)/beat;var amp=(drop?0.62:0.32)+0.25*nz(t*6)+Math.exp(-ph*7)*(LEVELS[zi]<=16?0.3:0.12);amp=Math.min(1,Math.max(0.05,amp));
+      var sum=low+mids+high,r=Math.min(255,low/sum*470),g=Math.min(255,mids/sum*360+30),b=Math.min(255,high/sum*200);
+      c.strokeStyle='rgba('+(r|0)+','+(g|0)+','+(b|0)+',0.95)';var hh=amp*half;c.beginPath();c.moveTo(x+0.5,mid-hh);c.lineTo(x+0.5,mid+hh);c.stroke();}
+    c.fillStyle='rgba(5,5,4,0.45)';c.fillRect(0,0,cx,H);
+    c.fillStyle='#F0AE3C';c.fillRect(cx-1,0,2,H);c.beginPath();c.moveTo(cx-6,2);c.lineTo(cx+6,2);c.lineTo(cx,10);c.closePath();c.fill();
+    el.textContent=fmt(pt);rm.textContent='-'+fmt(len-pt);zl.textContent=LEVELS[zi]+(LEVELS[zi]===1?' bar':' bars');prog.style.width=(pt/len*100)+'%';
+  }
+  function zoom(d){zi=Math.max(0,Math.min(LEVELS.length-1,zi+d));draw();}
+  document.getElementById('zi').addEventListener('click',function(e){e.stopPropagation();zoom(-1);});
+  document.getElementById('zo').addEventListener('click',function(e){e.stopPropagation();zoom(1);});
+  ['zi','zo'].forEach(function(id){document.getElementById(id).addEventListener('pointerdown',function(e){e.stopPropagation();});});
+  wrap.addEventListener('wheel',function(e){if(!e.ctrlKey)return;e.preventDefault();zoom(e.deltaY>0?1:-1);},{passive:false});
+  var pts={},dr=false,sx=0,st=0,p0=null;
+  wrap.addEventListener('pointerdown',function(e){pts[e.pointerId]=e.clientX;wrap.setPointerCapture(e.pointerId);var ids=Object.keys(pts);if(ids.length===1){dr=true;sx=e.clientX;st=pt;}else if(ids.length===2){dr=false;p0=Math.abs(pts[ids[0]]-pts[ids[1]]);}});
+  wrap.addEventListener('pointermove',function(e){if(!(e.pointerId in pts))return;pts[e.pointerId]=e.clientX;var ids=Object.keys(pts);
+    if(ids.length===2&&p0){var d=Math.abs(pts[ids[0]]-pts[ids[1]]);if(d/p0>1.35){zoom(-1);p0=d;}else if(d/p0<0.74){zoom(1);p0=d;}return;}
+    if(dr){pt=Math.max(0,Math.min(len,st-(e.clientX-sx)/pps()));draw();}});
+  function up(e){delete pts[e.pointerId];if(Object.keys(pts).length<2)p0=null;if(!Object.keys(pts).length)dr=false;}
+  wrap.addEventListener('pointerup',up);wrap.addEventListener('pointercancel',up);
+  draw();window.addEventListener('resize',draw);
+})();
+</script></body></html>
