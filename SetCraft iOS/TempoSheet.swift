@@ -102,7 +102,7 @@ struct TempoSheet: View {
                         LabeledContent("Master BPM") {
                             Text(String(format: "%.1f", masterBPM))
                                 .font(.body.monospacedDigit())
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Theme.Palette.accent)
                         }
                     }
                 } footer: {
@@ -116,8 +116,8 @@ struct TempoSheet: View {
                         Text(shiftedFooter(for: shifted))
                             .font(.footnote)
                             .foregroundStyle(shifted.isAmbiguous
-                                             ? Color(red: 1.0, green: 0.624, blue: 0.271)
-                                             : Color.secondary)
+                                             ? Theme.Palette.keyAmbiguous
+                                             : Theme.Palette.textSecondary)
                     }
                 }
 
@@ -139,6 +139,7 @@ struct TempoSheet: View {
                     }
                 }
             }
+            .themeForm()
             .navigationTitle("Tempo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

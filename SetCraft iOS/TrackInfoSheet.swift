@@ -41,7 +41,7 @@ struct TrackInfoSheet: View {
                     LabeledContent("Key") {
                         Text(track.key?.description ?? "—")
                             .font(.body.weight(.medium).monospacedDigit())
-                            .foregroundStyle(track.key?.color ?? .secondary)
+                            .foregroundStyle(track.key?.color ?? Theme.Palette.textMuted)
                     }
                     LabeledContent("Rating") {
                         if track.rating.stars == 0 {
@@ -50,7 +50,7 @@ struct TrackInfoSheet: View {
                             HStack(spacing: 1) {
                                 ForEach(1...track.rating.stars, id: \.self) { _ in
                                     Image(systemName: "star.fill")
-                                        .foregroundStyle(.yellow)
+                                        .foregroundStyle(Theme.Palette.star)
                                 }
                             }
                             .font(.caption)
@@ -65,6 +65,7 @@ struct TrackInfoSheet: View {
                         .textSelection(.enabled)
                 }
             }
+            .themeForm()
             .navigationTitle("Info")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

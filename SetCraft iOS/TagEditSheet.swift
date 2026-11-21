@@ -61,7 +61,7 @@ struct TagEditSheet: View {
                                 .font(.footnote)
                         } icon: {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Theme.Palette.accent)
                         }
                     }
                 }
@@ -115,6 +115,7 @@ struct TagEditSheet: View {
                         .lineLimit(3...6)
                 }
             }
+            .themeForm()
             .navigationTitle("Edit Tags")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

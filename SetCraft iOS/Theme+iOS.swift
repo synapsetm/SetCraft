@@ -45,3 +45,16 @@ extension Theme {
         static let defaultZoomBars: Int     = 8
     }
 }
+
+extension View {
+    /// Formular-Sheets (Tempo, Edit, Info) im Theme: eigener Hintergrund,
+    /// Navigationsleiste in `background`, Akzent in `accent`. Die
+    /// System-Bausteine (Textfelder, Slider, Picker) bleiben.
+    func themeForm() -> some View {
+        self.scrollContentBackground(.hidden)
+            .background(Theme.Palette.background)
+            .toolbarBackground(Theme.Palette.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .tint(Theme.Palette.accent)
+    }
+}
