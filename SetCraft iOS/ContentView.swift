@@ -28,16 +28,62 @@ struct ContentView: View {
                 Label("Library", systemImage: "list.bullet")
             }
             .tag(AppTab.library)
-            .themeTabBar()
+            .toolbar(.hidden, for: .tabBar)
 
             PlayerScreen(store: playerStore)
                 .tabItem {
                     Label("Player", systemImage: "waveform")
                 }
                 .tag(AppTab.player)
-                .themeTabBar()
+                .toolbar(.hidden, for: .tabBar)
         }
         .tint(Theme.Palette.accent)
+        // Eigene Tab-Leiste nach Mockup statt der schwebenden Glas-Kapsel
+        // von iOS 26, deren Beschriftung sich nicht gestalten lässt.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            ThemeTabBar(selection: $selectedTab)
+        }
+    }
+}
+
+/// Flache Tab-Leiste über die ganze Breite: Trennlinie oben, Symbol und
+/// Beschriftung in Grossbuchstaben, aktiver Tab in `accent`.
+private struct ThemeTabBar: View {
+    @Binding var selection: ContentView.AppTab
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Theme.Palette.border.frame(height: 1)
+            HStack(spacing: 0) {
+                item(.library, title: "Library", symbol: "list.bullet")
+                item(.player, title: "Player", symbol: "waveform.path")
+            }
+            .padding(.top, 6)
+            .padding(.bottom, 2)
+        }
+        .background(Theme.Palette.background.ignoresSafeArea(edges: .bottom))
+    }
+
+    private func item(_ tab: ContentView.AppTab, title: LocalizedStringKey, symbol: String) -> some View {
+        let isOn = selection == tab
+        return Button {
+            selection = tab
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: symbol)
+                    .font(.system(size: 19, weight: .regular))
+                    .frame(height: 22)
+                Text(title)
+                    .font(.system(size: 10, weight: .medium))
+                    .tracking(1.4)
+                    .textCase(.uppercase)
+            }
+            .foregroundStyle(isOn ? Theme.Palette.accent : Theme.Palette.textMuted)
+            .frame(maxWidth: .infinity, minHeight: Theme.MetricsIOS.minTouch)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 }
 
@@ -439,6 +485,7 @@ private struct LibraryScreen: View {
                         .foregroundStyle(Theme.Palette.text)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                        .layoutPriority(1)
                 } else {
                     Text("No source selected")
                         .font(Theme.TypoIOS.body)
@@ -616,10 +663,4 @@ private struct LibraryScreen: View {
     }
 }
 
-private extension View {
-    /// Tab-Leiste im Theme: Hintergrund wie die App, aktiver Tab über `.tint`.
-    func themeTabBar() -> some View {
-        self.toolbarBackground(Theme.Palette.background, for: .tabBar)
-            .toolbarBackground(.visible, for: .tabBar)
-    }
-}
+

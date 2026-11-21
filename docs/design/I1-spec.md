@@ -104,6 +104,9 @@ Tokens: `Theme.swift` (Farben, Schrift, Masse), gemeinsam für beide Targets. Ke
 
 ## Navigation
 - Tab-Leiste mit genau zwei Tabs: **LIBRARY** und **PLAYER**. Aktiver Tab in `accent`.
+  Eigene, flache Leiste (`ThemeTabBar`) über die ganze Breite statt der schwebenden Glas-Kapsel von iOS 26:
+  Trennlinie oben, Symbol (`list.bullet`, `waveform.path`) und Beschriftung in Grossbuchstaben mit Sperrung,
+  inaktiv `textMuted`. Die `TabView` bleibt für die Inhalte, ihre System-Leiste ist ausgeblendet.
 - Kein eigener Quellen-Tab: Quellen über das Quellen-Menü in der Library.
 
 ## Player (`PlayerScreen.swift`, `PlayerChips.swift`, `WaveformCanvasView.swift`) — siehe `player.html`
