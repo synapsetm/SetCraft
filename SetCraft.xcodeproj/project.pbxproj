@@ -41,6 +41,11 @@
 			path = "SetCraft iOS";
 			sourceTree = "<group>";
 		};
+		A001000000000000000000E1 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -76,6 +81,7 @@
 			children = (
 				C63B1E292FCC6D8800CEB823 /* SetCraft */,
 				C6EC61662FD0BD2C00BE2CE0 /* SetCraft iOS */,
+				A001000000000000000000E1 /* Shared */,
 				C63B1E282FCC6D8800CEB823 /* Products */,
 				A001000000000000000000B1 /* Packages */,
 				C6EC61702FD0BD7900BE2CE0 /* Frameworks */,
@@ -115,6 +121,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				C63B1E292FCC6D8800CEB823 /* SetCraft */,
+				A001000000000000000000E1 /* Shared */,
 			);
 			name = SetCraft;
 			packageProductDependencies = (
@@ -139,6 +146,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				C6EC61662FD0BD2C00BE2CE0 /* SetCraft iOS */,
+				A001000000000000000000E1 /* Shared */,
 			);
 			name = "SetCraft iOS";
 			packageProductDependencies = (
