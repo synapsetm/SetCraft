@@ -76,8 +76,9 @@ Letzte Aktualisierung: 2026-11-21 (Mac v1.5-26; iOS 1.3-39 in TestFlight).
   Complete-Tags-Sheet als Karten. Filterfeld bewusst wieder entfernt.
   Build 39 enthält noch GRDB 7.11.1; GRDB 7.12.0 und Sparkle 2.10.1 sind
   seit `ff3a5f9` im Repo und kommen mit dem nächsten iOS- bzw. Mac-Build.
-  Im Simulator abgenommen; **auf dem Gerät offen:** Pinch-Zoom, Quellenwechsel,
-  Lock Screen, NAS-Quelle, Löschen per Swipe.
+  Im Simulator abgenommen, am 2026-11-21 auch auf dem Gerät bestätigt
+  (Pinch-Zoom, Quellenwechsel, Lock Screen, NAS-Quelle, Löschen per Swipe).
+  Mac-Klick-Test nach dem GRDB/Sparkle-Update ebenfalls ohne Befund.
   38 war der Stand davor (hochgeladen 2026-10-02 22:08, seit 2026-11-21
   abgelaufen). Er zog den Klang-Fix aus Mac v1.3-20 nach (Tempo über
   `AVAudioUnitVarispeed`) und ist der erste iOS-Build mit TagLib 2.3.2.
