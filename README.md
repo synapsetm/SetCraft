@@ -88,6 +88,16 @@ beat-matched chops.
   Files app source (incl. NAS / SMB shares mounted via the system file
   provider). Non-downloaded files are surfaced as placeholders and the
   download is triggered automatically.
+- **M3U / M3U8 playlists** (macOS): import a playlist as a library source —
+  the file itself is never modified — and see its tracks in playlist order,
+  duplicates included, with missing entries kept in place, greyed out, with
+  their original path. Handles UTF-8 and Windows-1252, every line-ending
+  style, relative, absolute, `file://` and Windows paths. Entries whose file
+  moved are found again by path tail or name, Unicode-normalised for NAS
+  shares. Any list — a folder, a playlist, a filtered view or just the
+  selection — exports as M3U8 with absolute or relative paths. Verified so
+  far: importing a Rekordbox export, and importing SetCraft's export into
+  Serato.
 - **Tag round-trip that Serato DJ and Rekordbox both honour**: ratings get
   written to both `POPM` (with Windows-Media-Player byte mapping) and a
   star-prefix in the comment field — Rekordbox ignores `POPM` but does read
