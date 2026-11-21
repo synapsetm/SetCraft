@@ -14,14 +14,51 @@
     "—" : {
       "shouldTranslate" : false
     },
-    "%@ / -%@" : {
-      "shouldTranslate" : false
-    },
     "" : {
       "shouldTranslate" : false
     },
     "%@ — %@" : {
       "shouldTranslate" : false
+    },
+    "%lld bars" : {
+      "localizations" : {
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Takt"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Takte"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld bar"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld bars"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "about %lld min" : {
       "localizations" : {
@@ -98,7 +135,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Filter löschen"
+            "value" : "Filter leeren"
           }
         }
       }
@@ -1427,6 +1464,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "„%@“ ist ein DJ-Mix — trotzdem analysieren?"
+          }
+        }
+      }
+    },
+    "Zoom in" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hineinzoomen"
+          }
+        }
+      }
+    },
+    "Zoom out" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Herauszoomen"
           }
         }
       }

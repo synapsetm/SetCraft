@@ -32,30 +32,60 @@ struct WaveformCanvasView: View {
     /// Anteil der übertragenen Bytes, 0…1 — `nil`, solange unbekannt.
     var loadProgress: Double? = nil
 
-    /// Zoom-Level: Pixel pro Sekunde der Wellenform. Persistent über
-    /// App-Sessions via `@AppStorage`. Pinch-Geste (Magnify) skaliert
-    /// im Bereich 15…200 px/s — von "Track in einem Blick" bis hin zu
-    /// einzelnen Beats.
-    @AppStorage("waveformPxPerSec") private var pxPerSec: Double = 52
+    /// Zoom in Takten (I1-Spec): sichtbar sind `zoomBars` Takte über die
+    /// ganze Breite bzw. Höhe. Weil der Zoom in Takten statt in px/s steht,
+    /// bleibt er bei Tempoänderungen musikalisch gleich. Persistent über
+    /// App-Sessions; der frühere Key `waveformPxPerSec` wird nicht mehr gelesen.
+    @AppStorage("waveformZoomBars") private var zoomBars: Int = Theme.MetricsIOS.defaultZoomBars
 
     @State private var dragStartTime: TimeInterval?
-    @State private var pinchStartZoom: Double?
-    @State private var zoomHUDOpacity: Double = 0
+    /// Laufender Pinch: Startwert und stufenloser Zwischenwert in Takten.
+    /// Beim Loslassen rastet der Zoom auf die nächste Stufe ein.
+    @State private var pinchStartBars: Double?
+    @State private var pinchBars: Double?
 
-    private let minPxPerSec: Double = 2
-    private let maxPxPerSec: Double = 200
-    private let defaultPxPerSec: Double = 52
+    private static let zoomSteps = Theme.MetricsIOS.zoomBars
+    /// Tempo für die Zoom-Umrechnung, solange kein BPM bekannt ist.
+    private static let fallbackBPM: Double = 120
+
+    /// Gerade sichtbare Takte — während des Pinch stufenlos.
+    private var visibleBars: Double {
+        pinchBars ?? Double(clampedZoomBars)
+    }
+
+    /// Gespeicherter Wert, auf eine gültige Stufe gezogen.
+    private var clampedZoomBars: Int {
+        Self.zoomSteps.contains(zoomBars) ? zoomBars : Theme.MetricsIOS.defaultZoomBars
+    }
+
+    /// Gültiges Tempo für Grid und Zoom, sonst `nil`. Ein unsinniger Tag
+    /// („inf", „1e300") darf weder die Umrechnung noch das Grid kippen.
+    private var validBPM: Double? {
+        guard let bpm, bpm.isFinite, bpm >= 20, bpm <= 400 else { return nil }
+        return bpm
+    }
+
+    /// Pixel pro Sekunde für die Länge der Zeitachse:
+    /// `length / (bars × 4 × 60 / bpm)`.
+    private func pixelsPerSecond(length: CGFloat) -> Double {
+        let secondsPerBar = 4 * 60 / (validBPM ?? Self.fallbackBPM)
+        let visibleSeconds = visibleBars * secondsPerBar
+        guard length > 0, visibleSeconds > 0 else { return 1 }
+        return Double(length) / visibleSeconds
+    }
 
     var body: some View {
         GeometryReader { proxy in
+            let length = axis == .horizontal ? proxy.size.width : proxy.size.height
+            let pxPerSec = pixelsPerSecond(length: length)
             ZStack(alignment: .topLeading) {
-                Color(red: 0.055, green: 0.055, blue: 0.07)
+                Theme.Palette.waveformBG
 
                 Canvas { ctx, size in
                     if axis == .horizontal {
-                        draw(in: ctx, size: size)
+                        draw(in: ctx, size: size, pxPerSec: pxPerSec)
                     } else {
-                        drawVertical(in: ctx, size: size)
+                        drawVertical(in: ctx, size: size, pxPerSec: pxPerSec)
                     }
                 }
                 .contentShape(Rectangle())
@@ -80,41 +110,42 @@ struct WaveformCanvasView: View {
                 .simultaneousGesture(
                     MagnifyGesture()
                         .onChanged { value in
-                            if pinchStartZoom == nil {
-                                pinchStartZoom = pxPerSec
-                                zoomHUDOpacity = 1
+                            if pinchStartBars == nil {
+                                pinchStartBars = Double(clampedZoomBars)
                             }
-                            let scaled = (pinchStartZoom ?? pxPerSec) * value.magnification
-                            pxPerSec = max(minPxPerSec, min(maxPxPerSec, scaled))
+                            // Auseinanderziehen = hineinzoomen = weniger Takte.
+                            let m = max(0.01, Double(value.magnification))
+                            let bars = (pinchStartBars ?? 8) / m
+                            let lo = Double(Self.zoomSteps.first ?? 1)
+                            let hi = Double(Self.zoomSteps.last ?? 64)
+                            pinchBars = min(hi, max(lo, bars))
                         }
                         .onEnded { _ in
-                            pinchStartZoom = nil
-                            withAnimation(.easeOut(duration: 0.4).delay(0.6)) {
-                                zoomHUDOpacity = 0
+                            if let bars = pinchBars {
+                                zoomBars = Self.nearestStep(to: bars)
                             }
+                            pinchStartBars = nil
+                            pinchBars = nil
                         }
                 )
                 .simultaneousGesture(
                     TapGesture(count: 2).onEnded {
-                        pxPerSec = defaultPxPerSec
-                        showZoomHUDBriefly()
+                        zoomBars = Theme.MetricsIOS.defaultZoomBars
                     }
                 )
 
                 if axis == .horizontal {
                     progressBar(width: proxy.size.width)
-                    timeLabels(width: proxy.size.width)
+                    timeLabels
                 } else {
                     progressBarVertical(height: proxy.size.height)
-                    timeLabelsVertical(height: proxy.size.height)
+                    timeLabelsVertical
                 }
 
-                zoomHUD(width: proxy.size.width)
-
-                // Im schmalen Landscape-Streifen überdecken die Buttons sonst
-                // das Duration-Label. Pinch-to-zoom bleibt aktiv.
+                // Im schmalen Landscape-Streifen ist kein Platz für die
+                // Kapsel; Pinch und Doppeltipp bleiben dort aktiv.
                 if axis == .horizontal {
-                    zoomButtonsOverlay
+                    zoomCapsuleOverlay
                 }
 
                 if isLoadingTrack {
@@ -136,21 +167,21 @@ struct WaveformCanvasView: View {
         VStack(spacing: 8) {
             if let fraction = loadProgress {
                 ProgressView(value: fraction)
-                    .tint(.orange)
+                    .tint(Theme.Palette.accent)
                     .frame(width: min(220, max(120, width * 0.5)))
                 Text(verbatim: "\(Int(fraction * 100)) %")
-                    .font(.caption.monospacedDigit().weight(.medium))
-                    .foregroundStyle(Color(red: 0.81, green: 0.81, blue: 0.84))
+                    .font(Theme.TypoIOS.time)
+                    .foregroundStyle(Theme.Palette.text)
             } else {
                 // Noch kein Anteil bekannt — der Download hat gerade erst
                 // begonnen oder die Quelle ist lokal.
                 ProgressView()
                     .progressViewStyle(.circular)
-                    .tint(.orange)
+                    .tint(Theme.Palette.accent)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 0.055, green: 0.055, blue: 0.07).opacity(0.85))
+        .background(Theme.Palette.waveformBG.opacity(0.85))
         .allowsHitTesting(false)
     }
 
@@ -159,85 +190,105 @@ struct WaveformCanvasView: View {
         let frac = duration > 0 ? CGFloat(position / duration) : 0
         ZStack(alignment: .leading) {
             Rectangle()
-                .fill(Color(red: 0.15, green: 0.15, blue: 0.18))
-                .frame(height: 2)
+                .fill(Theme.Palette.border)
+                .frame(height: Theme.MetricsIOS.progressHeight)
             Rectangle()
-                .fill(Color.orange)
-                .frame(width: width * frac, height: 2)
+                .fill(Theme.Palette.accent)
+                .frame(width: width * frac, height: Theme.MetricsIOS.progressHeight)
         }
         .allowsHitTesting(false)
     }
 
+    /// ELAPSED oben links, REMAIN oben rechts. Die Gesamtdauer steht im
+    /// `TrackInfoSheet` (und ergibt sich aus beiden).
     @ViewBuilder
-    private func timeLabels(width _: CGFloat) -> some View {
+    private var timeLabels: some View {
         HStack {
-            Text("\(formatTime(position)) / -\(formatTime(max(0, duration - position)))")
+            Text(verbatim: formatTime(position))
                 .modifier(WaveformTimeLabel())
-                .padding(.leading, 8)
             Spacer()
-            Text(formatTime(duration))
-                .modifier(WaveformTimeLabel())
-                .padding(.trailing, 8)
+            Text(verbatim: "-" + formatTime(max(0, duration - position)))
+                .modifier(WaveformTimeLabel(secondary: true))
         }
-        .padding(.top, 8)
+        .padding(.horizontal, 8)
+        .padding(.top, 10)
         .allowsHitTesting(false)
     }
 
+    /// Zoom-Kapsel unten rechts: `−  8 BARS  +`. Minus zeigt mehr Takte
+    /// (herauszoomen), Plus weniger (hineinzoomen).
     @ViewBuilder
-    private func zoomHUD(width: CGFloat) -> some View {
-        let visibleSeconds = Double(width) / pxPerSec
-        VStack {
-            Spacer()
-            Text(String(format: "%.1fs sichtbar", visibleSeconds))
-                .modifier(WaveformTimeLabel())
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-        .opacity(zoomHUDOpacity)
-        .allowsHitTesting(false)
-    }
-
-    /// Sichtbare +/–-Buttons als Alternative zur Pinch-Geste. Doppeltap auf
-    /// die Wave setzt den Zoom auf den Default zurück.
-    @ViewBuilder
-    private var zoomButtonsOverlay: some View {
+    private var zoomCapsuleOverlay: some View {
+        let shown = Int(visibleBars.rounded())
+        let index = Self.zoomSteps.firstIndex(of: clampedZoomBars) ?? 3
         VStack {
             Spacer()
             HStack {
                 Spacer()
-                HStack(spacing: 6) {
-                    zoomButton(symbol: "minus", factor: 1.0 / 1.25)
-                    zoomButton(symbol: "plus",  factor: 1.25)
+                HStack(spacing: 0) {
+                    zoomButton(symbol: "minus", enabled: index < Self.zoomSteps.count - 1) {
+                        zoomBars = Self.zoomSteps[min(Self.zoomSteps.count - 1, index + 1)]
+                    }
+                    .accessibilityLabel("Zoom out")
+                    Text("\(shown) bars")
+                        .font(Theme.TypoIOS.time)
+                        .textCase(.uppercase)
+                        .tracking(Theme.Typo.labelTracking)
+                        .foregroundStyle(Theme.Palette.text)
+                        .frame(minWidth: 64)
+                    zoomButton(symbol: "plus", enabled: index > 0) {
+                        zoomBars = Self.zoomSteps[max(0, index - 1)]
+                    }
+                    .accessibilityLabel("Zoom in")
                 }
+                .background(Theme.Palette.waveformBG.opacity(0.8), in: Capsule())
+                .overlay(Capsule().strokeBorder(Theme.Palette.borderStrong, lineWidth: 1))
             }
         }
         .padding(8)
     }
 
     @ViewBuilder
-    private func zoomButton(symbol: String, factor: Double) -> some View {
-        Button {
-            let scaled = pxPerSec * factor
-            pxPerSec = max(minPxPerSec, min(maxPxPerSec, scaled))
-            showZoomHUDBriefly()
-        } label: {
+    private func zoomButton(symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 12, weight: .bold))
-                .frame(width: 26, height: 26)
-                .background(Color.black.opacity(0.45), in: Circle())
-                .foregroundStyle(.white.opacity(0.9))
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(Theme.Palette.text)
+                .frame(width: Theme.MetricsIOS.minTouch, height: 36)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.35)
     }
 
-    private func showZoomHUDBriefly() {
-        zoomHUDOpacity = 1
-        withAnimation(.easeOut(duration: 0.4).delay(0.6)) {
-            zoomHUDOpacity = 0
+    /// Nächste Zoomstufe — im Log-Raum, weil die Stufen sich verdoppeln.
+    private static func nearestStep(to bars: Double) -> Int {
+        let target = log2(max(bars, 0.001))
+        return zoomSteps.min(by: {
+            abs(log2(Double($0)) - target) < abs(log2(Double($1)) - target)
+        }) ?? Theme.MetricsIOS.defaultZoomBars
+    }
+
+    /// Beatgrid-Raster nach Zoom: ≤ 4 Takte pro Beat, ≤ 16 pro Takt, sonst
+    /// alle 4 Takte. Jede vierte Linie ist heller (Takt bzw. 4 bzw. 16 Takte).
+    private func gridSpacing(bpm: Double) -> (step: Double, majorEvery: Int) {
+        let beat = 60.0 / bpm
+        let bar = beat * 4
+        switch visibleBars {
+        case ...4:  return (beat, 4)
+        case ...16: return (bar, 4)
+        default:    return (bar * 4, 4)
         }
     }
 
-    private func draw(in ctx: GraphicsContext, size: CGSize) {
+    /// Grid-Linie: jede `majorEvery`-te etwas heller.
+    private func gridColor(index: Double, majorEvery: Int) -> Color {
+        let isMajor = index.truncatingRemainder(dividingBy: Double(majorEvery)) == 0
+        return isMajor ? Theme.Palette.text.opacity(0.16) : Theme.Palette.beatgrid
+    }
+
+    private func draw(in ctx: GraphicsContext, size: CGSize, pxPerSec: Double) {
         let width = size.width
         let height = size.height
         guard width > 0, height > 0 else { return }
@@ -245,7 +296,7 @@ struct WaveformCanvasView: View {
         let centerX = width * 0.5
         let leftTime = position - Double(centerX) / pxPerSec
 
-        // Beat-Grid alle 4 Beats — nur wenn BPM bekannt.
+        // Beat-Grid nach Zoomstufe — nur wenn BPM bekannt.
         //
         // Über den Takt wird per Index iteriert, nicht per `t += bar`. Ein
         // unsinniges BPM (ein Tag mit dem Text „inf" oder „1e300") ergab sonst
@@ -254,21 +305,23 @@ struct WaveformCanvasView: View {
         // `while true` nie ab. Ein harter Hänger im Draw, auf dem Main-Thread.
         // `TagReader` lässt solche Werte inzwischen nicht mehr durch; die
         // Zeichnung verlässt sich nicht darauf.
-        if let bpm, bpm > 0, bpm.isFinite {
-            let bar = (60.0 / bpm) * 4
-            // Unter einem Pixel Abstand ist das Grid ohnehin nur noch Rauschen.
-            if bar * pxPerSec >= 1 {
-                let firstIndex = (leftTime / bar).rounded(.up)
-                let maxLines = Int(width / (bar * pxPerSec)) + 2
+        if let bpm = validBPM {
+            let grid = gridSpacing(bpm: bpm)
+            // Unter vier Pixel Abstand ist das Grid ohnehin nur noch Rauschen.
+            if grid.step * pxPerSec >= 4 {
+                let firstIndex = (leftTime / grid.step).rounded(.up)
+                let maxLines = Int(width / (grid.step * pxPerSec)) + 2
                 for step in 0..<maxLines {
-                    let t = (firstIndex + Double(step)) * bar
+                    let index = firstIndex + Double(step)
+                    let t = index * grid.step
                     let x = centerX + CGFloat((t - position) * pxPerSec)
                     if x > width { break }
                     if x >= 0 {
                         var p = Path()
                         p.move(to: CGPoint(x: x, y: 0))
                         p.addLine(to: CGPoint(x: x, y: height))
-                        ctx.stroke(p, with: .color(.white.opacity(0.05)), lineWidth: 1)
+                        ctx.stroke(p, with: .color(gridColor(index: index, majorEvery: grid.majorEvery)),
+                                   lineWidth: 1)
                     }
                 }
             }
@@ -326,26 +379,18 @@ struct WaveformCanvasView: View {
         let overlay = Path(CGRect(x: 0, y: 0, width: centerX, height: height))
         ctx.fill(overlay, with: .color(.black.opacity(0.42)))
 
-        // Center-Playhead vertikal.
+        // Center-Playhead vertikal, mit Dreieck oben.
         var line = Path()
         line.move(to: CGPoint(x: centerX, y: 0))
         line.addLine(to: CGPoint(x: centerX, y: height))
-        ctx.stroke(line, with: .color(.white), lineWidth: 2)
+        ctx.stroke(line, with: .color(Theme.Palette.accent), lineWidth: Theme.MetricsIOS.playheadWidth)
 
-        // Dreieck-Marker oben und unten.
         var triTop = Path()
         triTop.move(to: CGPoint(x: centerX - 6, y: 0))
         triTop.addLine(to: CGPoint(x: centerX + 6, y: 0))
         triTop.addLine(to: CGPoint(x: centerX, y: 8))
         triTop.closeSubpath()
-        ctx.fill(triTop, with: .color(.white))
-
-        var triBot = Path()
-        triBot.move(to: CGPoint(x: centerX - 6, y: height))
-        triBot.addLine(to: CGPoint(x: centerX + 6, y: height))
-        triBot.addLine(to: CGPoint(x: centerX, y: height - 8))
-        triBot.closeSubpath()
-        ctx.fill(triBot, with: .color(.white))
+        ctx.fill(triTop, with: .color(Theme.Palette.accent))
     }
 
     private func formatTime(_ s: TimeInterval) -> String {
@@ -362,28 +407,27 @@ struct WaveformCanvasView: View {
             // Zukunft oben". Voll = Track komplett gespielt.
             ZStack(alignment: .bottom) {
                 Rectangle()
-                    .fill(Color(red: 0.15, green: 0.15, blue: 0.18))
-                    .frame(width: 2, height: height)
+                    .fill(Theme.Palette.border)
+                    .frame(width: Theme.MetricsIOS.progressHeight, height: height)
                 Rectangle()
-                    .fill(Color.orange)
-                    .frame(width: 2, height: height * frac)
+                    .fill(Theme.Palette.accent)
+                    .frame(width: Theme.MetricsIOS.progressHeight, height: height * frac)
             }
             .padding(.trailing, 2)
         }
         .allowsHitTesting(false)
     }
 
+    /// Querformat: ELAPSED oben, REMAIN unten.
     @ViewBuilder
-    private func timeLabelsVertical(height _: CGFloat) -> some View {
+    private var timeLabelsVertical: some View {
         VStack {
-            // Oben: abgespielt / Restzeit (CDJ-Layout, identisch zum
-            // Portrait-Header). Unten: Gesamtdauer als zweite Pill.
-            Text("\(formatTime(position)) / -\(formatTime(max(0, duration - position)))")
+            Text(verbatim: formatTime(position))
                 .modifier(WaveformTimeLabel())
                 .padding(.top, 8)
             Spacer()
-            Text(formatTime(duration))
-                .modifier(WaveformTimeLabel())
+            Text(verbatim: "-" + formatTime(max(0, duration - position)))
+                .modifier(WaveformTimeLabel(secondary: true))
                 .padding(.bottom, 8)
         }
         .frame(maxWidth: .infinity)
@@ -396,7 +440,7 @@ struct WaveformCanvasView: View {
     /// Erwartung „die Welle läuft von oben nach unten ab" — neue Audio-
     /// Inhalte kommen oben rein, scrollen durch den Playhead und
     /// verschwinden unten.
-    private func drawVertical(in ctx: GraphicsContext, size: CGSize) {
+    private func drawVertical(in ctx: GraphicsContext, size: CGSize, pxPerSec: Double) {
         let width = size.width
         let height = size.height
         guard width > 0, height > 0 else { return }
@@ -410,23 +454,25 @@ struct WaveformCanvasView: View {
         // Index-Iteration wie im horizontalen Pendant — siehe die Begründung
         // dort. `while t <= topTime` terminiert bei NaN zwar von selbst, aber
         // bei subnormalem `bar` liefe es praktisch endlos.
-        if let bpm, bpm > 0, bpm.isFinite {
-            let bar = (60.0 / bpm) * 4
-            if bar * pxPerSec >= 1 {
-                // Beat-Linien zwischen bottomTime und topTime, von der ältesten
+        if let bpm = validBPM {
+            let grid = gridSpacing(bpm: bpm)
+            if grid.step * pxPerSec >= 4 {
+                // Linien zwischen bottomTime und topTime, von der ältesten
                 // sichtbaren aus aufwärts iterieren.
                 let bottomTime = position - Double(height - centerY) * timeOffsetPerPixel
-                let firstIndex = (bottomTime / bar).rounded(.up)
-                let maxLines = Int(height / (bar * pxPerSec)) + 2
+                let firstIndex = (bottomTime / grid.step).rounded(.up)
+                let maxLines = Int(height / (grid.step * pxPerSec)) + 2
                 for step in 0..<maxLines {
-                    let t = (firstIndex + Double(step)) * bar
+                    let index = firstIndex + Double(step)
+                    let t = index * grid.step
                     if t > topTime { break }
                     let y = centerY - CGFloat((t - position) * pxPerSec)
                     if y >= 0, y <= height {
                         var p = Path()
                         p.move(to: CGPoint(x: 0, y: y))
                         p.addLine(to: CGPoint(x: width, y: y))
-                        ctx.stroke(p, with: .color(.white.opacity(0.05)), lineWidth: 1)
+                        ctx.stroke(p, with: .color(gridColor(index: index, majorEvery: grid.majorEvery)),
+                                   lineWidth: 1)
                     }
                 }
             }
@@ -483,31 +529,28 @@ struct WaveformCanvasView: View {
         var line = Path()
         line.move(to: CGPoint(x: 0, y: centerY))
         line.addLine(to: CGPoint(x: width, y: centerY))
-        ctx.stroke(line, with: .color(.white), lineWidth: 2)
+        ctx.stroke(line, with: .color(Theme.Palette.accent), lineWidth: Theme.MetricsIOS.playheadWidth)
 
         var triLeft = Path()
         triLeft.move(to: CGPoint(x: 0, y: centerY - 6))
         triLeft.addLine(to: CGPoint(x: 0, y: centerY + 6))
         triLeft.addLine(to: CGPoint(x: 8, y: centerY))
         triLeft.closeSubpath()
-        ctx.fill(triLeft, with: .color(.white))
-
-        var triRight = Path()
-        triRight.move(to: CGPoint(x: width, y: centerY - 6))
-        triRight.addLine(to: CGPoint(x: width, y: centerY + 6))
-        triRight.addLine(to: CGPoint(x: width - 8, y: centerY))
-        triRight.closeSubpath()
-        ctx.fill(triRight, with: .color(.white))
+        ctx.fill(triLeft, with: .color(Theme.Palette.accent))
     }
 }
 
+/// Zeit-Pille auf der Wellenfläche: halbtransparenter dunkler Grund.
 private struct WaveformTimeLabel: ViewModifier {
+    var secondary = false
+
     func body(content: Content) -> some View {
         content
-            .font(.system(size: 11, weight: .medium).monospacedDigit())
-            .foregroundStyle(Color(red: 0.81, green: 0.81, blue: 0.84))
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(Color.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 4))
+            .font(Theme.TypoIOS.time)
+            .foregroundStyle(secondary ? Theme.Palette.textSecondary : Theme.Palette.text)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Theme.Palette.waveformBG.opacity(0.7),
+                        in: RoundedRectangle(cornerRadius: Theme.Metrics.radius))
     }
 }
