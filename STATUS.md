@@ -4,15 +4,23 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-11-21 (Mac v1.6-27; iOS 1.3-40 in TestFlight).
+Letzte Aktualisierung: 2026-11-22 (Mac v1.6-28; iOS 1.3-40 in TestFlight).
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.6-27 (Build 27), notarisiert, Sparkle-Auto-Update live.
-  Feature-Release vom 2026-11-21, nach erfolgreichem Klick-Test: **M3U/M3U8-
+- **Mac-Release:** v1.6-28 (Build 28), notarisiert, Sparkle-Auto-Update live.
+  Kleines Folge-Release vom 2026-11-22: M3U/M3U8 im Dialog „Set as Default
+  Player…" (Info.plist meldet `public.m3u-playlist` als Alternate an); ein
+  Doppelklick auf eine M3U nimmt sie als Playlist-Quelle auf bzw. schaltet zu
+  ihr um, statt sie in den Player zu laden. Geprüft per `open -a` auf den
+  Debug-Build (Finder-Doppelklick startet immer die Version in /Applications).
+  Rekordbox-Import des Exports bleibt offen, auf Wunsch zurückgestellt — das
+  Import-Menü liess sich auf keinem Weg nutzen, laut Handbuch ist es keine
+  Abo-Funktion.
+  v1.6-27 war davor das Feature-Release vom 2026-11-21, nach erfolgreichem Klick-Test: **M3U/M3U8-
   Playlists** als Quelle importieren und jede Liste als M3U8 exportieren
   (Details unter „Was die Apps können → M3U-Playlists"). Dazu die Sandbox-
   Ausnahme Lesen/Schreiben für `/Volumes/` (macOS fragt einmalig per TCC nach
