@@ -4,7 +4,7 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-11-15 (Mac v1.5-26; iOS 1.3-38 in TestFlight).
+Letzte Aktualisierung: 2026-11-21 (Mac v1.5-26; iOS 1.3-39 in TestFlight).
 
 ---
 
@@ -13,7 +13,7 @@ Letzte Aktualisierung: 2026-11-15 (Mac v1.5-26; iOS 1.3-38 in TestFlight).
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
 - **Mac-Release:** v1.5-26 (Build 26), notarisiert, Sparkle-Auto-Update live.
   Design-Release vom 2026-11-15, nach erfolgreichem Klick-Test: Hauptfenster
-  im Redesign „B6 · Deck / Amber" (fest dunkel, Tokens in `SetCraft/Theme.swift`,
+  im Redesign „B6 · Deck / Amber" (fest dunkel, Tokens in `Shared/Theme.swift`,
   Spec `docs/design/B6-spec.md`), Library-Filter (wirkt auf Prev/Next, Analyze
   missing und Complete tags), Amber-Akzent für die Tabellenauswahl, neues
   macOS-App-Icon (Quellen `docs/icon/macos/`). iOS bleibt auf 1.3.
@@ -66,8 +66,19 @@ Letzte Aktualisierung: 2026-11-15 (Mac v1.5-26; iOS 1.3-38 in TestFlight).
   mitwachsende Waveform.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 38) in TestFlight (hochgeladen 2026-10-02 22:08,
-  VALID). Er zieht den Klang-Fix aus Mac v1.3-20 nach (Tempo über
+- **iOS-Release:** 1.3 (Build 39) in TestFlight (hochgeladen 2026-11-21 10:57,
+  VALID). Design-Release: iOS im Redesign „I1 · Amber" (Gegenstück zu B6,
+  Spec `docs/design/I1-spec.md`, Tokens gemeinsam in `Shared/Theme.swift`,
+  iOS-Grössen in `SetCraft iOS/Theme+iOS.swift`). Eigene Kopfzeile und
+  Tab-Leiste statt iOS-26-Glas, Quellenzeile mit Quellen-Menü, Master BPM im
+  •••-Menü (Kennzeichen im Kopf, wenn aktiv), Waveform mit Zoom in Takten
+  (1–64, Standard 8), grosses Cover über dem Transport, neues Querformat,
+  Complete-Tags-Sheet als Karten. Filterfeld bewusst wieder entfernt.
+  Ausserdem GRDB 7.12.0 (Sparkle 2.10.1 kommt mit dem nächsten Mac-Release).
+  Im Simulator abgenommen; **auf dem Gerät offen:** Pinch-Zoom, Quellenwechsel,
+  Lock Screen, NAS-Quelle, Löschen per Swipe.
+  38 war der Stand davor (hochgeladen 2026-10-02 22:08, seit 2026-11-21
+  abgelaufen). Er zog den Klang-Fix aus Mac v1.3-20 nach (Tempo über
   `AVAudioUnitVarispeed`) und ist der erste iOS-Build mit TagLib 2.3.2.
   Auf dem Gerät noch nicht gehört — der Klick-Test lief nur auf dem Mac.
   37 war der Stand davor (hochgeladen 2026-09-24 18:56, seit 2026-10-02
