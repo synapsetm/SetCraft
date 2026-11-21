@@ -285,4 +285,14 @@ final class SecurityScopeTests: XCTestCase {
         XCTAssertEqual(stops.count, 2)
         XCTAssertEqual(registry.openURLs, [])
     }
+
+    func test_retireCompanions_keepsActiveSource() {
+        let stops = StopCounter()
+        let registry = makeRegistry(stops: stops)
+        registry.activate(URL(fileURLWithPath: "/a.m3u8"))
+        registry.addCompanion(URL(fileURLWithPath: "/Musik"))
+        registry.retireCompanions()
+        XCTAssertEqual(registry.openURLs.map(\.path), ["/a.m3u8"])
+        XCTAssertEqual(stops.count, 1)
+    }
 }

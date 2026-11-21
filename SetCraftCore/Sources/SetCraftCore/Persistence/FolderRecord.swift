@@ -1,14 +1,16 @@
 import Foundation
 import GRDB
 
-/// Art einer Quelle: ein Ordner (flacher Scan, ohne Unterverzeichnisse) oder
-/// eine einzelne Datei (genau ein Track). Einzeldateien entstehen, wenn ein Track
+/// Art einer Quelle: ein Ordner (flacher Scan, ohne Unterverzeichnisse),
+/// eine einzelne Datei (genau ein Track) oder eine importierte M3U-Playlist
+/// (`bookmark_data` zeigt auf die M3U-Datei, die nie verändert wird). Einzeldateien entstehen, wenn ein Track
 /// von aussen geöffnet wird (Finder-Doppelklick, Drag & Drop) und noch keine
 /// Quelle ihn abdeckt — dann wird nur dieser Track aufgenommen, nicht sein
 /// ganzes Verzeichnis.
 public enum SourceKind: String, Codable, Sendable {
     case folder
     case file
+    case playlist
 }
 
 /// Eine vom Nutzer ausgewählte Quelle. `bookmark_data` ist ein

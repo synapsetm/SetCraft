@@ -200,6 +200,20 @@ public final class SecurityScopeRegistry: @unchecked Sendable {
         return true
     }
 
+    /// Meldet alle Begleit-Scopes ab, die aktive Quelle bleibt. Für das
+    /// erneute Laden einer Playlist, damit sich die Scopes nicht stapeln.
+    /// Laufende Arbeit behält ihren Zugriff bis zur Token-Rückgabe.
+    public func retireCompanions() {
+        lock.lock()
+        let previous = companions
+        companions = []
+        retiring.append(contentsOf: previous)
+        lock.unlock()
+
+        for scope in previous { scope.requestRelease() }
+        pruneClosedScopes()
+    }
+
     /// Pfade der aktiven Quelle und ihrer Begleit-Scopes.
     public var openURLs: [URL] {
         lock.lock()

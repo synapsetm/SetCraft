@@ -88,6 +88,51 @@ public enum PlaylistResolver {
         }
     }
 
+    /// Wie `resolve(_:context:probe:)` mit echtem Dateisystem, aber auf
+    /// `playlistQueue` — für den zweiten Durchlauf mit vollem Relink-Index.
+    public static func resolve(
+        _ entries: [PlaylistEntry],
+        context: Context
+    ) async -> [ResolvedPlaylistEntry] {
+        await withCheckedContinuation { continuation in
+            playlistQueue.async {
+                continuation.resume(returning: resolve(entries, context: context, probe: fileSystemProbe))
+            }
+        }
+    }
+
+    /// Flaches Listing der Audiodateien in `folders` — Kandidaten für den
+    /// Relink. Auf `playlistQueue`, weil jedes Listing auf einem NAS blockieren
+    /// kann.
+    public static func collectAudioFiles(in folders: [URL]) async -> [URL] {
+        await withCheckedContinuation { continuation in
+            playlistQueue.async {
+                continuation.resume(returning: folders.flatMap(FolderScanner.collectAudioFiles(in:)))
+            }
+        }
+    }
+
+    /// Löst Security-Scoped Bookmarks auf, ohne Volumes zu mounten oder UI zu
+    /// zeigen — ein nicht verbundenes NAS soll das Öffnen der Playlist nicht
+    /// aufhalten. `nil` für jedes Bookmark, das nicht auflösbar ist.
+    public static func resolveBookmarks(_ bookmarks: [Data]) async -> [URL?] {
+        await withCheckedContinuation { continuation in
+            playlistQueue.async {
+                let urls = bookmarks.map { data -> URL? in
+                    var isStale = false
+                    #if os(macOS)
+                    let options: URL.BookmarkResolutionOptions = [.withSecurityScope, .withoutUI, .withoutMounting]
+                    #else
+                    let options: URL.BookmarkResolutionOptions = [.withoutUI, .withoutMounting]
+                    #endif
+                    return try? URL(resolvingBookmarkData: data, options: options,
+                                    relativeTo: nil, bookmarkDataIsStale: &isStale)
+                }
+                continuation.resume(returning: urls)
+            }
+        }
+    }
+
     public static func resolve(
         _ entries: [PlaylistEntry],
         context: Context,

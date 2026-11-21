@@ -30,6 +30,11 @@ public struct Track: Identifiable, Hashable, Sendable {
     /// gehalten — Tag-Daten der Datei bleiben unangetastet (Serato/Rekordbox
     /// haben kein Standardfeld dafür).
     public var playCount: Int
+    /// Position in der Playlist (ab 1), wenn der Track aus einer Playlist-
+    /// Quelle stammt; sonst `nil`. Reine Anzeige- und Sortierhilfe — wird
+    /// weder in den Tag noch in den Cache geschrieben. Ein Track, der
+    /// mehrfach in der Playlist steht, ist mehrfach mit eigener ID da.
+    public var playlistIndex: Int?
 
     public init(
         id: UUID = UUID(),
@@ -48,7 +53,8 @@ public struct Track: Identifiable, Hashable, Sendable {
         label: String = "",
         fileSize: Int64? = nil,
         modifiedDate: Date? = nil,
-        playCount: Int = 0
+        playCount: Int = 0,
+        playlistIndex: Int? = nil
     ) {
         self.id = id
         self.url = url
@@ -67,6 +73,7 @@ public struct Track: Identifiable, Hashable, Sendable {
         self.fileSize = fileSize
         self.modifiedDate = modifiedDate
         self.playCount = playCount
+        self.playlistIndex = playlistIndex
     }
 
     /// Ab dieser Länge behandeln wir eine Datei als DJ-Mix. Club-Tracks
@@ -97,6 +104,23 @@ public struct Track: Identifiable, Hashable, Sendable {
     /// Dateiendung in Grossbuchstaben (z. B. "MP3", "FLAC"), leer falls keine.
     public var fileType: String {
         url.pathExtension.uppercased()
+    }
+
+    /// Inhalt dieses Tracks mit der Identität von `row` (ID und Playlist-
+    /// Position). Für Playlists, in denen dieselbe Datei mehrfach steht: ein
+    /// Edit an einer Zeile wird so auf die anderen gespiegelt, ohne dass sie
+    /// ihre Tabellenidentität verlieren.
+    public func reassigned(to row: Track) -> Track {
+        Track(id: row.id, url: url, title: title, artist: artist, album: album,
+              genre: genre, comment: comment, durationSeconds: durationSeconds,
+              bpm: bpm, key: key, rating: rating, year: year, bitrate: bitrate,
+              label: label, fileSize: fileSize, modifiedDate: modifiedDate,
+              playCount: playCount, playlistIndex: row.playlistIndex)
+    }
+
+    /// Sortierschlüssel der Spalte «#»: Tracks ohne Playlist-Position ans Ende.
+    public var playlistIndexSortable: Int {
+        playlistIndex ?? Int.max
     }
 
     /// Dateiname inkl. Endung (z. B. "Artist - Title.mp3").
