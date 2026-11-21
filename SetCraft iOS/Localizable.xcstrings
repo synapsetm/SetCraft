@@ -93,6 +93,16 @@
         }
       }
     },
+    "Clear filter" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter löschen"
+          }
+        }
+      }
+    },
     "Clear selection" : {
       "localizations" : {
         "de" : {
@@ -429,6 +439,16 @@
         }
       }
     },
+    "Analyze %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld analysieren"
+          }
+        }
+      }
+    },
     "Analyze all" : {
       "localizations" : {
         "de" : {
@@ -618,6 +638,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Datei"
+          }
+        }
+      }
+    },
+    "Filter %lld tracks" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Tracks filtern"
           }
         }
       }

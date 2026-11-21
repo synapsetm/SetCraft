@@ -79,10 +79,14 @@ private struct LibraryScreen: View {
     /// Lauf der Tag-Ergaenzung. Pro Aufruf neu gebaut, damit ein zweites
     /// Oeffnen nicht die Vorschlaege des letzten Laufs zeigt.
     @State private var fixStore: MetadataFixStore?
+    /// Filter über Titel und Artist — reine Anzeige, der Store bleibt unberührt.
+    @State private var filterText = ""
 
     var body: some View {
         NavigationStack {
             content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.Palette.background)
                 // Eigene Kopfzeile statt Navigationsleiste: iOS 26 legt
                 // Toolbar-Items sonst in Glas-Kapseln, die nicht zum eckigen
                 // Amber-Stil passen.
@@ -208,14 +212,17 @@ private struct LibraryScreen: View {
                 description: Text(base + detail)
             )
         } else {
+            VStack(spacing: 0) {
+            filterBar
+            sortHeader
             List {
                 if let error = libraryStore.lastError {
                     Text(error)
                         .font(.footnote)
-                        .foregroundStyle(.red)
-                        .listRowBackground(Color.clear)
+                        .foregroundStyle(Theme.Palette.issueText)
+                        .listRowBackground(Theme.Palette.background)
                 }
-                ForEach(libraryStore.tracks) { track in
+                ForEach(filteredTracks) { track in
                     // Match über URL — Track.id wird beim Scan/Cache-Read
                     // neu vergeben, URL ist die stabile Identität.
                     let isCurrent = playerStore.currentTrack?.url == track.url
@@ -240,14 +247,14 @@ private struct LibraryScreen: View {
                         } label: {
                             Label("Info", systemImage: "info.circle")
                         }
-                        .tint(.gray)
+                        .tint(Theme.Palette.borderStrong)
 
                         Button {
                             activeSheet = .edit(track)
                         } label: {
                             Label("Edit", systemImage: "pencil")
                         }
-                        .tint(.indigo)
+                        .tint(Theme.Palette.textMuted)
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         // Kein Full-Swipe fürs Löschen: die Rückfrage kommt
@@ -265,13 +272,21 @@ private struct LibraryScreen: View {
                         } label: {
                             Label("Analyze", systemImage: "wand.and.stars")
                         }
-                        .tint(.blue)
+                        .tint(Theme.Palette.accent)
                     }
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.immediately)
+            .overlay {
+                if filteredTracks.isEmpty && !filterText.isEmpty {
+                    ContentUnavailableView.search(text: filterText)
+                }
+            }
             .refreshable {
                 await libraryStore.refresh()
+            }
             }
             .confirmationDialog(
                 trashConfirmTitle,
@@ -432,6 +447,86 @@ private struct LibraryScreen: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    /// Tracks nach Filter. Leerer Filter = alle, in Store-Reihenfolge.
+    private var filteredTracks: [Track] {
+        let query = filterText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return libraryStore.tracks }
+        return libraryStore.tracks.filter {
+            $0.displayTitle.localizedStandardContains(query)
+                || $0.artist.localizedStandardContains(query)
+        }
+    }
+
+    /// Tracks ohne BPM oder Key — Ziel des «ANALYZE n»-Buttons.
+    private var tracksMissingAnalysis: [Track] {
+        libraryStore.tracks.filter { $0.bpm == nil || $0.key == nil }
+    }
+
+    /// Filterfeld und «ANALYZE n» über der Liste.
+    private var filterBar: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.Palette.textMuted)
+                TextField("Filter \(libraryStore.tracks.count) tracks", text: $filterText)
+                    .font(Theme.TypoIOS.body)
+                    .foregroundStyle(Theme.Palette.text)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.search)
+                if !filterText.isEmpty {
+                    Button {
+                        filterText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(Theme.Palette.textMuted)
+                            .frame(width: 28, height: Theme.MetricsIOS.minTouch)
+                    }
+                    .accessibilityLabel("Clear filter")
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: Theme.MetricsIOS.minTouch)
+            .background(Theme.Palette.surface, in: RoundedRectangle(cornerRadius: Theme.Metrics.radius))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Metrics.radius)
+                .strokeBorder(Theme.Palette.border, lineWidth: 1))
+
+            let missing = tracksMissingAnalysis
+            if !missing.isEmpty {
+                Button("Analyze \(missing.count)") {
+                    requestAnalyze(missing)
+                }
+                .buttonStyle(ThemeButtonStyle(height: Theme.MetricsIOS.minTouch, kind: .accentOutline))
+                .fixedSize()
+            }
+        }
+        .padding(.horizontal, Theme.MetricsIOS.padding)
+        .padding(.vertical, 8)
+    }
+
+    /// Sortierhinweis über der Liste: aktives Kriterium links, Spalten rechts.
+    /// Bewertung und Datum sortieren absteigend (siehe `applySortOrder`).
+    private var sortHeader: some View {
+        let field = libraryStore.sortField
+        let descending = field == .rating || field == .modified
+        return VStack(spacing: 0) {
+            HStack {
+                HStack(spacing: 4) {
+                    Text(LocalizedStringKey(field.rawValue))
+                    Text(verbatim: descending ? "↓" : "↑")
+                }
+                .themeLabel()
+                Spacer()
+                Text(verbatim: "BPM · KEY")
+                    .themeLabel()
+            }
+            .padding(.horizontal, Theme.MetricsIOS.padding)
+            .padding(.vertical, 6)
+            Theme.Palette.border.frame(height: 1)
+        }
     }
 
     /// «01», «02», … wie die Sidebar der Mac-App.
