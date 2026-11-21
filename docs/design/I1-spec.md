@@ -50,7 +50,7 @@ Tokens: `Theme.swift` (Farben, Schrift, Masse), gemeinsam für beide Targets. Ke
 ### Library
 | Funktion | heute | nach I1 |
 |---|---|---|
-| Master-BPM ein/aus, Slider, −/+ | `MasterTempoBar` (oben, `safeAreaInset`) | bleibt oben unter der Quellenzeile, nur restylt |
+| Master-BPM ein/aus, Slider, −/+ | `MasterTempoBar` (oben, `safeAreaInset`) | `•••` → «Master BPM» öffnet Sheet mit der Leiste; aktiv: Kennzeichen im Kopf |
 | Sortierung (alle `SortField`s, Häkchen bei aktivem) | Toolbar-Menü «Sort by» | `•••`-Menü «Sort by»; Kopfzeile zeigt aktive Sortierung |
 | Quelle wählen | Toolbar-Menü «Sources» | Quellen-Menü (Quellenzeile) |
 | Quelle entfernen | Toolbar-Menü «Remove» | Quellen-Menü, Papierkorb je Quelle |
@@ -151,8 +151,11 @@ Reihenfolge oben → unten (Hochformat):
    Im **Querformat** steht sie in der Kopfzeile zwischen «SETCRAFT» und `•••` (eine Zeile statt zwei).
    Antippen öffnet das **Quellen-Menü** (`Menu` oder Sheet): nummerierte Quellen, aktive mit `accent`-Kante,
    Papierkorb je Quelle (= «Remove» heute), darunter «Open folder…».
-3. **Master-Tempo-Leiste** (`MasterTempoBar`) direkt darunter, restylt: Label MASTER BPM, Wert `accent`,
-   On/Off als Rahmen-Button, Slider-Tint `accent`. Funktion unverändert.
+3. **Master-Tempo** (Entscheid 2026-11-21): nicht mehr als Leiste über der Liste, sondern
+   `•••` → «Master BPM» (Untertitel Wert bzw. «Off») öffnet ein kleines Sheet mit der
+   unveränderten `MasterTempoBar`. Solange Master aktiv ist, steht neben «SETCRAFT» ein
+   Kennzeichen (Metronom + Wert, Rahmen `accent`), das dasselbe Sheet öffnet — ein aktives
+   Master-Tempo verschiebt die Keys in der Liste und muss sichtbar bleiben.
 4. ~~Filterfeld + «ANALYZE n»~~ — **entfallen** (Entscheid 2026-11-21: zu viel Kopf über der Liste).
    Beides war in I1 neu, vor I1 gab es keinen Filter; Analysieren läuft über `•••` → Analyze all,
    den Swipe und automatisch beim Öffnen eines Tracks ohne Werte.

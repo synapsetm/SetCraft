@@ -130,6 +130,8 @@ private struct LibraryScreen: View {
     /// Lauf der Tag-Ergaenzung. Pro Aufruf neu gebaut, damit ein zweites
     /// Oeffnen nicht die Vorschlaege des letzten Laufs zeigt.
     @State private var fixStore: MetadataFixStore?
+    /// Master-Tempo-Sheet — aus dem •••-Menü oder dem Kennzeichen im Kopf.
+    @State private var showMasterSheet = false
     @Environment(\.verticalSizeClass) private var vSizeClass
 
     var body: some View {
@@ -156,11 +158,6 @@ private struct LibraryScreen: View {
                                 Theme.Palette.border.frame(height: 1)
                             }
                         }
-                        MasterTempoBar(masterBPM: Binding(
-                            get: { playerStore.masterBPM },
-                            set: { playerStore.masterBPM = $0 }
-                        ))
-                        Theme.Palette.border.frame(height: 1)
                     }
                     .background(Theme.Palette.background)
                 }
@@ -211,6 +208,9 @@ private struct LibraryScreen: View {
                     Task { await libraryStore.updateTrack(updated) }
                 }
             }
+        }
+        .sheet(isPresented: $showMasterSheet) {
+            masterSheet
         }
         .sheet(isPresented: Binding(
             get: { fixStore != nil },
@@ -535,6 +535,9 @@ private struct LibraryScreen: View {
                 .tracking(Theme.Typo.brandTracking)
                 .foregroundStyle(Theme.Palette.accent)
                 .fixedSize()
+            if playerStore.masterBPM != nil {
+                masterBadge
+            }
             if vSizeClass == .compact && !libraryStore.folders.isEmpty {
                 sourceRow
             } else {
@@ -544,6 +547,65 @@ private struct LibraryScreen: View {
         }
         .padding(.leading, Theme.MetricsIOS.padding)
         .padding(.trailing, 4)
+    }
+
+    /// Kennzeichen im Kopf, solange ein Master-Tempo gilt: es verschiebt die
+    /// Keys in der Liste und soll deshalb sichtbar sein, nicht nur im Menü.
+    private var masterBadge: some View {
+        Button {
+            showMasterSheet = true
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "metronome")
+                    .font(.system(size: 11, weight: .semibold))
+                Text(verbatim: String(format: "%.1f", playerStore.masterBPM ?? 0))
+                    .font(Theme.TypoIOS.time.weight(.semibold))
+            }
+            .foregroundStyle(Theme.Palette.accent)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .overlay(RoundedRectangle(cornerRadius: Theme.Metrics.radius)
+                .strokeBorder(Theme.Palette.accent, lineWidth: 1))
+            .frame(minHeight: Theme.MetricsIOS.minTouch)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.leading, 10)
+        .accessibilityLabel("Master BPM")
+    }
+
+    /// Bisherige Master-Tempo-Leiste als kleines Sheet.
+    private var masterSheet: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Master BPM")
+                    .themeSheetTitle()
+                Spacer()
+                Button {
+                    showMasterSheet = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                        .frame(width: Theme.MetricsIOS.minTouch, height: Theme.MetricsIOS.minTouch)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Close")
+            }
+            .padding(.leading, Theme.MetricsIOS.padding)
+            .padding(.trailing, 4)
+            .padding(.top, 8)
+            Theme.Palette.border.frame(height: 1)
+            MasterTempoBar(masterBPM: Binding(
+                get: { playerStore.masterBPM },
+                set: { playerStore.masterBPM = $0 }
+            ))
+            .padding(.vertical, 8)
+            Spacer(minLength: 0)
+        }
+        .background(Theme.Palette.background)
+        .presentationDetents([.height(240)])
+        .presentationBackground(Theme.Palette.background)
     }
 
     private var actionsMenu: some View {
@@ -561,6 +623,19 @@ private struct LibraryScreen: View {
                             } else {
                                 Text(LocalizedStringKey(field.rawValue))
                             }
+                        }
+                    }
+                }
+
+                Section {
+                    Button {
+                        showMasterSheet = true
+                    } label: {
+                        Label("Master BPM", systemImage: "metronome")
+                        if let master = playerStore.masterBPM {
+                            Text(verbatim: String(format: "%.1f", master))
+                        } else {
+                            Text("Off")
                         }
                     }
                 }
