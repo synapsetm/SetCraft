@@ -100,16 +100,6 @@
         }
       }
     },
-    "Apply" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Übernehmen"
-          }
-        }
-      }
-    },
     "Artist/title order unclear" : {
       "localizations" : {
         "de" : {
@@ -462,6 +452,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Analyse fehlgeschlagen: %@"
+          }
+        }
+      }
+    },
+    "Apply %lld fields" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Felder übernehmen"
           }
         }
       }
@@ -1188,16 +1188,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Alle fehlenden auswählen"
-          }
-        }
-      }
-    },
-    "Selection" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auswahl"
           }
         }
       }
