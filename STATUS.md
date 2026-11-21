@@ -4,7 +4,7 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-11-21 (Mac v1.5-26; iOS 1.3-39 in TestFlight).
+Letzte Aktualisierung: 2026-11-21 (Mac v1.5-26; iOS 1.3-40 in TestFlight).
 
 ---
 
@@ -66,16 +66,18 @@ Letzte Aktualisierung: 2026-11-21 (Mac v1.5-26; iOS 1.3-39 in TestFlight).
   mitwachsende Waveform.
   v1.0-11 hatte einen Kaltstart-Bug (Öffnen aus dem Finder erzeugte kein
   Fenster, s. u.) und sollte übersprungen werden.
-- **iOS-Release:** 1.3 (Build 39) in TestFlight (hochgeladen 2026-11-21 10:57,
-  VALID). Design-Release: iOS im Redesign „I1 · Amber" (Gegenstück zu B6,
+- **iOS-Release:** 1.3 (Build 40) in TestFlight (hochgeladen 2026-11-21 11:13,
+  VALID). Gegenüber 39 neu: App-Icon mit dem Motiv des Mac-Icons (randlos,
+  `docs/icon/ios/render_ios_icon.py`) und GRDB 7.12.0.
+  39 (hochgeladen 2026-11-21 10:57, gleichentags abgelaufen) war das
+  Design-Release: iOS im Redesign „I1 · Amber" (Gegenstück zu B6,
   Spec `docs/design/I1-spec.md`, Tokens gemeinsam in `Shared/Theme.swift`,
   iOS-Grössen in `SetCraft iOS/Theme+iOS.swift`). Eigene Kopfzeile und
   Tab-Leiste statt iOS-26-Glas, Quellenzeile mit Quellen-Menü, Master BPM im
   •••-Menü (Kennzeichen im Kopf, wenn aktiv), Waveform mit Zoom in Takten
   (1–64, Standard 8), grosses Cover über dem Transport, neues Querformat,
   Complete-Tags-Sheet als Karten. Filterfeld bewusst wieder entfernt.
-  Build 39 enthält noch GRDB 7.11.1; GRDB 7.12.0 und Sparkle 2.10.1 sind
-  seit `ff3a5f9` im Repo und kommen mit dem nächsten iOS- bzw. Mac-Build.
+  Sparkle 2.10.1 ist seit `ff3a5f9` im Repo und kommt mit dem nächsten Mac-Release.
   Im Simulator abgenommen, am 2026-11-21 auch auf dem Gerät bestätigt
   (Pinch-Zoom, Quellenwechsel, Lock Screen, NAS-Quelle, Löschen per Swipe).
   Mac-Klick-Test nach dem GRDB/Sparkle-Update ebenfalls ohne Befund.
