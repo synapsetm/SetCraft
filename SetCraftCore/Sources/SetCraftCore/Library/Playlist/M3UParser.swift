@@ -189,6 +189,13 @@ public enum M3UParser {
             guard let comma else { return }
             let display = body[body.index(after: comma)...].trimmingCharacters(in: .whitespaces)
             guard !display.isEmpty else { return }
+            // Rekordbox schreibt Tracks ohne Artist als `, - Title`; nach dem
+            // Trimmen bleibt `- Title` und der Trenner ` - ` ist weg.
+            if display.hasPrefix("- ") {
+                let t = display.dropFirst(2).trimmingCharacters(in: .whitespaces)
+                title = t.isEmpty ? nil : t
+                return
+            }
             if let separator = display.range(of: " - ") {
                 let a = display[..<separator.lowerBound].trimmingCharacters(in: .whitespaces)
                 let t = display[separator.upperBound...].trimmingCharacters(in: .whitespaces)

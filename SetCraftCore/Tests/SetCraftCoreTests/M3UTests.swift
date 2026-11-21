@@ -152,19 +152,29 @@ final class M3UParserTests: XCTestCase {
 
     // MARK: - Exporte anderer Programme (nachgebaut)
 
-    func test_parse_rekordboxStyleExport() {
-        let text = """
-        #EXTM3U
-        #EXTINF:447,One Function - Ajna (IKØN Remix)
-        /Volumes/share/_INCOMING Traxx/One_Function_-_Ajna.mp3
-        #EXTINF:395,Kölsch - Grey
-        /Users/dj/Music/Kölsch - Grey.flac
+    /// Auszug aus einem echten Rekordbox-Export (M3U8, 2026-11): CRLF, kein
+    /// BOM, `Artist - Title`, Tracks ohne Artist als `, - Title`.
+    func test_parse_rekordboxExport() {
+        let dir = "/Volumes/share/04_Audio/01_09 Studio/MP3Mix_43/_HiNRG/_In"
+        let text = [
+            "#EXTM3U",
+            "#EXTINF:230,Wilkinson, Kelli-Leigh - This Moment (Extended Mix)",
+            "\(dir)/07. This Moment (Extended Mix).flac",
+            "#EXTINF:205,Sigma - OUTTASPACE",
+            "\(dir)/10. OUTTASPACE.flac",
+            "#EXTINF:213, - 1991_-_If_Only_Extended_Mix_-_4DJSONLINE_(SkySound.cc)",
+            "\(dir)/1991_-_If_Only_Extended_Mix_-_4DJSONLINE_(SkySound.cc).mp3",
+            ""
+        ].joined(separator: "\r\n")
+        let entries = parse(M3UParser.decode(Data(text.utf8), assumeUTF8: true))
 
-        """
-        let entries = parse(text)
-        XCTAssertEqual(entries.count, 2)
-        XCTAssertEqual(entries[1].extArtist, "Kölsch")
-        XCTAssertEqual(path(entries[1]), "/Users/dj/Music/Kölsch - Grey.flac")
+        XCTAssertEqual(entries.count, 3)
+        XCTAssertEqual(entries[0].extArtist, "Wilkinson, Kelli-Leigh")
+        XCTAssertEqual(entries[0].extTitle, "This Moment (Extended Mix)")
+        XCTAssertEqual(entries[0].extDuration, 230)
+        XCTAssertEqual(path(entries[1]), "\(dir)/10. OUTTASPACE.flac")
+        XCTAssertNil(entries[2].extArtist)
+        XCTAssertEqual(entries[2].extTitle, "1991_-_If_Only_Extended_Mix_-_4DJSONLINE_(SkySound.cc)")
     }
 
     func test_parse_traktorStyleExport_cp1252_crlf() {
