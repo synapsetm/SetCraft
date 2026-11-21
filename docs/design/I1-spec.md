@@ -82,7 +82,7 @@ Tokens: `Theme.swift` (Farben, Schrift, Masse), gemeinsam für beide Targets. Ke
 | Fortschrittsbalken | oben in der Waveform | gleich |
 | Zeit elapsed / remain / Dauer | Overlay oben | ELAPSED links, REMAIN rechts (Dauer im `TrackInfoSheet`) |
 | Lade-Fortschritt Netz-Quelle (`loadProgress`) | Waveform-Overlay | gleich |
-| Querformat: vertikale Waveform links, Steuerung rechts | `landscapeBody` | bleibt, restylt (Mockup zeigt nur Hochformat) |
+| Querformat: vertikale Waveform links, Steuerung rechts | `landscapeBody` | bleibt; rechts oben Track · BPM · KEY, darunter Transport + Sterne |
 | Swipe auf Info/Steuerung = Next/Previous | `trackSwipeGesture` | gleich, nicht auf der Waveform |
 | Prev / Play-Pause / Next | Transport | gleich, neue Form |
 | BPM antippen → `TempoSheet` (Target BPM, ±8 %, Master tempo, Reset 100 %) | `BPMChipView` | BPM-Kachel |
@@ -108,9 +108,10 @@ Tokens: `Theme.swift` (Farben, Schrift, Masse), gemeinsam für beide Targets. Ke
 
 ## Player (`PlayerScreen.swift`, `PlayerChips.swift`, `WaveformCanvasView.swift`) — siehe `player.html`
 Reihenfolge oben → unten (Hochformat):
-1. **Kopfzeile:** Cover 46 × 46 pt (`ArtworkView`, Radius 3), daneben Label TRACK, Titel (einzeilig, Ellipsis),
-   Artist `textSecondary`; rechts `•••`-Menü mit **Edit** (`TagEditSheet`) und **Info** (`TrackInfoSheet`).
-   Ohne Cover: `CoverPlaceholderView` in gleicher Grösse.
+1. **Kopfzeile:** Label TRACK, Titel (einzeilig, Ellipsis), Artist `textSecondary`;
+   rechts `•••`-Menü mit **Edit** (`TagEditSheet`) und **Info** (`TrackInfoSheet`).
+   Im Hochformat **ohne** Cover (das steht gross über dem Transport, siehe 4); im Querformat
+   Cover 46 × 46 pt links. Ohne Bild: `CoverPlaceholderView` (dunkel, Rahmen, Notensymbol).
 2. **Waveform**, Höhe ~220 pt, volle Breite, Trennlinien oben/unten `border`, Hintergrund `waveformBG`:
    - **Playhead fest in der Mitte**, `accent`, 2 pt, mit kleinem Dreieck oben. Bereich links davon abgedunkelt.
    - **Scrubben:** horizontales Ziehen verschiebt den Track unter dem Playhead.
@@ -128,12 +129,15 @@ Reihenfolge oben → unten (Hochformat):
 3. **Kacheln** (2 Spalten, Trennlinie `border` dazwischen): links BPM-Label + Chevron und Wert in `accent`
    (Antippen öffnet `TempoSheet`), rechts KEY-Label und gespielter Key in Camelot-Farbe mit Shift/Tilde wie heute.
    Wert ~30 pt monospacedDigit. Während der Analyse Spinner statt Wert. **Keine** ELAPSED/REMAIN-Kacheln.
-4. **Transport** (vertikal zentriert im Restraum): Previous und Next als Quadrate mit Rahmen `borderStrong`
+4. **Cover + Transport:** Cover gross direkt über dem Transport, so breit wie die Transport-Zeile (236 pt);
+   reicht die Höhe nicht, wird es kleiner statt abgeschnitten (Entscheid 2026-11-21).
+   Transport: Previous und Next als Quadrate mit Rahmen `borderStrong`
    (56 × 46), Play/Pause als gefüllter `accent`-Block (104 × 46), Symbol `onAccent`. Radius `Metrics.radius`.
 5. **Rating:** 5 Sterne, je ~32 pt, eigene Zeile, aktiv `star`, inaktiv `starDim`.
 6. Fehlerzeile unter dem Rating, `issueText`.
-- **Querformat:** Aufbau von `landscapeBody` bleibt (vertikale Waveform links, Kopfzeile mitte, Kacheln/Transport/Rating rechts),
-  nur Tokens und Bausteine aus dem Hochformat übernehmen.
+- **Querformat** (Entscheid 2026-11-21): vertikale Waveform links über die volle Höhe (140 pt). Rechts oben
+  eine Zeile mit Kopfzeile (Cover 46, Titel, Artist, `•••`) und den Kacheln BPM | KEY (zusammen 260 pt),
+  darunter mittig Transport und Sterne. Keine Zoom-Kapsel (zu schmal); Pinch und Doppeltipp bleiben.
 - Track-Swipe (Next/Previous) bleibt auf Kopfzeile/Kacheln/Transport, nicht auf der Waveform.
 
 ## Library (`ContentView.swift`, `TrackRowView.swift`, `MiniPlayerView.swift`, `MasterTempoBar.swift`) — siehe `library.html`
@@ -141,6 +145,7 @@ Reihenfolge oben → unten (Hochformat):
    **Sort by** (Abschnitt, Häkchen) · **Analyze all** · **Complete tags (n)** · **Reset play counts** (destruktiv).
    Bestehende Bezeichnungen und Katalog-Keys bleiben («Open folder…» wandert ins Quellen-Menü).
 2. **Quellenzeile:** Nummer in `accent` («01»), Quellenname, Chevron, rechts «105 TRACKS» bzw. «SCANNING…».
+   Im **Querformat** steht sie in der Kopfzeile zwischen «SETCRAFT» und `•••` (eine Zeile statt zwei).
    Antippen öffnet das **Quellen-Menü** (`Menu` oder Sheet): nummerierte Quellen, aktive mit `accent`-Kante,
    Papierkorb je Quelle (= «Remove» heute), darunter «Open folder…».
 3. **Master-Tempo-Leiste** (`MasterTempoBar`) direkt darunter, restylt: Label MASTER BPM, Wert `accent`,
@@ -149,6 +154,9 @@ Reihenfolge oben → unten (Hochformat):
    n = Tracks ohne BPM oder Key, Aktion = `requestAnalyze` dieser Tracks inkl. DJ-Mix-Rückfrage).
    Das Filterfeld ist **neu**: filtert nur in der View über `libraryStore.tracks` (Titel, Artist,
    Gross-/Kleinschreibung egal), kein Eingriff in den Store. Platzhalter «Filter n tracks».
+   Im **Querformat** ausgeblendet, damit Tracks sichtbar bleiben — ausser ein Filter ist aktiv
+   (sonst wäre die Liste ohne sichtbaren Grund gekürzt). «ANALYZE n» entfällt dort mit;
+   Analysieren bleibt über `•••` → Analyze all und Swipe erreichbar.
 5. Kopfzeile mit aktiver Sortierung, z. B. «ARTIST ↑» links und «BPM · KEY» rechts (`themeLabel()`).
 6. **Zeile:** Titel (laufender Track in `accent` mit ▶/❚❚, Lade-Spinner wie heute), Artist `textSecondary`,
    kleine Sterne, Play-Count; rechts BPM (monospacedDigit, Analyse-Spinner) und Key in Camelot-Farbe

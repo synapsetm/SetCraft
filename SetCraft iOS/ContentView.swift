@@ -81,6 +81,7 @@ private struct LibraryScreen: View {
     @State private var fixStore: MetadataFixStore?
     /// Filter über Titel und Artist — reine Anzeige, der Store bleibt unberührt.
     @State private var filterText = ""
+    @Environment(\.verticalSizeClass) private var vSizeClass
 
     var body: some View {
         NavigationStack {
@@ -93,11 +94,18 @@ private struct LibraryScreen: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .safeAreaInset(edge: .top, spacing: 0) {
                     VStack(spacing: 0) {
-                        header
-                        Theme.Palette.border.frame(height: 1)
-                        if !libraryStore.folders.isEmpty {
-                            sourceRow
+                        if vSizeClass == .compact {
+                            // Querformat: Marke, Quelle und ••• in einer
+                            // Zeile, damit mehr Platz für Tracks bleibt.
+                            header
                             Theme.Palette.border.frame(height: 1)
+                        } else {
+                            header
+                            Theme.Palette.border.frame(height: 1)
+                            if !libraryStore.folders.isEmpty {
+                                sourceRow
+                                Theme.Palette.border.frame(height: 1)
+                            }
                         }
                         MasterTempoBar(masterBPM: Binding(
                             get: { playerStore.masterBPM },
@@ -213,7 +221,12 @@ private struct LibraryScreen: View {
             )
         } else {
             VStack(spacing: 0) {
-            filterBar
+            // Im Querformat kein Filterfeld — sonst bleibt unter den
+            // Kopfzeilen kaum Platz für Tracks. Ein aktiver Filter bleibt
+            // sichtbar, damit klar ist, warum die Liste gekürzt ist.
+            if vSizeClass != .compact || !filterText.isEmpty {
+                filterBar
+            }
             sortHeader
             List {
                 if let error = libraryStore.lastError {
@@ -536,12 +549,17 @@ private struct LibraryScreen: View {
 
     /// Kopfzeile: Marke links, Aktionen-Menü rechts.
     private var header: some View {
-        HStack {
+        HStack(spacing: 0) {
             Text(verbatim: "SETCRAFT")
                 .font(Theme.TypoIOS.brand)
                 .tracking(Theme.Typo.brandTracking)
                 .foregroundStyle(Theme.Palette.accent)
-            Spacer()
+                .fixedSize()
+            if vSizeClass == .compact && !libraryStore.folders.isEmpty {
+                sourceRow
+            } else {
+                Spacer()
+            }
             actionsMenu
         }
         .padding(.leading, Theme.MetricsIOS.padding)

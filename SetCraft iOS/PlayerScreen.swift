@@ -71,7 +71,7 @@ struct PlayerScreen: View {
             VStack(spacing: 0) {
                 tiles
                 Theme.Palette.border.frame(height: 1)
-                Spacer(minLength: 12)
+                largeCover
                 transport
                 Spacer(minLength: 12)
                 stars
@@ -84,9 +84,9 @@ struct PlayerScreen: View {
         }
     }
 
-    /// Landscape-Layout: vertikale Waveform links, Track-Header mittig,
-    /// Steuerelemente rechts. Mini-Player + TabView bleiben unangetastet.
-    /// Feinschliff nach I1-Spec folgt in Schritt 7.
+    /// Landscape-Layout: vertikale Waveform links über die volle Höhe.
+    /// Rechts oben eine Zeile mit Track, BPM und KEY, darunter mittig
+    /// Transport und Sterne.
     @ViewBuilder
     private var landscapeBody: some View {
         HStack(spacing: 0) {
@@ -95,26 +95,26 @@ struct PlayerScreen: View {
             Theme.Palette.border.frame(width: 1)
 
             VStack(spacing: 0) {
-                Spacer(minLength: 0)
-                header
-                Spacer(minLength: 0)
-                errorLine
-            }
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .gesture(trackSwipeGesture)
+                HStack(spacing: 0) {
+                    header
+                        .frame(maxWidth: .infinity)
+                    Theme.Palette.border.frame(width: 1)
+                    tiles
+                        .frame(width: 260)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                Theme.Palette.border.frame(height: 1)
 
-            Theme.Palette.border.frame(width: 1)
-            VStack(spacing: 16) {
-                Spacer(minLength: 0)
-                tiles
-                transport
-                stars
-                Spacer(minLength: 0)
+                VStack(spacing: 12) {
+                    Spacer(minLength: 0)
+                    transport
+                    stars
+                    errorLine
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 12)
-            .frame(width: 360)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
             .gesture(trackSwipeGesture)
         }
@@ -160,9 +160,12 @@ struct PlayerScreen: View {
     @ViewBuilder
     private var header: some View {
         HStack(spacing: 12) {
-            ArtworkView(url: store.currentTrack?.url,
-                        size: Theme.MetricsIOS.coverSize,
-                        cornerRadius: Theme.MetricsIOS.coverRadius)
+            // Im Hochformat steht das Cover gross über dem Transport.
+            if vSizeClass == .compact {
+                ArtworkView(url: store.currentTrack?.url,
+                            size: Theme.MetricsIOS.coverSize,
+                            cornerRadius: Theme.MetricsIOS.coverRadius)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text("Track")
                     .themeLabel()
@@ -204,6 +207,25 @@ struct PlayerScreen: View {
         .padding(.trailing, 4)
         .padding(.vertical, 10)
     }
+
+    /// Grosses Cover direkt über dem Transport, so breit wie der Transport.
+    /// Reicht die Höhe nicht, wird es kleiner statt abgeschnitten.
+    @ViewBuilder
+    private var largeCover: some View {
+        GeometryReader { geo in
+            let side = max(0, min(Self.transportWidth, geo.size.height - 24))
+            ArtworkView(url: store.currentTrack?.url,
+                        size: side,
+                        cornerRadius: Theme.MetricsIOS.coverRadius)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .opacity(side < 60 ? 0 : 1)
+        }
+        .frame(minHeight: 12)
+    }
+
+    /// Breite der Transport-Zeile: Prev + Play + Next + zwei Abstände.
+    private static let transportWidth = Theme.MetricsIOS.transportSide * 2
+        + Theme.MetricsIOS.transportMain + 2 * 10
 
     /// BPM- und KEY-Kachel nebeneinander, Trennlinie dazwischen.
     @ViewBuilder
