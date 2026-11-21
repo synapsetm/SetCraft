@@ -194,10 +194,39 @@ final class LibraryViewModel {
     private var blockedByActivePlayer: Set<Track.ID> = []
     private var previousActiveURL: URL?
 
-    /// Analyse-Ergebnisse für Tracks, die nicht mehr in der Liste stehen und
-    /// deren Datei gerade im Player läuft. Über die URL statt die Scan-ID
-    /// gehalten — siehe `persistOrphanedAnalysis`.
-    private var orphanedSaves: [URL: Track] = [:]
+    /// Geparkte Schreibvorgänge für Dateien, die gerade im Player laufen —
+    /// über die URL gehalten, weil die Scan-ID nach einem Quellenwechsel
+    /// nicht mehr in `tracks` steht. Zwei Herkünfte:
+    /// - Analyse-Ergebnisse für Tracks, die schon beim Ergebnis nicht mehr
+    ///   in der Liste standen (`persistOrphanedAnalysis`),
+    /// - Edits aus `performSave`, die am Player-Guard hängen blieben. Ohne
+    ///   diese Kopie ging ein Rating auf den spielenden Track verloren, wenn
+    ///   der Nutzer danach die Quelle wechselte (2026-11-21).
+    ///
+    /// Das Token hält den Scope der Quelle offen, bis geschrieben ist —
+    /// sonst wäre er nach dem Wechsel womöglich schon zu.
+    private var orphanedSaves: [URL: ParkedSave] = [:]
+
+    private struct ParkedSave {
+        var track: Track
+        var token: SecurityScope.Token?
+    }
+
+    private func park(_ track: Track) {
+        let url = track.url
+        // Bestehendes Token weiterverwenden: ein frisches liefert `nil`,
+        // wenn die Quelle inzwischen gewechselt hat.
+        let token = orphanedSaves[url]?.token ?? scopes.token(for: url)
+        orphanedSaves[url] = ParkedSave(track: track, token: token)
+    }
+
+    /// Entfernt die geparkte Kopie, wenn sie zu genau diesem Track gehört —
+    /// ein Analyse-Ergebnis für dieselbe Datei (andere ID) bleibt stehen.
+    private func unpark(_ track: Track) {
+        guard let parked = orphanedSaves[track.url], parked.track.id == track.id else { return }
+        parked.token?.release()
+        orphanedSaves.removeValue(forKey: track.url)
+    }
 
     /// Debounce-Fenster für Inline-Edits: spätestens danach landet das letzte
     /// Setzen auf der Platte. Kürzere Eingaben kollabieren in einen Schreibvorgang.
@@ -907,6 +936,7 @@ final class LibraryViewModel {
                 pendingSaves[track.id]?.cancel()
                 pendingSaves.removeValue(forKey: track.id)
                 blockedByActivePlayer.remove(track.id)
+                orphanedSaves.removeValue(forKey: track.url)?.token?.release()
                 let cache = waveformCache
                 let url = track.url
                 Task { await cache.invalidate(url) }
@@ -1031,12 +1061,16 @@ final class LibraryViewModel {
             try await repository.save(track)
             unsavedTrackIDs.remove(track.id)
             blockedByActivePlayer.remove(track.id)
+            unpark(track)
             lastWriteError = nil
         } catch let error as TagLibTrackStore.StoreError {
             if case .fileInUse = error {
                 // Track ist gerade im Player aktiv: roten Punkt stehen
                 // lassen, Schreiben wird beim Entladen automatisch nachgeholt.
+                // Zusätzlich über die URL parken, falls der Track bis dahin
+                // nicht mehr in der Liste steht.
                 blockedByActivePlayer.insert(track.id)
+                park(track)
             } else {
                 lastWriteError = error.localizedDescription
             }
@@ -1071,7 +1105,14 @@ final class LibraryViewModel {
         for id in ids {
             guard let track = tracks.first(where: { $0.id == id }) else { continue }
             blockedByActivePlayer.remove(id)
-            let token = scopes.token(for: track.url)
+            // Der Track steht noch in der Liste — die geparkte Kopie wäre
+            // ein zweiter Write desselben Stands.
+            var token: SecurityScope.Token?
+            if let parked = orphanedSaves[track.url], parked.track.id == id {
+                orphanedSaves.removeValue(forKey: track.url)
+                token = parked.token
+            }
+            token = token ?? scopes.token(for: track.url)
             Task { [weak self, track, token] in
                 defer { token?.release() }
                 await self?.performSave(track)
@@ -1363,7 +1404,7 @@ final class LibraryViewModel {
                 // hier nicht — das geht über die Scan-ID, die es für diesen
                 // Track nicht mehr gibt. Also über die URL parken und beim
                 // nächsten Player-Wechsel nachholen.
-                orphanedSaves[url] = fresh
+                park(fresh)
             } else {
                 lastWriteError = error.localizedDescription
             }
@@ -1376,12 +1417,14 @@ final class LibraryViewModel {
     /// nicht mehr hält.
     private func flushOrphanedSaves(activeURL: URL?) {
         let due = orphanedSaves.filter { $0.key != activeURL }
-        for (url, track) in due {
+        for (url, parked) in due {
             orphanedSaves.removeValue(forKey: url)
-            let token = scopes.token(for: url)
+            blockedByActivePlayer.remove(parked.track.id)
+            let track = parked.track
+            let token = parked.token ?? scopes.token(for: url)
             Task { [weak self, track, token] in
                 defer { token?.release() }
-                try? await self?.repository.save(track)
+                await self?.performSave(track)
             }
         }
     }
