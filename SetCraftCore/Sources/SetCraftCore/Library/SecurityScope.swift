@@ -133,6 +133,10 @@ public final class SecurityScopeRegistry: @unchecked Sendable {
     private let lock = NSLock()
     private let makeScope: @Sendable (URL) -> SecurityScope
     private var active: SecurityScope?
+    /// Weitere Scopes, die zusammen mit `active` offen sind — bei einer
+    /// Playlist-Quelle die Ordner, in denen ihre Tracks liegen. Sie werden
+    /// mit der aktiven Quelle zusammen abgemeldet.
+    private var companions: [SecurityScope] = []
     /// Abgemeldete Scopes, die noch mindestens ein Token halten.
     private var retiring: [SecurityScope] = []
 
@@ -164,38 +168,65 @@ public final class SecurityScopeRegistry: @unchecked Sendable {
         guard scope.didStartAccess || !requireScope else { return false }
 
         lock.lock()
-        let previous = active
+        let previous = [active].compactMap { $0 } + companions
         active = scope
-        if let previous {
-            retiring.append(previous)
-        }
+        companions = []
+        retiring.append(contentsOf: previous)
         lock.unlock()
 
-        previous?.requestRelease()
+        for scope in previous { scope.requestRelease() }
         pruneClosedScopes()
         return true
+    }
+
+    /// Öffnet einen zusätzlichen Scope neben der aktiven Quelle, ohne sie zu
+    /// ersetzen. Gilt, bis die aktive Quelle wechselt oder abgemeldet wird.
+    /// Ohne aktive Quelle wird nichts geöffnet.
+    ///
+    /// - Parameter requireScope: wie bei `activate(_:requireScope:)`.
+    @discardableResult
+    public func addCompanion(_ url: URL, requireScope: Bool = true) -> Bool {
+        lock.lock()
+        let hasActive = active != nil
+        lock.unlock()
+        guard hasActive else { return false }
+
+        let scope = makeScope(url)
+        guard scope.didStartAccess || !requireScope else { return false }
+
+        lock.lock()
+        companions.append(scope)
+        lock.unlock()
+        return true
+    }
+
+    /// Pfade der aktiven Quelle und ihrer Begleit-Scopes.
+    public var openURLs: [URL] {
+        lock.lock()
+        defer { lock.unlock() }
+        return ([active].compactMap { $0 } + companions).map(\.url)
     }
 
     /// Meldet die aktive Quelle ab. Laufende Operationen behalten ihren
     /// Zugriff, bis sie ihr Token zurückgeben.
     public func deactivate() {
         lock.lock()
-        let previous = active
+        let previous = [active].compactMap { $0 } + companions
         active = nil
-        if let previous {
-            retiring.append(previous)
-        }
+        companions = []
+        retiring.append(contentsOf: previous)
         lock.unlock()
 
-        previous?.requestRelease()
+        for scope in previous { scope.requestRelease() }
         pruneClosedScopes()
     }
 
     /// Gibt alle Scopes frei — für `deinit` des besitzenden ViewModels.
     public func releaseAll() {
         lock.lock()
-        let all = ([active].compactMap { $0 }) + retiring
+        let all = ([active].compactMap { $0 }) + companions + retiring
         active = nil
+        companions = []
         retiring.removeAll()
         lock.unlock()
 
@@ -210,7 +241,7 @@ public final class SecurityScopeRegistry: @unchecked Sendable {
         pruneClosedScopes()
 
         lock.lock()
-        let candidates = ([active].compactMap { $0 }) + retiring
+        let candidates = ([active].compactMap { $0 }) + companions + retiring
         lock.unlock()
 
         let path = fileURL.standardizedFileURL.path
@@ -247,6 +278,7 @@ public final class SecurityScopeRegistry: @unchecked Sendable {
     deinit {
         // Kein Lock nötig: deinit läuft, wenn niemand mehr referenziert.
         active?.requestRelease()
+        for scope in companions { scope.requestRelease() }
         for scope in retiring { scope.requestRelease() }
     }
 }

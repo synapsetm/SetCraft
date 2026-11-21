@@ -97,6 +97,18 @@ public actor DatabaseService {
                 t.column("cached_at", .double).notNull()
             }
         }
+        // v7: Relinks importierter Playlists. Fremdschlüssel auf `folders`,
+        // damit das Entfernen der Playlist-Quelle ihre Relinks mitnimmt.
+        m.registerMigration("v7_playlist_links") { db in
+            try db.create(table: "playlist_links") { t in
+                t.column("playlist_id", .text).notNull()
+                    .references("folders", onDelete: .cascade)
+                t.column("original_line", .text).notNull()
+                t.column("resolved_path", .text).notNull()
+                t.column("linked_at", .double).notNull()
+                t.primaryKey(["playlist_id", "original_line"])
+            }
+        }
         return m
     }()
 
@@ -219,6 +231,34 @@ public actor DatabaseService {
             try FolderRecord.deleteOne(db, key: id)
         }
     }
+
+    // MARK: - Playlist-Relinks
+
+    /// Gespeicherte Relinks einer Playlist: Originalzeile → aufgelöster Pfad.
+    public func playlistLinks(playlistID: String) async throws -> [String: String] {
+        try await dbQueue.read { db in
+            let rows = try PlaylistLink
+                .filter(Column("playlist_id") == playlistID)
+                .fetchAll(db)
+            return Dictionary(rows.map { ($0.original_line, $0.resolved_path) },
+                              uniquingKeysWith: { _, last in last })
+        }
+    }
+
+    public func savePlaylistLink(_ link: PlaylistLink) async throws {
+        try await dbQueue.write { db in
+            try link.save(db)
+        }
+    }
+
+    /// Alle Pfade aus dem Track-Cache — Kandidaten für den Relink neben dem
+    /// Listing der Ordnerquellen.
+    public func cachedTrackPaths() async throws -> [String] {
+        try await dbQueue.read { db in
+            try String.fetchAll(db, sql: "SELECT url FROM tracks")
+        }
+    }
+
     // MARK: - Katalog-Cache
 
     public func loadCatalogResponse(key: String, maxAge: TimeInterval) async throws -> Data? {

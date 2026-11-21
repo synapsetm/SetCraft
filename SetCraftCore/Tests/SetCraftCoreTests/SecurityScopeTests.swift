@@ -244,4 +244,45 @@ final class SecurityScopeTests: XCTestCase {
         token?.release()
         XCTAssertEqual(stops.count, 2)
     }
+
+    // MARK: - Begleit-Scopes (Playlist-Quellen)
+
+    func test_companions_coverTheirFiles_andCloseWithActiveSource() {
+        let stops = StopCounter()
+        let registry = makeRegistry(stops: stops)
+        registry.activate(URL(fileURLWithPath: "/Volumes/share/set.m3u8"))
+        XCTAssertTrue(registry.addCompanion(URL(fileURLWithPath: "/Volumes/share/Musik")))
+
+        XCTAssertEqual(registry.openURLs.map(\.path), ["/Volumes/share/set.m3u8", "/Volumes/share/Musik"])
+        let token = registry.token(for: URL(fileURLWithPath: "/Volumes/share/Musik/a.mp3"))
+        XCTAssertEqual(token?.scopeURL.path, "/Volumes/share/Musik")
+
+        registry.activate(URL(fileURLWithPath: "/Volumes/share/Andere"))
+        XCTAssertEqual(stops.count, 1, "M3U-Scope zu, Musik-Ordner hält das Token noch offen")
+        token?.release()
+        XCTAssertEqual(stops.count, 2)
+        XCTAssertNil(registry.token(for: URL(fileURLWithPath: "/Volumes/share/Musik/a.mp3")))
+    }
+
+    func test_companion_withoutActiveSource_isRejected() {
+        let registry = makeRegistry()
+        XCTAssertFalse(registry.addCompanion(URL(fileURLWithPath: "/Volumes/share/Musik")))
+    }
+
+    func test_deniedCompanion_isNotAdded() {
+        let registry = makeRegistry(granted: false)
+        registry.activate(URL(fileURLWithPath: "/a.m3u8"), requireScope: false)
+        XCTAssertFalse(registry.addCompanion(URL(fileURLWithPath: "/Musik")))
+        XCTAssertEqual(registry.openURLs.count, 1)
+    }
+
+    func test_deactivate_closesCompanions() {
+        let stops = StopCounter()
+        let registry = makeRegistry(stops: stops)
+        registry.activate(URL(fileURLWithPath: "/a.m3u8"))
+        registry.addCompanion(URL(fileURLWithPath: "/Musik"))
+        registry.deactivate()
+        XCTAssertEqual(stops.count, 2)
+        XCTAssertEqual(registry.openURLs, [])
+    }
 }
