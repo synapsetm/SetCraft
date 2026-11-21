@@ -167,9 +167,9 @@ final class PlaylistResolverTests: XCTestCase {
 
     func test_commonAncestor() {
         XCTAssertEqual(PlaylistResolver.commonAncestor(of: [
-            url("/Volumes/share/04_Audio/A/x.mp3"),
-            url("/Volumes/share/04_Audio/B/C/y.mp3")
-        ])?.path, "/Volumes/share/04_Audio")
+            url("/Volumes/NAS/Music/A/x.mp3"),
+            url("/Volumes/NAS/Music/B/C/y.mp3")
+        ])?.path, "/Volumes/NAS/Music")
         XCTAssertEqual(PlaylistResolver.commonAncestor(of: [url("/Volumes/share/A/x.mp3")])?.path,
                        "/Volumes/share/A")
         XCTAssertEqual(PlaylistResolver.commonAncestor(of: [url("/a/x.mp3"), url("/b/y.mp3")])?.path, "/")

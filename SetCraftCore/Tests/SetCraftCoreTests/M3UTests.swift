@@ -152,29 +152,31 @@ final class M3UParserTests: XCTestCase {
 
     // MARK: - Exporte anderer Programme (nachgebaut)
 
-    /// Auszug aus einem echten Rekordbox-Export (M3U8, 2026-11): CRLF, kein
-    /// BOM, `Artist - Title`, Tracks ohne Artist als `, - Title`.
+    /// Nachgebildet nach einem echten Rekordbox-Export (M3U8, 2026-11), Namen
+    /// und Pfade neutralisiert. Format wie im Original: CRLF, kein BOM,
+    /// `Artist - Title`, mehrere Artists mit Komma, Tracks ohne Artist als
+    /// `, - Title`.
     func test_parse_rekordboxExport() {
-        let dir = "/Volumes/share/04_Audio/01_09 Studio/MP3Mix_43/_HiNRG/_In"
+        let dir = "/Volumes/NAS/Music/Sets/Incoming"
         let text = [
             "#EXTM3U",
-            "#EXTINF:230,Wilkinson, Kelli-Leigh - This Moment (Extended Mix)",
-            "\(dir)/07. This Moment (Extended Mix).flac",
-            "#EXTINF:205,Sigma - OUTTASPACE",
-            "\(dir)/10. OUTTASPACE.flac",
-            "#EXTINF:213, - 1991_-_If_Only_Extended_Mix_-_4DJSONLINE_(SkySound.cc)",
-            "\(dir)/1991_-_If_Only_Extended_Mix_-_4DJSONLINE_(SkySound.cc).mp3",
+            "#EXTINF:230,Artist One, Featured Singer - First Track (Extended Mix)",
+            "\(dir)/07. First Track (Extended Mix).flac",
+            "#EXTINF:205,Artist Two - SECOND TRACK",
+            "\(dir)/10. SECOND TRACK.flac",
+            "#EXTINF:213, - Some_Artist_-_Third_Track_Extended_Mix_(example.com)",
+            "\(dir)/Some_Artist_-_Third_Track_Extended_Mix_(example.com).mp3",
             ""
         ].joined(separator: "\r\n")
         let entries = parse(M3UParser.decode(Data(text.utf8), assumeUTF8: true))
 
         XCTAssertEqual(entries.count, 3)
-        XCTAssertEqual(entries[0].extArtist, "Wilkinson, Kelli-Leigh")
-        XCTAssertEqual(entries[0].extTitle, "This Moment (Extended Mix)")
+        XCTAssertEqual(entries[0].extArtist, "Artist One, Featured Singer")
+        XCTAssertEqual(entries[0].extTitle, "First Track (Extended Mix)")
         XCTAssertEqual(entries[0].extDuration, 230)
-        XCTAssertEqual(path(entries[1]), "\(dir)/10. OUTTASPACE.flac")
+        XCTAssertEqual(path(entries[1]), "\(dir)/10. SECOND TRACK.flac")
         XCTAssertNil(entries[2].extArtist)
-        XCTAssertEqual(entries[2].extTitle, "1991_-_If_Only_Extended_Mix_-_4DJSONLINE_(SkySound.cc)")
+        XCTAssertEqual(entries[2].extTitle, "Some_Artist_-_Third_Track_Extended_Mix_(example.com)")
     }
 
     func test_parse_traktorStyleExport_cp1252_crlf() {
