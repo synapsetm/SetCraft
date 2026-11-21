@@ -17,40 +17,42 @@ struct MiniPlayerView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            ArtworkView(url: store.currentTrack?.url, size: 34, cornerRadius: 6)
+            ArtworkView(url: store.currentTrack?.url,
+                        size: Theme.MetricsIOS.miniCoverSize,
+                        cornerRadius: Theme.MetricsIOS.coverRadius)
 
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(store.currentTrack?.displayTitle ?? "")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Theme.TypoIOS.body.weight(.medium))
+                    .foregroundStyle(Theme.Palette.text)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Text(subtitle)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                    .font(Theme.TypoIOS.rowDetail.monospacedDigit())
+                    .foregroundStyle(Theme.Palette.textSecondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .onTapGesture(perform: onTap)
-
-            Spacer(minLength: 8)
 
             Button {
                 store.togglePlayPause()
             } label: {
                 Image(systemName: store.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(.orange)
+                    .font(.system(size: 18))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ThemeButtonStyle(width: Theme.MetricsIOS.minTouch,
+                                          height: Theme.MetricsIOS.minTouch,
+                                          kind: .prominent))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(red: 0.13, green: 0.13, blue: 0.15))
+        .padding(.leading, Theme.MetricsIOS.padding)
+        .padding(.trailing, 8)
+        .padding(.vertical, 6)
+        .background(Theme.Palette.surface)
         .overlay(alignment: .top) {
-            Rectangle()
-                .fill(.white.opacity(0.08))
-                .frame(height: 0.5)
+            Theme.Palette.border.frame(height: 1)
         }
     }
 
