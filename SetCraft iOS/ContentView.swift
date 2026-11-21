@@ -18,6 +18,10 @@ struct ContentView: View {
     enum AppTab: Hashable { case library, player }
 
     var body: some View {
+        // TabView und Leiste untereinander, nicht übereinander: als Inset
+        // an der TabView reichen ihre Seiten trotzdem bis zum unteren Rand,
+        // und Mini-Player wie letzte Listenzeile lägen hinter der Leiste.
+        VStack(spacing: 0) {
         TabView(selection: $selectedTab) {
             LibraryScreen(
                 libraryStore: libraryStore,
@@ -38,11 +42,12 @@ struct ContentView: View {
                 .toolbar(.hidden, for: .tabBar)
         }
         .tint(Theme.Palette.accent)
+
         // Eigene Tab-Leiste nach Mockup statt der schwebenden Glas-Kapsel
         // von iOS 26, deren Beschriftung sich nicht gestalten lässt.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            ThemeTabBar(selection: $selectedTab)
+        ThemeTabBar(selection: $selectedTab)
         }
+        .background(Theme.Palette.background.ignoresSafeArea())
     }
 }
 
