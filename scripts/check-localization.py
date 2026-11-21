@@ -135,24 +135,36 @@ def main():
         code = extracted(base)
 
         for key, entry in cat.items():
-            loc = entry.get("localizations", {}).get("de", {}).get("stringUnit", {})
-            de = loc.get("value")
-            state = loc.get("state")
-            if de is None:
+            de_entry = entry.get("localizations", {}).get("de", {})
+            # Einfacher Eintrag: ein stringUnit. Plural-Eintrag: je Form
+            # (one, other, …) ein eigenes stringUnit unter variations.plural.
+            if "stringUnit" in de_entry:
+                units = {None: de_entry["stringUnit"]}
+            else:
+                plural = de_entry.get("variations", {}).get("plural", {})
+                units = {form: v.get("stringUnit", {}) for form, v in plural.items()}
+            if not units or any(u.get("value") is None for u in units.values()):
                 if entry.get("shouldTranslate") is not False:
                     problems["ohne de-Eintrag (und nicht als unübersetzbar markiert)"].append(f"{name}: {key!r}")
                 continue
-            all_de.setdefault(key, {})[name] = de
-            if state != "translated":
-                problems["state != translated"].append(f"{name}: {key!r} -> {state}")
-            if specs(key) != specs(de):
-                problems["Platzhalter stimmen nicht überein"].append(f"{name}: {key!r} -> {de!r}")
-            if "ß" in de:
-                problems["ß statt ss"].append(f"{name}: {de!r}")
-            if de == key and len(key) > 3 and not re.fullmatch(r'[\W\d%@l\s]+', key):
-                problems["de identisch zum englischen Key"].append(f"{name}: {key!r}")
-            if de.strip() != de:
-                problems["führende/abschliessende Leerzeichen"].append(f"{name}: {de!r}")
+            # Für den macOS/iOS-Vergleich zählt die ganze Übersetzung.
+            all_de.setdefault(key, {})[name] = (
+                units[None]["value"] if None in units
+                else tuple(sorted((f, u["value"]) for f, u in units.items())))
+            for form, loc in units.items():
+                de = loc["value"]
+                state = loc.get("state")
+                label = key if form is None else f"{key} [{form}]"
+                if state != "translated":
+                    problems["state != translated"].append(f"{name}: {label!r} -> {state}")
+                if specs(key) != specs(de):
+                    problems["Platzhalter stimmen nicht überein"].append(f"{name}: {label!r} -> {de!r}")
+                if "ß" in de:
+                    problems["ß statt ss"].append(f"{name}: {de!r}")
+                if de == key and len(key) > 3 and not re.fullmatch(r'[\W\d%@l\s]+', key):
+                    problems["de identisch zum englischen Key"].append(f"{name}: {key!r}")
+                if de.strip() != de:
+                    problems["führende/abschliessende Leerzeichen"].append(f"{name}: {de!r}")
 
         for key in sorted(code - set(cat)):
             problems["im Code, nicht im Katalog"].append(f"{name}: {key!r}")
