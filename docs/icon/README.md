@@ -8,8 +8,13 @@ Frequenzbasierte RGB-Waveform mit zentraler, überragender Playhead auf dunklem 
 >   Radius 185, Schlagschatten). Für 16/32 px die reduzierte Variante mit 6 Balken.
 >   `macos/render_macos_icon.py` (Pillow) erzeugt SVGs, Vorschauen und ein `AppIcon.appiconset`
 >   in `macos/` — danach von Hand nach `SetCraft/Assets.xcassets/AppIcon.appiconset/` kopieren.
-> - **iOS:** die Dateien in diesem Ordner (unten) — das bisherige symmetrische Motiv, randlos
->   im iOS-Stil. Der Abschnitt „In Xcode einsetzen" unten betrifft nur noch iOS.
+> - **iOS:** `ios/` — seit Build 1.3-40 (2026-11-21) **dasselbe Motiv wie macOS**, randlos im
+>   iOS-Stil (1024 × 1024, deckend, ohne Schatten; iOS rundet die Ecken selbst ab). Das Skript
+>   `ios/render_ios_icon.py` importiert Balken, Farben und Playhead aus
+>   `macos/render_macos_icon.py` und schreibt direkt nach
+>   `SetCraft iOS/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png`.
+> - Die Dateien direkt in diesem Ordner (unten) sind das **frühere** symmetrische Motiv und
+>   werden von keinem Target mehr benutzt.
 
 ## Dateien
 

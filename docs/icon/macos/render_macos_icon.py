@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """SetCraft macOS-Icon (Big-Sur-Vorlage): 1024er Canvas, Body 824x824 @100, Radius 185.4, Schatten.
-Erzeugt SVG-Master (voll + reduziert), PNG-Vorschau und das AppIcon.appiconset."""
+Erzeugt SVG-Master (voll + reduziert), PNG-Vorschau und das AppIcon.appiconset.
+
+Das Motiv (Balken, Farben, Playhead) nutzt auch ../ios/render_ios_icon.py —
+deshalb laufen die Ausgaben nur beim direkten Aufruf (main)."""
 import os, json
 from PIL import Image, ImageDraw, ImageFilter
 
 OUT = os.path.dirname(os.path.abspath(__file__))
 SET = os.path.join(OUT, "AppIcon.appiconset")
-os.makedirs(SET, exist_ok=True)
 
 BODY = (100, 100, 924, 924); R = 185.4
 BG = "#15151a"; MID = 512
@@ -84,32 +86,38 @@ def render(bars, ph, px):
     img.paste(layer, (0, 0), mask)
     return img.resize((px, px), Image.LANCZOS)
 
-FULL, SMALL = bars_full(), bars_small()
-open(os.path.join(OUT, "setcraft-icon-1024.svg"), "w").write(svg(FULL, PH, "SetCraft macOS Icon"))
-open(os.path.join(OUT, "setcraft-icon-small.svg"), "w").write(svg(SMALL, S_PH, "SetCraft macOS Icon (klein)"))
-render(FULL, PH, 1024).save(os.path.join(OUT, "setcraft-icon-1024.png"))
-render(SMALL, S_PH, 1024).save(os.path.join(OUT, "setcraft-icon-small.png"))
+def main():
+    os.makedirs(SET, exist_ok=True)
+    FULL, SMALL = bars_full(), bars_small()
+    open(os.path.join(OUT, "setcraft-icon-1024.svg"), "w").write(svg(FULL, PH, "SetCraft macOS Icon"))
+    open(os.path.join(OUT, "setcraft-icon-small.svg"), "w").write(svg(SMALL, S_PH, "SetCraft macOS Icon (klein)"))
+    render(FULL, PH, 1024).save(os.path.join(OUT, "setcraft-icon-1024.png"))
+    render(SMALL, S_PH, 1024).save(os.path.join(OUT, "setcraft-icon-small.png"))
 
-jobs = [(16,"icon_16x16.png",SMALL,S_PH),(32,"icon_16x16@2x.png",SMALL,S_PH),(32,"icon_32x32.png",SMALL,S_PH),
-        (64,"icon_32x32@2x.png",FULL,PH),(128,"icon_128x128.png",FULL,PH),(256,"icon_128x128@2x.png",FULL,PH),
-        (256,"icon_256x256.png",FULL,PH),(512,"icon_256x256@2x.png",FULL,PH),(512,"icon_512x512.png",FULL,PH),
-        (1024,"icon_512x512@2x.png",FULL,PH)]
-images = []
-for px, name, b, ph in jobs:
-    render(b, ph, px).save(os.path.join(SET, name))
-    size = name.split("_")[1].split("@")[0].replace(".png","")
-    images.append({"size": size, "idiom": "mac", "filename": name, "scale": "2x" if "@2x" in name else "1x"})
-json.dump({"images": images, "info": {"version": 1, "author": "xcode"}}, open(os.path.join(SET, "Contents.json"), "w"), indent=2)
+    jobs = [(16,"icon_16x16.png",SMALL,S_PH),(32,"icon_16x16@2x.png",SMALL,S_PH),(32,"icon_32x32.png",SMALL,S_PH),
+            (64,"icon_32x32@2x.png",FULL,PH),(128,"icon_128x128.png",FULL,PH),(256,"icon_128x128@2x.png",FULL,PH),
+            (256,"icon_256x256.png",FULL,PH),(512,"icon_256x256@2x.png",FULL,PH),(512,"icon_512x512.png",FULL,PH),
+            (1024,"icon_512x512@2x.png",FULL,PH)]
+    images = []
+    for px, name, b, ph in jobs:
+        render(b, ph, px).save(os.path.join(SET, name))
+        size = name.split("_")[1].split("@")[0].replace(".png","")
+        images.append({"size": size, "idiom": "mac", "filename": name, "scale": "2x" if "@2x" in name else "1x"})
+    json.dump({"images": images, "info": {"version": 1, "author": "xcode"}}, open(os.path.join(SET, "Contents.json"), "w"), indent=2)
 
-# Kontaktblatt
-sizes = [(1024,"setcraft-icon-1024.png"),]
-sheet_sizes = [16, 32, 64, 128, 256, 512]
-files = {16:"icon_16x16.png",32:"icon_32x32.png",64:"icon_32x32@2x.png",128:"icon_128x128.png",256:"icon_256x256.png",512:"icon_512x512.png"}
-pad = 28; H = 512 + 2*pad; W = sum(sheet_sizes) + pad*(len(sheet_sizes)+1)
-for name, bg in [("preview-dark.png",(30,30,34,255)),("preview-light.png",(236,236,240,255))]:
-    sheet = Image.new("RGBA", (W, H), bg); x = pad
-    for s in sheet_sizes:
-        im = Image.open(os.path.join(SET, files[s])).convert("RGBA")
-        sheet.alpha_composite(im, (x, (H - s)//2)); x += s + pad
-    sheet.save(os.path.join(OUT, name))
-print("ok")
+    # Kontaktblatt
+    sizes = [(1024,"setcraft-icon-1024.png"),]
+    sheet_sizes = [16, 32, 64, 128, 256, 512]
+    files = {16:"icon_16x16.png",32:"icon_32x32.png",64:"icon_32x32@2x.png",128:"icon_128x128.png",256:"icon_256x256.png",512:"icon_512x512.png"}
+    pad = 28; H = 512 + 2*pad; W = sum(sheet_sizes) + pad*(len(sheet_sizes)+1)
+    for name, bg in [("preview-dark.png",(30,30,34,255)),("preview-light.png",(236,236,240,255))]:
+        sheet = Image.new("RGBA", (W, H), bg); x = pad
+        for s in sheet_sizes:
+            im = Image.open(os.path.join(SET, files[s])).convert("RGBA")
+            sheet.alpha_composite(im, (x, (H - s)//2)); x += s + pad
+        sheet.save(os.path.join(OUT, name))
+    print("ok")
+
+
+if __name__ == "__main__":
+    main()
