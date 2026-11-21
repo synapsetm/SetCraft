@@ -4,15 +4,23 @@ Ergebnis-fokussierter Projektstand. Begleitend zu `CLAUDE.md` (Leitplanken)
 und `SPEC.md` (Spezifikation und Phasenplan). Die frühere sitzungsweise
 Chronologie ist bewusst entfernt — hier steht nur, was aktuell gilt.
 
-Letzte Aktualisierung: 2026-11-21 (Mac v1.5-26; iOS 1.3-40 in TestFlight).
+Letzte Aktualisierung: 2026-11-21 (Mac v1.6-27; iOS 1.3-40 in TestFlight).
 
 ---
 
 ## Aktueller Stand
 
 - **Phasen 0–5a komplett**, **Phase 5b (iOS-Target) voll umgesetzt**.
-- **Mac-Release:** v1.5-26 (Build 26), notarisiert, Sparkle-Auto-Update live.
-  Design-Release vom 2026-11-15, nach erfolgreichem Klick-Test: Hauptfenster
+- **Mac-Release:** v1.6-27 (Build 27), notarisiert, Sparkle-Auto-Update live.
+  Feature-Release vom 2026-11-21, nach erfolgreichem Klick-Test: **M3U/M3U8-
+  Playlists** als Quelle importieren und jede Liste als M3U8 exportieren
+  (Details unter „Was die Apps können → M3U-Playlists"). Dazu die Sandbox-
+  Ausnahme Lesen/Schreiben für `/Volumes/` (macOS fragt einmalig per TCC nach
+  Netzwerk-Volumes) und zwei Fixes rund um den Write auf den spielenden Track:
+  er überlebt einen Quellenwechsel und ist nach Wechsel weg und zurück
+  sichtbar. Offen: Relink-Oberfläche (3b), Import des Exports in Rekordbox,
+  iOS-Seite. iOS bleibt auf 1.3.
+  v1.5-26 war davor das Design-Release vom 2026-11-15, nach erfolgreichem Klick-Test: Hauptfenster
   im Redesign „B6 · Deck / Amber" (fest dunkel, Tokens in `Shared/Theme.swift`,
   Spec `docs/design/B6-spec.md`), Library-Filter (wirkt auf Prev/Next, Analyze
   missing und Complete tags), Amber-Akzent für die Tabellenauswahl, neues
@@ -179,7 +187,7 @@ C/C++-Libs (aubio, libKeyFinder, TagLib) liegen als vorgebaute
   Bookmark erzeugen lässt — auf ihr *Verzeichnis* dagegen nicht, das bräuchte
   eine explizite Freigabe per Picker.
 
-### M3U-Playlists (Mac, seit 2026-11-21, noch unreleased)
+### M3U-Playlists (Mac, seit v1.6-27 vom 2026-11-21)
 
 Spec: `docs/design/M3U-spec.md`, Stufe 1 (nur lesen + Export).
 
@@ -207,7 +215,7 @@ Spec: `docs/design/M3U-spec.md`, Stufe 1 (nur lesen + Export).
   Liste in aktueller Sortierung bzw. Auswahl, Pfade absolut oder relativ zur
   Playlist, Abschlussdialog mit übersprungenen Einträgen und absoluten
   Fallbacks. Dauer gerundet (Rekordbox schneidet ab, 1 s Unterschied).
-- **Abnahme 2026-11-21:** Rekordbox-Export (M3U8, „DnB 2026", 63 Tracks)
+- **Abnahme 2026-11-21:** Rekordbox-Export (M3U8, 63 Tracks)
   importiert; Export sortiert und als Auswahl geprüft (kein BOM, LF);
   Re-Import in SetCraft mit gleicher Reihenfolge; **Serato-Import ok**.
   **Offen:** Import in Rekordbox — dort war der Import-Menüpunkt beim Test
