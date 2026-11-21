@@ -153,13 +153,9 @@ Reihenfolge oben → unten (Hochformat):
    Papierkorb je Quelle (= «Remove» heute), darunter «Open folder…».
 3. **Master-Tempo-Leiste** (`MasterTempoBar`) direkt darunter, restylt: Label MASTER BPM, Wert `accent`,
    On/Off als Rahmen-Button, Slider-Tint `accent`. Funktion unverändert.
-4. **Filterfeld** + Button «ANALYZE n» (Rahmen `accent`, Text `accent`, nur sichtbar wenn n > 0;
-   n = Tracks ohne BPM oder Key, Aktion = `requestAnalyze` dieser Tracks inkl. DJ-Mix-Rückfrage).
-   Das Filterfeld ist **neu**: filtert nur in der View über `libraryStore.tracks` (Titel, Artist,
-   Gross-/Kleinschreibung egal), kein Eingriff in den Store. Platzhalter «Filter n tracks».
-   Im **Querformat** ausgeblendet, damit Tracks sichtbar bleiben — ausser ein Filter ist aktiv
-   (sonst wäre die Liste ohne sichtbaren Grund gekürzt). «ANALYZE n» entfällt dort mit;
-   Analysieren bleibt über `•••` → Analyze all und Swipe erreichbar.
+4. ~~Filterfeld + «ANALYZE n»~~ — **entfallen** (Entscheid 2026-11-21: zu viel Kopf über der Liste).
+   Beides war in I1 neu, vor I1 gab es keinen Filter; Analysieren läuft über `•••` → Analyze all,
+   den Swipe und automatisch beim Öffnen eines Tracks ohne Werte.
 5. Kopfzeile mit aktiver Sortierung, z. B. «ARTIST ↑» links und «BPM · KEY» rechts (`themeLabel()`).
 6. **Zeile:** Titel (laufender Track in `accent` mit ▶/❚❚, Lade-Spinner wie heute), Artist `textSecondary`,
    kleine Sterne, Play-Count; rechts BPM (monospacedDigit, Analyse-Spinner) und Key in Camelot-Farbe
@@ -202,7 +198,7 @@ Reihenfolge oben → unten (Hochformat):
 1. `Shared/` anlegen, `Theme.swift` verschieben, beiden Targets zuordnen; `Theme+iOS.swift`.
    Mac-Build muss unverändert aussehen (kurzer Klick-Test Mac).
 2. Tab-Leiste, Library-Kopf, Quellenzeile + Quellen-Menü, `•••`-Menü, Master-Tempo-Leiste.
-3. Filterfeld, ANALYZE n, Sortier-Kopfzeile, Zeile, Swipe-Aktionen, Leerzustände.
+3. Sortier-Kopfzeile, Zeile, Swipe-Aktionen, Leerzustände.
 4. Mini-Player.
 5. Player: Kopfzeile, Kacheln, Transport, Rating (Hochformat).
 6. Waveform: Playhead-Mitte, Zeit, Zoom in Takten, Beatgrid.

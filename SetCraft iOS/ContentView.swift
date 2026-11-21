@@ -130,8 +130,6 @@ private struct LibraryScreen: View {
     /// Lauf der Tag-Ergaenzung. Pro Aufruf neu gebaut, damit ein zweites
     /// Oeffnen nicht die Vorschlaege des letzten Laufs zeigt.
     @State private var fixStore: MetadataFixStore?
-    /// Filter über Titel und Artist — reine Anzeige, der Store bleibt unberührt.
-    @State private var filterText = ""
     @Environment(\.verticalSizeClass) private var vSizeClass
 
     var body: some View {
@@ -272,12 +270,6 @@ private struct LibraryScreen: View {
             )
         } else {
             VStack(spacing: 0) {
-            // Im Querformat kein Filterfeld — sonst bleibt unter den
-            // Kopfzeilen kaum Platz für Tracks. Ein aktiver Filter bleibt
-            // sichtbar, damit klar ist, warum die Liste gekürzt ist.
-            if vSizeClass != .compact || !filterText.isEmpty {
-                filterBar
-            }
             sortHeader
             List {
                 if let error = libraryStore.lastError {
@@ -286,7 +278,7 @@ private struct LibraryScreen: View {
                         .foregroundStyle(Theme.Palette.issueText)
                         .listRowBackground(Theme.Palette.background)
                 }
-                ForEach(filteredTracks) { track in
+                ForEach(libraryStore.tracks) { track in
                     // Match über URL — Track.id wird beim Scan/Cache-Read
                     // neu vergeben, URL ist die stabile Identität.
                     let isCurrent = playerStore.currentTrack?.url == track.url
@@ -342,12 +334,6 @@ private struct LibraryScreen: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .scrollDismissesKeyboard(.immediately)
-            .overlay {
-                if filteredTracks.isEmpty && !filterText.isEmpty {
-                    ContentUnavailableView.search(text: filterText)
-                }
-            }
             .refreshable {
                 await libraryStore.refresh()
             }
@@ -512,64 +498,6 @@ private struct LibraryScreen: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    /// Tracks nach Filter. Leerer Filter = alle, in Store-Reihenfolge.
-    private var filteredTracks: [Track] {
-        let query = filterText.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return libraryStore.tracks }
-        return libraryStore.tracks.filter {
-            $0.displayTitle.localizedStandardContains(query)
-                || $0.artist.localizedStandardContains(query)
-        }
-    }
-
-    /// Tracks ohne BPM oder Key — Ziel des «ANALYZE n»-Buttons.
-    private var tracksMissingAnalysis: [Track] {
-        libraryStore.tracks.filter { $0.bpm == nil || $0.key == nil }
-    }
-
-    /// Filterfeld und «ANALYZE n» über der Liste.
-    private var filterBar: some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Theme.Palette.textMuted)
-                TextField("Filter \(libraryStore.tracks.count) tracks", text: $filterText)
-                    .font(Theme.TypoIOS.body)
-                    .foregroundStyle(Theme.Palette.text)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .submitLabel(.search)
-                if !filterText.isEmpty {
-                    Button {
-                        filterText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(Theme.Palette.textMuted)
-                            .frame(width: 28, height: Theme.MetricsIOS.minTouch)
-                    }
-                    .accessibilityLabel("Clear filter")
-                }
-            }
-            .padding(.horizontal, 10)
-            .frame(height: Theme.MetricsIOS.minTouch)
-            .background(Theme.Palette.surface, in: RoundedRectangle(cornerRadius: Theme.Metrics.radius))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Metrics.radius)
-                .strokeBorder(Theme.Palette.border, lineWidth: 1))
-
-            let missing = tracksMissingAnalysis
-            if !missing.isEmpty {
-                Button("Analyze \(missing.count)") {
-                    requestAnalyze(missing)
-                }
-                .buttonStyle(ThemeButtonStyle(height: Theme.MetricsIOS.minTouch, kind: .accentOutline))
-                .fixedSize()
-            }
-        }
-        .padding(.horizontal, Theme.MetricsIOS.padding)
-        .padding(.vertical, 8)
     }
 
     /// Sortierhinweis über der Liste: aktives Kriterium links, Spalten rechts.
