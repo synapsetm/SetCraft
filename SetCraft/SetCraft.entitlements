@@ -33,6 +33,22 @@
 	     und das für eine Log-Zeile. Darum entfernt: die Warnung ist zurück,
 	     die Berechtigung weg. Nicht wieder aufnehmen, ohne einen Befund zu
 	     haben, der über die Konsolenmeldung hinausgeht. -->
+	<!-- Lese- und Schreibzugriff auf alle eingehängten Volumes (NAS/SMB,
+	     USB-Sticks), seit 2026-11-21. Grund sind importierte M3U-Playlists:
+	     ihre Tracks liegen oft ausserhalb der freigegebenen Ordnerquellen,
+	     und ohne diese Ausnahme müsste der Nutzer jeden Ordner einzeln per
+	     Dialog freigeben. Schreibrecht, weil Rating und Analyse in diese
+	     Tracks zurückschreiben — mit Leserecht allein wären sie abspielbar,
+	     aber nicht bewertbar. Nebenwirkung: Einzeldatei-Quellen auf einem
+	     Volume schreiben jetzt wieder atomar (Temp-Datei daneben), statt in
+	     den In-place-Fallback zu fallen.
+	     Gilt nur für /Volumes/ — Pfade auf der internen Platte brauchen
+	     weiterhin eine Freigabe. Für Developer ID und Notarisierung zulässig,
+	     im Mac App Store müsste sie begründet werden. -->
+	<key>com.apple.security.temporary-exception.files.absolute-path.read-write</key>
+	<array>
+		<string>/Volumes/</string>
+	</array>
 	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spks</string>

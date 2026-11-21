@@ -6,8 +6,12 @@ Zurückschreiben in die M3U) ist bewusst **Stufe 2** und nicht Teil dieser Spec.
 ## Spielregeln
 - Plattformneutrale Logik (Parser, Writer, Pfadauflösung, Relink-Suche) gehört nach **SetCraftCore**
   (`Library/`), nicht in die Views. macOS (`LibraryViewModel`) und iOS (`LibraryStore`) rufen nur auf.
-- Zugriff auf Dateien ausschliesslich über die bestehende Sandbox-Logik
-  (`Library/SecurityScope.swift`, Bookmarks in `Persistence/FolderRecord.swift`). Keine neue Entitlement.
+- Zugriff auf Dateien über die bestehende Sandbox-Logik
+  (`Library/SecurityScope.swift`, Bookmarks in `Persistence/FolderRecord.swift`).
+  **Ausnahme (entschieden 2026-11-21):** macOS erhält
+  `temporary-exception.files.absolute-path.read-write` für `/Volumes/`, damit Playlists mit Tracks
+  auf NAS/USB ohne Ordner-Dialog laden. Der Freigabe-Dialog aus §2 bleibt für Pfade ausserhalb
+  von `/Volumes/`. iOS unverändert.
 - M3U-Dateien werden in Stufe 1 **nie verändert**. Audiodateien und deren Tags ebenfalls nicht.
 - Beim Export gelten die Regeln aus SPEC §5b sinngemäss: keine Wiedergabewerte (gespielter BPM/Key) schreiben.
 - Darstellung im Stil B6 (macOS) bzw. I1 (iOS, `docs/design/ios-amber/`).
