@@ -74,7 +74,8 @@ Letzte Aktualisierung: 2026-11-21 (Mac v1.5-26; iOS 1.3-39 in TestFlight).
   •••-Menü (Kennzeichen im Kopf, wenn aktiv), Waveform mit Zoom in Takten
   (1–64, Standard 8), grosses Cover über dem Transport, neues Querformat,
   Complete-Tags-Sheet als Karten. Filterfeld bewusst wieder entfernt.
-  Ausserdem GRDB 7.12.0 (Sparkle 2.10.1 kommt mit dem nächsten Mac-Release).
+  Build 39 enthält noch GRDB 7.11.1; GRDB 7.12.0 und Sparkle 2.10.1 sind
+  seit `ff3a5f9` im Repo und kommen mit dem nächsten iOS- bzw. Mac-Build.
   Im Simulator abgenommen; **auf dem Gerät offen:** Pinch-Zoom, Quellenwechsel,
   Lock Screen, NAS-Quelle, Löschen per Swipe.
   38 war der Stand davor (hochgeladen 2026-10-02 22:08, seit 2026-11-21
