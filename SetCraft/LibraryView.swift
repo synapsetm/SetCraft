@@ -107,18 +107,30 @@ struct LibraryView: View {
                 }
             }
 
-            Button {
-                library.chooseFolder()
-            } label: {
-                Label("Add folder…", systemImage: "plus")
-                    .font(Theme.Typo.button)
-                    .tracking(Theme.Typo.buttonTracking)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Theme.Palette.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
+            HStack(spacing: 8) {
+                Button {
+                    library.chooseFolder()
+                } label: {
+                    Label("Add folder…", systemImage: "plus")
+                        .font(Theme.Typo.button)
+                        .tracking(Theme.Typo.buttonTracking)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    library.choosePlaylist()
+                } label: {
+                    Image(systemName: "music.note.list")
+                        .foregroundStyle(Theme.Palette.textSecondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Import an M3U playlist as a source")
             }
-            .buttonStyle(.plain)
             .padding(.horizontal, 22)
             .frame(height: Self.bottomBarHeight)
         }
@@ -133,6 +145,11 @@ struct LibraryView: View {
                 Text(String(format: "%02d", number))
                     .font(Theme.Typo.bodyNumeric)
                     .foregroundStyle(isActive ? Theme.Palette.accent : Theme.Palette.textMuted)
+                if folder.kind == .playlist {
+                    Image(systemName: "music.note.list")
+                        .font(.system(size: 11))
+                        .foregroundStyle(isActive ? Theme.Palette.accent : Theme.Palette.textMuted)
+                }
                 Text(folder.name)
                     .font(isActive ? Theme.Typo.body.weight(.semibold) : Theme.Typo.body)
                     .foregroundStyle(Theme.Palette.text)
@@ -314,6 +331,18 @@ struct LibraryView: View {
                 } else if !library.tracks.isEmpty {
                     Text("\(library.tracks.count) tracks")
                 }
+                if !library.isScanning, library.isPlaylistSource {
+                    let missing = library.playlistMissingCount
+                    if missing > 0 {
+                        Text(verbatim: " · ")
+                        Text("\(missing) missing")
+                    }
+                    let noAccess = library.playlistNoAccessCount
+                    if noAccess > 0 {
+                        Text(verbatim: " · ")
+                        Text("\(noAccess) no access")
+                    }
+                }
                 if !library.isScanning, !library.tracks.isEmpty {
                     let withoutBPM = library.visibleTracks.lazy.filter { $0.bpm == nil }.count
                     if withoutBPM > 0 {
@@ -345,6 +374,14 @@ struct LibraryView: View {
             }
 
             Spacer()
+
+            if library.isPlaylistSource, !library.isScanning, library.playlistNoAccessCount > 0 {
+                Button("Allow access…") {
+                    library.requestPlaylistAccess()
+                }
+                .buttonStyle(ThemeButtonStyle(height: 22, kind: .accentOutline))
+                .help("Grant access to the folder with the tracks that can't be loaded")
+            }
 
             if let error = library.lastWriteError {
                 ErrorChip(text: error, tint: Theme.Palette.issueText)
@@ -576,6 +613,7 @@ struct LibraryView: View {
     }
 
     private func inkOverride(_ track: Track) -> Color? {
+        if library.isUnavailable(track) { return Theme.Palette.textMuted }
         let emphasized = tableFocused && controlActiveState != .inactive
         return emphasized && library.selectedTrackIDs.contains(track.id)
             ? Theme.Palette.onAccent : nil
@@ -606,6 +644,8 @@ struct LibraryView: View {
                     .font(.system(size: 10))
                     .foregroundStyle(ink(track, unsaved ? Theme.Palette.issueText : Theme.Palette.accent))
                     .help(unsaved ? "Unsaved changes" : (isPlaying ? "Playing" : "Paused"))
+            } else if let status = library.playlistStatus(for: track), status.fileURL == nil {
+                PlaylistStatusIcon(status: status, rawLine: library.playlistEntryLine(for: track))
             } else {
                 Circle()
                     .fill(library.unsavedTrackIDs.contains(track.id) ? Theme.Palette.issueText : Color.clear)
@@ -616,6 +656,19 @@ struct LibraryView: View {
         .width(14)
         .customizationID("status")
         .disabledCustomizationBehavior([.visibility, .reorder])
+
+        // Nur bei Playlist-Quellen, direkt nach der Status-Spalte: die
+        // Playlist-Position ist dort die Hauptordnung. In Ordnern hätte die
+        // Spalte keine Werte.
+        if library.isPlaylistSource {
+            TableColumn(header("#"), value: \.playlistIndexSortable) { track in
+                Text(track.playlistIndex.map(String.init) ?? "")
+                    .monospacedDigit()
+                    .foregroundStyle(ink(track, Theme.Palette.textMuted))
+            }
+            .width(min: 28, ideal: 32, max: 50)
+            .customizationID("playlistIndex")
+        }
 
         TableColumn(header("Plays"), value: \.playCount) { track in
             Text(track.playCount == 0 ? "—" : String(track.playCount))
@@ -820,7 +873,9 @@ struct LibraryView: View {
     }
 
     private func update(_ track: Track, _ mutate: (inout Track) -> Void) {
-        guard let idx = library.tracks.firstIndex(where: { $0.id == track.id }) else { return }
+        guard let idx = library.tracks.firstIndex(where: { $0.id == track.id }),
+              !library.isUnavailable(library.tracks[idx])
+        else { return }
         mutate(&library.tracks[idx])
         library.scheduleSave(library.tracks[idx])
     }
@@ -828,13 +883,14 @@ struct LibraryView: View {
     private func loadFirst(_ ids: Set<Track.ID>) {
         guard
             let id = ids.first,
-            let track = library.tracks.first(where: { $0.id == id })
+            let track = library.tracks.first(where: { $0.id == id }),
+            !library.isUnavailable(track)
         else { return }
         onLoadInPlayer(track)
     }
 
     private func reanalyzeAll(_ ids: Set<Track.ID>) {
-        requestReanalyze(library.tracks.filter { ids.contains($0.id) })
+        requestReanalyze(library.tracks.filter { ids.contains($0.id) && !library.isUnavailable($0) })
     }
 
     /// Startet die ausdrückliche Analyse. Tracks, die als DJ-Mix erkannt
@@ -981,6 +1037,41 @@ struct LibraryView: View {
 /// mit voll-scrollbarer Meldung + Copy-Button. Damit bleiben lange Diagnose-
 /// Texte (z. B. NSError mit Underlying + POSIX-Errno) sichtbar, ohne die
 /// Toolbar zu sprengen.
+/// Symbol in der Status-Spalte für Playlist-Einträge ohne ladbare Datei.
+/// Der Tooltip nennt den Grund und den Pfad aus der M3U.
+private struct PlaylistStatusIcon: View {
+    let status: PlaylistEntryStatus
+    let rawLine: String?
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 10))
+            .foregroundStyle(Theme.Palette.textMuted)
+            .help(tooltip)
+    }
+
+    private var symbol: String {
+        switch status {
+        case .noAccess:    return "lock"
+        case .ambiguous:   return "questionmark"
+        case .unsupported: return "globe"
+        default:           return "exclamationmark.triangle"
+        }
+    }
+
+    private var tooltip: String {
+        let reason: String
+        switch status {
+        case .noAccess:    reason = String(localized: "No access — the folder isn't one of your sources")
+        case .ambiguous:   reason = String(localized: "Several matching files found")
+        case .unsupported: reason = String(localized: "Network entries are not supported")
+        default:           reason = String(localized: "File not found")
+        }
+        guard let rawLine else { return reason }
+        return reason + "\n" + rawLine
+    }
+}
+
 private struct ErrorChip: View {
     let text: String
     let tint: Color

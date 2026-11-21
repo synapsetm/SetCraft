@@ -109,6 +109,10 @@ struct SetCraftApp: App {
                     library.chooseFolder()
                 }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
+
+                Button("Import playlist…") {
+                    library.choosePlaylist()
+                }
             }
         }
     }

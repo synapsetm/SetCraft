@@ -2,6 +2,10 @@ import AppKit
 import Foundation
 import Observation
 import SetCraftCore
+import OSLog
+import UniformTypeIdentifiers
+
+private let playlistLog = Logger(subsystem: "ch.buehler.beat.SetCraft", category: "Playlist")
 
 @Observable
 final class LibraryViewModel {
@@ -14,9 +18,27 @@ final class LibraryViewModel {
     /// beiden ist gesetzt, sobald eine Quelle ausgewählt ist.
     var fileURL: URL?
 
+    /// M3U der aktiven Quelle — `nil`, wenn keine Playlist gewählt ist.
+    var playlistURL: URL?
+
     /// Pfad der aktiven Quelle, egal welcher Art — für Anzeige und für die
     /// Frage, ob überhaupt etwas ausgewählt ist.
-    var sourceURL: URL? { folderURL ?? fileURL }
+    var sourceURL: URL? { folderURL ?? fileURL ?? playlistURL }
+
+    var isPlaylistSource: Bool { playlistURL != nil }
+
+    /// Eintrag und Auflösungsstatus jeder Zeile der aktiven Playlist, über
+    /// `Track.id`. Leer bei Ordner- und Datei-Quellen.
+    private(set) var playlistRows: [Track.ID: PlaylistRow] = [:]
+
+    struct PlaylistRow {
+        var entry: PlaylistEntry
+        var status: PlaylistEntryStatus
+    }
+
+    /// Playlists, für die in dieser Sitzung schon um Freigabe gebeten wurde —
+    /// der Dialog kommt genau einmal, nicht bei jedem Auswählen.
+    private var accessPromptedPlaylists: Set<String> = []
     var isScanning = false
     /// Mehrfachselektion: `Table` braucht ein `Set<Track.ID>` als Binding,
     /// damit Shift-/Cmd-Klick und Drag-Bulkaktionen funktionieren. Einzel-
@@ -136,7 +158,8 @@ final class LibraryViewModel {
     var missingAnalysisCount: Int {
         let inFlight = analysesInFlight
         return visibleTracks.lazy.filter {
-            !$0.isLikelyDJMix
+            !self.isUnavailable($0)
+                && !$0.isLikelyDJMix
                 && ($0.bpm == nil || $0.key == nil)
                 && !inFlight.contains($0.url)
         }.count
@@ -220,6 +243,22 @@ final class LibraryViewModel {
         orphanedSaves[url] = ParkedSave(track: track, token: token)
     }
 
+    /// Frisch geladene Zeile mit dem Stand eines geparkten Writes für dieselbe
+    /// Datei. Ohne das zeigte ein Wechsel weg und zurück das alte Rating: der
+    /// Write wartet noch auf den Player, Cache und Datei kennen den neuen
+    /// Wert also nicht (2026-11-21). Der geparkte Write wird auf die neue
+    /// Zeile umgehängt, damit ihr «ungespeichert»-Punkt nach dem Schreiben
+    /// verschwindet.
+    private func adoptParked(_ loaded: Track) -> Track {
+        guard let parked = orphanedSaves[loaded.url] else { return loaded }
+        let merged = parked.track.reassigned(to: loaded)
+        unsavedTrackIDs.remove(parked.track.id)
+        blockedByActivePlayer.remove(parked.track.id)
+        unsavedTrackIDs.insert(merged.id)
+        orphanedSaves[loaded.url] = ParkedSave(track: merged, token: parked.token)
+        return merged
+    }
+
     /// Entfernt die geparkte Kopie, wenn sie zu genau diesem Track gehört —
     /// ein Analyse-Ergebnis für dieselbe Datei (andere ID) bleibt stehen.
     private func unpark(_ track: Track) {
@@ -240,6 +279,344 @@ final class LibraryViewModel {
         panel.title = String(localized: "Choose music folder")
         if panel.runModal() == .OK, let url = panel.url {
             persistAndScan(url)
+        }
+    }
+
+    // MARK: - Playlist-Quellen (M3U)
+
+    /// `true` für Playlist-Zeilen ohne ladbare Datei (fehlt, kein Zugriff,
+    /// mehrdeutig, Netz-Eintrag). Auf solche Zeilen wird nie geschrieben,
+    /// sie werden weder analysiert noch gespielt.
+    func isUnavailable(_ track: Track) -> Bool {
+        guard let row = playlistRows[track.id] else { return false }
+        return row.status.fileURL == nil
+    }
+
+    func playlistStatus(for track: Track) -> PlaylistEntryStatus? {
+        playlistRows[track.id]?.status
+    }
+
+    /// Pfadzeile aus der M3U, für den Tooltip fehlender Einträge.
+    func playlistEntryLine(for track: Track) -> String? {
+        playlistRows[track.id]?.entry.rawLine
+    }
+
+    /// Zahlen für die Statuszeile: fehlende Einträge (inkl. mehrdeutiger und
+    /// Netz-Einträge) und Einträge ohne Zugriff.
+    var playlistMissingCount: Int {
+        playlistRows.values.lazy.filter {
+            switch $0.status {
+            case .missing, .ambiguous, .unsupported: return true
+            default: return false
+            }
+        }.count
+    }
+
+    var playlistNoAccessCount: Int {
+        playlistRows.values.lazy.filter {
+            if case .noAccess = $0.status { return true }
+            return false
+        }.count
+    }
+
+    /// Räumt den Playlist-Zustand ab, wenn eine Ordner- oder Datei-Quelle
+    /// geladen wird. Steht die Sortierung noch auf «#», zurück auf Titel —
+    /// ausserhalb einer Playlist hat die Spalte keine Werte.
+    private func leavePlaylist() {
+        playlistURL = nil
+        playlistRows = [:]
+        if sortOrder.first?.keyPath == \Track.playlistIndexSortable {
+            sortOrder = [KeyPathComparator(\Track.title, order: .forward)]
+        }
+    }
+
+    /// Steht dieselbe Datei mehrfach in der Playlist, bekommen alle Zeilen
+    /// den neuen Stand. Sonst schriebe ein späterer Edit an einer veralteten
+    /// Zeile zum Beispiel das alte Rating zurück in die Datei.
+    private func mirrorToDuplicates(_ track: Track) {
+        guard isPlaylistSource else { return }
+        for i in tracks.indices where tracks[i].url == track.url && tracks[i].id != track.id {
+            guard !isUnavailable(tracks[i]) else { continue }
+            tracks[i] = track.reassigned(to: tracks[i])
+        }
+    }
+
+    func choosePlaylist() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [UTType.m3uPlaylist]
+            + ["m3u", "m3u8"].compactMap { UTType(filenameExtension: $0) }
+        panel.title = String(localized: "Import playlist")
+        if panel.runModal() == .OK, let url = panel.url {
+            importPlaylist(url)
+        }
+    }
+
+    /// Nimmt die M3U als Quelle auf. Ist sie schon da, wird nur umgeschaltet.
+    /// Das Bookmark auf die Datei reicht, um sie nach einem Neustart wieder zu
+    /// lesen; die Musik selbst kommt über die Ordnerquellen.
+    private func importPlaylist(_ url: URL) {
+        let path = url.standardizedFileURL.path
+        if let existing = folders.first(where: { $0.kind == .playlist && $0.url == path }) {
+            Task { await selectFolder(id: existing.id) }
+            return
+        }
+        guard let bookmark = try? url.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        ) else {
+            lastLibraryError = String(localized: "Could not add ‘\(url.lastPathComponent)’ to the library.")
+            return
+        }
+        let record = FolderRecord(
+            url: url,
+            name: url.deletingPathExtension().lastPathComponent,
+            bookmarkData: bookmark,
+            kind: .playlist
+        )
+        folders.append(record)
+        Task { [database] in
+            try? await database.saveFolder(record)
+        }
+        // Panel-URLs sind ohne Scope zugreifbar — siehe `persistFileSource`.
+        scopes.activate(url, requireScope: false)
+        selectedFolderID = record.id
+        lastLibraryError = nil
+        loadPlaylist(id: record.id, url: url)
+    }
+
+    /// Liest die Playlist, löst die Einträge auf und füllt `tracks` in
+    /// Playlist-Reihenfolge. Der Scope der M3U ist zu diesem Zeitpunkt
+    /// bereits aktiv; die Ordnerquellen kommen als Begleit-Scopes dazu.
+    ///
+    /// Zwei Durchläufe: der erste mit den Pfaden aus dem Track-Cache als
+    /// Relink-Kandidaten (billig), der zweite nur, wenn danach noch etwas
+    /// fehlt — dann mit dem Listing aller Ordnerquellen, das auf einem NAS
+    /// Sekunden kosten kann.
+    func loadPlaylist(id: String, url: URL) {
+        scanTask?.cancel()
+        cancelPendingWaveformPrefetches()
+        let previouslySelected = Set(
+            tracks.filter { selectedTrackIDs.contains($0.id) }.map(\.url.standardizedFileURL)
+        )
+        let wasSamePlaylist = playlistURL == url
+        folderURL = nil
+        fileURL = nil
+        playlistURL = url
+        playlistRows = [:]
+        tracks = []
+        isScanning = true
+        if !wasSamePlaylist {
+            sortOrder = [KeyPathComparator(\Track.playlistIndexSortable, order: .forward)]
+        }
+
+        scopes.retireCompanions()
+        let sources = folders.filter { $0.kind != .playlist }
+        scanTask = Task { [weak self, database, repository] in
+            let bookmarkURLs = await PlaylistResolver.resolveBookmarks(sources.map(\.bookmark_data))
+            guard let self, !Task.isCancelled else { return }
+            // `/Volumes/` ist per Entitlement freigegeben (siehe
+            // `SetCraft.entitlements`) — Tracks auf NAS und USB brauchen
+            // keinen Ordner-Dialog. Nur für Pfade ausserhalb bleibt er.
+            var roots: [URL] = [Self.volumesRoot]
+            var folderRoots: [URL] = []
+            for (record, resolved) in zip(sources, bookmarkURLs) {
+                guard let resolved, self.scopes.addCompanion(resolved) else { continue }
+                roots.append(resolved)
+                if record.kind == .folder { folderRoots.append(resolved) }
+            }
+
+            let links = (try? await database.playlistLinks(playlistID: id)) ?? [:]
+            let cachedPaths = (try? await database.cachedTrackPaths()) ?? []
+            let cachedFiles = cachedPaths.map { URL(fileURLWithPath: $0) }
+            var context = PlaylistResolver.Context(
+                grantedRoots: roots,
+                relinkIndex: RelinkIndex(files: cachedFiles),
+                storedLinks: links
+            )
+
+            var resolved: [ResolvedPlaylistEntry]
+            do {
+                resolved = try await PlaylistResolver.load(playlistAt: url, context: context)
+            } catch {
+                guard !Task.isCancelled else { return }
+                self.lastLibraryError = String(
+                    localized: "Could not read playlist ‘\(url.lastPathComponent)’: \(error.localizedDescription)"
+                )
+                self.isScanning = false
+                return
+            }
+
+            let stillOpen = resolved.contains {
+                switch $0.status {
+                case .missing, .ambiguous: return true
+                default: return false
+                }
+            }
+            if stillOpen, !folderRoots.isEmpty, !Task.isCancelled {
+                let listed = await PlaylistResolver.collectAudioFiles(in: folderRoots)
+                context.relinkIndex = RelinkIndex(files: cachedFiles + listed)
+                resolved = await PlaylistResolver.resolve(resolved.map(\.entry), context: context)
+            }
+
+            // Verteilung ins Log: daran lässt sich ablesen, ob die Sandbox für
+            // Pfade ausserhalb der Quellen EPERM (→ noAccess) oder ENOENT
+            // (→ missing) meldet.
+            let summary = Dictionary(grouping: resolved, by: { Self.statusName($0.status) })
+                .map { "\($0.key)=\($0.value.count)" }.sorted().joined(separator: " ")
+            playlistLog.notice("Loaded \(url.lastPathComponent, privacy: .public): \(summary, privacy: .public), roots=\(roots.count)")
+
+            for item in resolved {
+                if Task.isCancelled { break }
+                var track: Track
+                if let file = item.status.fileURL {
+                    track = await repository.loadTrack(url: file) ?? Self.placeholderTrack(for: item.entry, url: file)
+                } else {
+                    track = Self.placeholderTrack(for: item.entry, url: nil)
+                }
+                if Task.isCancelled { break }
+                track.playlistIndex = item.entry.index
+                track = self.adoptParked(track)
+                self.playlistRows[track.id] = PlaylistRow(entry: item.entry, status: item.status)
+                self.tracks.append(track)
+                self.prefetchWaveform(track)
+            }
+            guard !Task.isCancelled else { return }
+            self.isScanning = false
+            self.applySortOrder()
+            if !previouslySelected.isEmpty {
+                self.selectedTrackIDs = Set(
+                    self.tracks.filter { previouslySelected.contains($0.url.standardizedFileURL) }.map(\.id)
+                )
+            }
+            self.requestAccessIfNeeded(playlistID: id, resolved: resolved)
+        }
+    }
+
+    /// Per Sandbox-Ausnahme freigegeben, siehe `SetCraft.entitlements`.
+    private static let volumesRoot = URL(fileURLWithPath: "/Volumes", isDirectory: true)
+
+    private static func statusName(_ status: PlaylistEntryStatus) -> String {
+        switch status {
+        case .resolved:    return "resolved"
+        case .relinked:    return "relinked"
+        case .noAccess:    return "noAccess"
+        case .ambiguous:   return "ambiguous"
+        case .missing:     return "missing"
+        case .unsupported: return "unsupported"
+        }
+    }
+
+    /// Zeile für einen Eintrag ohne lesbaren Tag: Artist und Titel aus
+    /// `#EXTINF`, sonst der Dateiname.
+    private static func placeholderTrack(for entry: PlaylistEntry, url: URL?) -> Track {
+        let fallbackURL: URL
+        switch entry.location {
+        case .local(let local):     fallbackURL = local
+        case .foreign(let path):    fallbackURL = URL(fileURLWithPath: path)
+        case .remote(let remote):   fallbackURL = remote
+        }
+        let target = url ?? fallbackURL
+        return Track(
+            url: target,
+            title: entry.extTitle ?? target.deletingPathExtension().lastPathComponent,
+            artist: entry.extArtist ?? "",
+            durationSeconds: TimeInterval(entry.extDuration ?? 0)
+        )
+    }
+
+    /// Bittet einmal pro Sitzung und Playlist um Zugriff auf den kleinsten
+    /// Ordner, der alle Einträge ohne Zugriff enthält. Die Freigabe wird wie
+    /// «Add folder…» als Ordnerquelle gespeichert, danach wird neu aufgelöst.
+    private func requestAccessIfNeeded(playlistID: String, resolved: [ResolvedPlaylistEntry]) {
+        guard resolved.contains(where: { if case .noAccess = $0.status { return true }; return false }),
+              !accessPromptedPlaylists.contains(playlistID)
+        else { return }
+        accessPromptedPlaylists.insert(playlistID)
+        requestPlaylistAccess()
+    }
+
+    /// Fragt nach Zugriff auf die Tracks der aktiven Playlist, die ausserhalb
+    /// der Quellen liegen. Automatisch einmal nach dem Laden, danach über den
+    /// Knopf in der Statuszeile — wer den Dialog abgelehnt hat, braucht einen
+    /// Weg zurück, ohne die App neu zu starten.
+    ///
+    /// Die Freigabe wird wie «Add folder…» als Ordnerquelle gespeichert. Neu
+    /// aufgelöst werden danach nur die Zeilen ohne Datei, an Ort und Stelle —
+    /// Auswahl, Scrollposition und laufende Wiedergabe bleiben unberührt.
+    func requestPlaylistAccess() {
+        let denied = tracks.compactMap { track -> URL? in
+            if case .noAccess(let url) = playlistRows[track.id]?.status { return url }
+            return nil
+        }
+        guard !denied.isEmpty,
+              let playlistID = selectedFolderID,
+              let record = folders.first(where: { $0.id == playlistID && $0.kind == .playlist })
+        else { return }
+
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = PlaylistResolver.commonAncestor(of: denied)
+        panel.message = String(
+            localized: "“\(record.name)” contains \(denied.count) tracks outside your sources. Allow access to their folder so SetCraft can load them."
+        )
+        panel.prompt = String(localized: "Allow Access")
+        guard panel.runModal() == .OK, let folder = panel.url else { return }
+
+        if !folders.contains(where: { $0.kind == .folder && $0.url == folder.standardizedFileURL.path }),
+           let bookmark = try? folder.bookmarkData(
+               options: .withSecurityScope,
+               includingResourceValuesForKeys: nil,
+               relativeTo: nil
+           ) {
+            let source = FolderRecord(url: folder, name: folder.lastPathComponent, bookmarkData: bookmark)
+            folders.append(source)
+            Task { [database] in
+                try? await database.saveFolder(source)
+            }
+        }
+        // Panel-URLs sind ohne Scope zugreifbar. Beim nächsten vollen Laden
+        // kommt der Ordner regulär über sein Bookmark dazu.
+        scopes.addCompanion(folder, requireScope: false)
+        resolveUnavailableRows(playlistID: playlistID, newFolder: folder)
+    }
+
+    /// Löst nur die Zeilen ohne Datei erneut auf und ersetzt sie in `tracks`
+    /// an derselben Stelle und mit derselben ID. Der freigegebene Ordner
+    /// dient zusätzlich als Relink-Kandidat für Einträge, die vorher fehlten.
+    private func resolveUnavailableRows(playlistID: String, newFolder: URL) {
+        let pending = tracks.compactMap { track -> (Track.ID, PlaylistEntry)? in
+            guard let row = playlistRows[track.id], row.status.fileURL == nil else { return nil }
+            return (track.id, row.entry)
+        }
+        guard !pending.isEmpty else { return }
+        let roots = scopes.openURLs
+
+        Task { [weak self, repository] in
+            let listed = await PlaylistResolver.collectAudioFiles(in: [newFolder])
+            let context = PlaylistResolver.Context(grantedRoots: roots, relinkIndex: RelinkIndex(files: listed))
+            let resolved = await PlaylistResolver.resolve(pending.map(\.1), context: context)
+
+            for ((id, _), item) in zip(pending, resolved) {
+                guard let file = item.status.fileURL else { continue }
+                let loaded = await repository.loadTrack(url: file)
+                // Quelle gewechselt, während geladen wurde → nichts mehr anfassen.
+                guard let self, self.selectedFolderID == playlistID,
+                      let idx = self.tracks.firstIndex(where: { $0.id == id })
+                else { return }
+                let fresh = loaded ?? Track(url: file, title: self.tracks[idx].title,
+                                            artist: self.tracks[idx].artist,
+                                            durationSeconds: self.tracks[idx].durationSeconds)
+                self.tracks[idx] = self.adoptParked(fresh.reassigned(to: self.tracks[idx]))
+                self.playlistRows[id] = PlaylistRow(entry: item.entry, status: item.status)
+                self.prefetchWaveform(self.tracks[idx])
+            }
+            playlistLog.notice("Access granted for \(newFolder.lastPathComponent, privacy: .public): \(resolved.filter { $0.status.fileURL != nil }.count, privacy: .public) of \(pending.count, privacy: .public) rows now loadable")
         }
     }
 
@@ -289,8 +666,9 @@ final class LibraryViewModel {
         let parentPath = file.deletingLastPathComponent().path
         return folders.first { record in
             switch record.kind {
-            case .file:   return record.url == file.path
-            case .folder: return record.url == parentPath
+            case .file:     return record.url == file.path
+            case .folder:   return record.url == parentPath
+            case .playlist: return false
             }
         }
     }
@@ -386,6 +764,8 @@ final class LibraryViewModel {
             tracks = []
             folderURL = nil
             fileURL = nil
+            playlistURL = nil
+            playlistRows = [:]
             lastLibraryError = nil
             return
         }
@@ -412,6 +792,8 @@ final class LibraryViewModel {
                 tracks = []
                 folderURL = nil
                 fileURL = nil
+                playlistURL = nil
+                playlistRows = [:]
                 lastLibraryError = String(
                     localized: "Access to ‘\(record.name)’ was lost. Remove the folder and add it again."
                 )
@@ -421,8 +803,9 @@ final class LibraryViewModel {
             selectedFolderID = id
             lastLibraryError = nil
             switch record.kind {
-            case .folder: scan(folder: url)
-            case .file:   scan(file: url)
+            case .folder:   scan(folder: url)
+            case .file:     scan(file: url)
+            case .playlist: loadPlaylist(id: id, url: url)
             }
 
             if isStale,
@@ -502,12 +885,14 @@ final class LibraryViewModel {
         cancelPendingWaveformPrefetches()
         folderURL = nil
         fileURL = file
+        leavePlaylist()
         tracks = []
         isScanning = true
 
         scanTask = Task { [file, repository] in
-            let track = await repository.loadTrack(url: file) ?? Track(url: file)
+            let loaded = await repository.loadTrack(url: file) ?? Track(url: file)
             if !Task.isCancelled {
+                let track = adoptParked(loaded)
                 tracks = [track]
                 prefetchWaveform(track)
             }
@@ -528,14 +913,16 @@ final class LibraryViewModel {
         )
         folderURL = folder
         fileURL = nil
+        leavePlaylist()
         tracks = []
         isScanning = true
 
         scanTask = Task { [folder, repository] in
             let (stream, _) = await repository.scan(folder: folder)
             if Task.isCancelled { return }
-            for await track in stream {
+            for await loaded in stream {
                 if Task.isCancelled { break }
+                let track = adoptParked(loaded)
                 tracks.append(track)
                 // Welle direkt im Hintergrund rechnen lassen, sobald der Track
                 // beim Scan auftaucht. WaveformCache dedupliziert per URL und
@@ -567,13 +954,13 @@ final class LibraryViewModel {
     /// Sinnvoll für Bulk-Aktionen (Re-Analyze, BPM-Scaling, Drag-OUT), die
     /// stabil über die sichtbare Sortierung iterieren sollen.
     var selectedTracks: [Track] {
-        tracks.filter { selectedTrackIDs.contains($0.id) }
+        tracks.filter { selectedTrackIDs.contains($0.id) && !isUnavailable($0) }
     }
 
     /// Tracks, bei denen Artist oder Titel fehlt — die Kundschaft der
     /// Metadaten-Ergaenzung. Nur die sichtbaren, wenn ein Filter aktiv ist.
     var tracksMissingTags: [Track] {
-        visibleTracks.filter { $0.title.isEmpty || $0.artist.isEmpty }
+        visibleTracks.filter { !isUnavailable($0) && ($0.title.isEmpty || $0.artist.isEmpty) }
     }
 
     /// Der DB-Actor dient der Metadaten-Kette als Cache fuer Katalog-Antworten.
@@ -618,9 +1005,9 @@ final class LibraryViewModel {
     /// auf den ersten Library-Track gesprungen, damit der Knopf trotzdem
     /// etwas Sinnvolles tut.
     func nextTrack(after url: URL?) -> Track? {
-        let list = visibleTracks
+        let list = playableTracks
         guard !list.isEmpty else { return nil }
-        guard let url, let idx = list.firstIndex(where: { $0.url == url }) else {
+        guard let url, let idx = position(of: url, in: list) else {
             return list.first
         }
         let next = idx + 1
@@ -630,13 +1017,26 @@ final class LibraryViewModel {
     /// Vorheriger Track in der aktuell angezeigten Sortierung. Bei nicht-in-
     /// der-Library-geladenen Tracks Fallback auf den ersten Track.
     func previousTrack(before url: URL?) -> Track? {
-        let list = visibleTracks
+        let list = playableTracks
         guard !list.isEmpty else { return nil }
-        guard let url, let idx = list.firstIndex(where: { $0.url == url }) else {
+        guard let url, let idx = position(of: url, in: list) else {
             return list.first
         }
         let prev = idx - 1
         return prev >= 0 ? list[prev] : nil
+    }
+
+    /// Sichtbare Tracks ohne Playlist-Einträge, deren Datei fehlt.
+    private var playableTracks: [Track] {
+        visibleTracks.filter { !isUnavailable($0) }
+    }
+
+    /// Position des gespielten Tracks. Steht dieselbe Datei mehrfach in einer
+    /// Playlist, zählt die ausgewählte Zeile — sonst liefe Auto-Advance nach
+    /// dem zweiten Vorkommen wieder hinter das erste und käme nie ans Ende.
+    private func position(of url: URL, in list: [Track]) -> Int? {
+        list.firstIndex { $0.url == url && selectedTrackIDs.contains($0.id) }
+            ?? list.firstIndex { $0.url == url }
     }
 
     // MARK: - Filter
@@ -685,6 +1085,8 @@ final class LibraryViewModel {
             scan(folder: folderURL)
         } else if let fileURL {
             scan(file: fileURL)
+        } else if let playlistURL, let id = selectedFolderID {
+            loadPlaylist(id: id, url: playlistURL)
         }
     }
 
@@ -1002,7 +1404,7 @@ final class LibraryViewModel {
     /// damit dieselbe Persistenz-Pipeline läuft wie bei einer Inline-Edit
     /// in der Library-Tabelle.
     func setRating(forURL url: URL, _ rating: Rating) {
-        guard let idx = tracks.firstIndex(where: { $0.url == url }) else { return }
+        guard let idx = tracks.firstIndex(where: { $0.url == url && !isUnavailable($0) }) else { return }
         guard tracks[idx].rating != rating else { return }
         tracks[idx].rating = rating
         scheduleSave(tracks[idx])
@@ -1013,6 +1415,9 @@ final class LibraryViewModel {
     /// Vom UI nach jeder Mutation aufrufen. Mehrere schnelle Aufrufe für
     /// denselben Track werden zu einem einzigen Schreibvorgang gebündelt.
     func scheduleSave(_ track: Track) {
+        // Playlist-Eintrag ohne Datei: es gibt nichts zu schreiben.
+        guard !isUnavailable(track) else { return }
+        mirrorToDuplicates(track)
         unsavedTrackIDs.insert(track.id)
         pendingSaves[track.id]?.cancel()
         let debounce = saveDebounce
@@ -1053,6 +1458,7 @@ final class LibraryViewModel {
     }
 
     private func performSave(_ track: Track) async {
+        guard !isUnavailable(track) else { return }
         // Safety-Net: hält den Scope mindestens für die Dauer des
         // Schreibvorgangs fest, auch wenn der Aufrufer keinen Token hielt.
         let token = scopes.token(for: track.url)
@@ -1160,6 +1566,7 @@ final class LibraryViewModel {
     /// damit beim späteren Anklicken die Welle sofort da ist. Ein zweiter
     /// Aufruf während laufender Audio-Analyse wird ignoriert.
     func analyzeIfNeeded(_ track: Track) {
+        guard !isUnavailable(track) else { return }
         prefetchWaveform(track)
 
         // DJ-Mix: BPM und Key ergeben über einen ganzen Mix keinen Sinn, und
@@ -1253,6 +1660,7 @@ final class LibraryViewModel {
     /// bereits Werte vorhanden sind. Wird vom Re-Analyze-Befehl in der Library
     /// verwendet, wenn man den Auto-Werten nicht traut.
     func reanalyze(_ track: Track) {
+        guard !isUnavailable(track) else { return }
         prefetchWaveform(track, force: true)
         if analysesInFlight.contains(track.url) { return }
 
@@ -1303,6 +1711,7 @@ final class LibraryViewModel {
     /// auf dieselbe Cache-Instanz zu. Drosselt auf `maxConcurrentPrefetches`,
     /// überzählige Anfragen werden in einer FIFO-Queue abgearbeitet.
     private func prefetchWaveform(_ track: Track, force: Bool = false) {
+        guard !isUnavailable(track) else { return }
         // DJ-Mixes nicht im Hintergrund vorrechnen: `PCMLoader` hält die
         // ganze Datei dekodiert im RAM (~1,3 GB bei zwei Stunden), und bis
         // zu drei Prefetches laufen parallel. Die Welle entsteht stattdessen
@@ -1365,7 +1774,7 @@ final class LibraryViewModel {
     /// `persistOrphanedAnalysis`.
     @MainActor
     private func applyAnalysis(_ result: AnalysisCoordinator.Result, toRowFor url: URL) -> Bool {
-        guard let idx = tracks.firstIndex(where: { $0.url == url }) else { return false }
+        guard let idx = tracks.firstIndex(where: { $0.url == url && !isUnavailable($0) }) else { return false }
         var updated = tracks[idx]
         if let bpm = result.bpm { updated.bpm = bpm }
         if let key = result.key { updated.key = key }
@@ -1430,6 +1839,7 @@ final class LibraryViewModel {
     }
 
     private func persistAfterAnalysis(_ track: Track) {
+        mirrorToDuplicates(track)
         unsavedTrackIDs.insert(track.id)
         pendingSaves[track.id]?.cancel()
         pendingSaves[track.id] = nil

@@ -571,6 +571,149 @@
     "●" : {
       "shouldTranslate" : false
     },
+    "#" : {
+      "shouldTranslate" : false
+    },
+    "%lld missing" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld fehlend"
+          }
+        }
+      }
+    },
+    "%lld no access" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ohne Zugriff"
+          }
+        }
+      }
+    },
+    "Allow Access" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zugriff erlauben"
+          }
+        }
+      }
+    },
+    "Could not read playlist ‘%@’: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist „%1$@“ konnte nicht gelesen werden: %2$@"
+          }
+        }
+      }
+    },
+    "File not found" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datei nicht gefunden"
+          }
+        }
+      }
+    },
+    "Import an M3U playlist as a source" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "M3U-Playlist als Quelle importieren"
+          }
+        }
+      }
+    },
+    "Import playlist" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist importieren"
+          }
+        }
+      }
+    },
+    "Import playlist…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist importieren…"
+          }
+        }
+      }
+    },
+    "Network entries are not supported" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netzwerk-Einträge werden nicht unterstützt"
+          }
+        }
+      }
+    },
+    "No access — the folder isn't one of your sources" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Zugriff — der Ordner ist keine deiner Quellen"
+          }
+        }
+      }
+    },
+    "Several matching files found" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehrere passende Dateien gefunden"
+          }
+        }
+      }
+    },
+    "“%@” contains %lld tracks outside your sources. Allow access to their folder so SetCraft can load them." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%1$@“ enthält %2$lld Tracks ausserhalb deiner Quellen. Erlaube den Zugriff auf ihren Ordner, damit SetCraft sie laden kann."
+          }
+        }
+      }
+    },
+    "Allow access…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zugriff erlauben…"
+          }
+        }
+      }
+    },
+    "Grant access to the folder with the tracks that can't be loaded" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zugriff auf den Ordner mit den nicht ladbaren Tracks erlauben"
+          }
+        }
+      }
+    },
     "About SetCraft" : {
       "localizations" : {
         "de" : {
